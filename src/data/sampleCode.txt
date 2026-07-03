@@ -1,0 +1,169 @@
+import { useEffect, useMemo, useState } from "react";
+
+type Todo = {
+  id: number;
+  text: string;
+  completed: boolean;
+};
+
+type TodoFilter = "all" | "active" | "completed";
+
+const STORAGE_KEY = "todo-items";
+
+function loadTodos(): Todo[] {
+  const raw = localStorage.getItem(STORAGE_KEY);
+
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(raw) as Todo[];
+  } catch {
+    return [];
+  }
+}
+
+function saveTodos(todos: Todo[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+}
+
+function createTodo(text: string): Todo | null {
+  const trimmedText = text.trim();
+
+  if (!trimmedText) {
+    return null;
+  }
+
+  return {
+    id: Date.now(),
+    text: trimmedText,
+    completed: false,
+  };
+}
+
+export default function TodoPanel() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [inputText, setInputText] = useState("");
+  const [filter, setFilter] = useState<TodoFilter>("all");
+
+  useEffect(() => {
+    setTodos(loadTodos());
+  }, []);
+
+  useEffect(() => {
+    saveTodos(todos);
+  }, [todos]);
+
+  const visibleTodos = useMemo(() => {
+    if (filter === "active") {
+      return todos.filter((todo) => !todo.completed);
+    }
+
+    if (filter === "completed") {
+      return todos.filter((todo) => todo.completed);
+    }
+
+    return todos;
+  }, [todos, filter]);
+
+  function handleAddTodo() {
+    const newTodo = createTodo(inputText);
+
+    if (!newTodo) {
+      return;
+    }
+
+    setTodos((currentTodos) => [...currentTodos, newTodo]);
+    setInputText("");
+  }
+
+  function handleToggleTodo(id: number) {
+    setTodos((currentTodos) =>
+      currentTodos.map((todo) =>
+        todo.id === id
+          ? { ...todo, completed: !todo.completed }
+          : todo
+      )
+    );
+  }
+
+  function handleClearCompleted() {
+    setTodos((currentTodos) =>
+      currentTodos.filter((todo) => !todo.completed)
+    );
+  }
+
+  const completedCount = todos.filter((todo) => todo.completed).length;
+
+  return (
+    <section className="rounded-xl border border-slate-200 p-4 shadow-sm">
+      <h2 className="text-lg font-semibold">Todo Panel</h2>
+
+      <div className="mt-3 flex gap-2">
+        <input
+          value={inputText}
+          onChange={(event) => setInputText(event.target.value)}
+          className="flex-1 rounded-md border px-3 py-2"
+          placeholder="Add a todo"
+        />
+
+        <button
+          onClick={handleAddTodo}
+          className="rounded-md bg-blue-600 px-3 py-2 text-white hover:bg-blue-700"
+        >
+          Add
+        </button>
+      </div>
+
+      <div className="mt-3 flex gap-2">
+        {(["all", "active", "completed"] as TodoFilter[]).map((item) => (
+          <button
+            key={item}
+            onClick={() => setFilter(item)}
+            className={
+              item === filter
+                ? "rounded-md bg-slate-900 px-3 py-1 text-white"
+                : "rounded-md bg-slate-100 px-3 py-1 hover:bg-slate-200"
+            }
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      <ul className="mt-4 space-y-2">
+        {visibleTodos.map((todo) => (
+          <li
+            key={todo.id}
+            className="flex items-center justify-between rounded-md border p-2"
+          >
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={todo.completed}
+                onChange={() => handleToggleTodo(todo.id)}
+              />
+              <span className={todo.completed ? "line-through opacity-60" : ""}>
+                {todo.text}
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+
+      <footer className="mt-4 flex items-center justify-between text-sm text-slate-500">
+        <span>
+          {completedCount} / {todos.length} completed
+        </span>
+
+        <button
+          onClick={handleClearCompleted}
+          className="hover:text-slate-900"
+        >
+          Clear completed
+        </button>
+      </footer>
+    </section>
+  );
+}
