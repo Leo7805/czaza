@@ -76,8 +76,98 @@ The LLM explains what the code means.
 - DeepSeek API
 - TypeScript Compiler API
 
+## Structure
+
+```text
+CodeExplanation
+│
+├── File
+│
+├── Code Units
+│   ├── Component
+│   ├── Function
+│   ├── Hook
+│   ├── Interface
+│   └── ...
+│
+├── Semantic Units
+│   ├── Rendering
+│   ├── State Management
+│   ├── Event Handling
+│   └── ...
+│
+└── Code Lines
+```
+
+```text
+CodeExplanation
+├── language : Language
+├── file : Explanation
+│   ├── summary : string
+│   └── detail : string
+├── units : CodeUnit[]
+│   └── CodeUnit
+│       ├── id : string
+│       ├── kind : CodeUnitKind
+│       ├── name : string
+│       ├── range : Range
+│       │   ├── startLine : number
+│       │   └── endLine : number
+│       ├── code : string
+│       └── explanation : Explanation
+│           ├── summary : string
+│           └── detail : string
+├── semanticUnits : SemanticUnit[]
+│   └── SemanticUnit
+│       ├── id : string
+│       ├── name : string
+│       ├── range : Range
+│       │   ├── startLine : number
+│       │   └── endLine : number
+│       └── explanation : Explanation
+│           ├── summary : string
+│           └── detail : string
+├── lines : CodeLine[]
+│   └── CodeLine
+│       ├── lineNumber : number
+│       ├── code : string
+│       └── explanation : Explanation
+│           ├── summary : string
+│           └── detail : string
+└── userNote? : string
+
+Shared Types
+├── Explanation
+│   ├── summary : string
+│   └── detail : string
+├── Range
+│   ├── startLine : number
+│   └── endLine : number
+├── Language
+│   ├── ts
+│   ├── tsx
+│   ├── js
+│   ├── jsx
+│   ├── html
+│   └── css
+└── CodeUnitKind
+    ├── component
+    ├── function
+    ├── hook
+    ├── class
+    ├── method
+    ├── interface
+    ├── type
+    ├── enum
+    └── variable
+```
+
 ## Status
 
 This project is in its early prototype stage.
 
 It is currently built primarily for personal learning and code understanding.
+
+```
+
+```

@@ -1,4 +1,4 @@
-import { parseTailwindClass } from "../parseTailwindClass";
+import { parseTailwindClass } from "./parseTailwindClass";
 
 const cases = [
   {

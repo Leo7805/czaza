@@ -1,6 +1,6 @@
 import { callDeepSeek } from "@/core/providers/deepseek";
 import { explainFilePrompt } from "@/core/prompts/explainFilePrompt";
-import type { CodeExplanation } from "@/types";
+import type { CodeExplanation } from "@/types/types";
 import { parseTypeScriptSource } from "@/core/parser/typescriptParser";
 
 /**

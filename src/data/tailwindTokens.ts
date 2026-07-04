@@ -1,4 +1,4 @@
-import type { TokenDict } from "../types";
+import type { TokenDict } from "../types/types";
 
 export const tailwindDict: TokenDict = {
   fixed: {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { explainFile } from "@/core/services/explainFileService";
-import type { CodeExplanation } from "@/types";
+import type { CodeExplanation } from "@/types/types";
 import sampleCode from "@/data/sampleCode.txt?raw";
 import "../App.css";
 
