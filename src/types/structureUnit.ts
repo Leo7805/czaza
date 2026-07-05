@@ -46,5 +46,6 @@ export type BasicStructureUnit = {
  * A code unit enriched with an AI-generated explanation.
  */
 export type StructureUnit = BasicStructureUnit & {
+  /** AI-generated explanation for this structure unit. */
   explanation: ExplanationBlock;
 };

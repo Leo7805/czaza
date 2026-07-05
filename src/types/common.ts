@@ -5,7 +5,7 @@
 /**
  * Supported programming languages for the MVP.
  */
-export type Language = "ts" | "tsx" | "js" | "jsx";
+export type Language = "ts" | "tsx" | "js" | "jsx" | "csharp";
 
 /**
  * A line range within a source file.
