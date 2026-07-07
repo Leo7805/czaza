@@ -3,7 +3,7 @@
  * or file extensions to the internal Language type.
  */
 
-import type { Language } from "@/types/common";
+import type { Language } from "@shared/types/common";
 
 /**
  * Maps a VS Code language id to the internal Language type.

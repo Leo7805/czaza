@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { explainFile } from "@/core/services/explainFileService";
-import type { CodeExplanation } from "@/types/types";
-import sampleCode from "@/data/sampleCode.txt?raw";
-import "../App.css";
+import { explainFile } from "@shared/services/explainFileService";
+import type { CodeExplanation } from "@shared/types/types";
+import sampleCode from "@shared/data/sampleCode.txt?raw";
+import "@/App.css";
 
 export default function CodeExplainPlayground() {
   const [code, setCode] = useState(sampleCode);
@@ -47,8 +47,8 @@ export default function CodeExplainPlayground() {
             <p className="playground__eyebrow">Code Explain Playground</p>
             <h1>把代码拆成结构化说明</h1>
             <p className="playground__lede">
-              import sampleCode from "@/data/sampleCode.txt?raw"; 输入一段 TypeScript 或 JavaScript,
-              点击 Explain, 左边看源码, 右边看 AI 生成的分段解释。
+              import sampleCode from "@shared/data/sampleCode.txt?raw"; 输入一段 TypeScript 或
+              JavaScript, 点击 Explain, 左边看源码, 右边看 AI 生成的分段解释。
             </p>
           </div>
         </header>

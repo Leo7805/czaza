@@ -1,4 +1,12 @@
-import { SYSTEM_PROMPT } from "@/core/prompts/systemPrompt";
+import { SYSTEM_PROMPT } from "@shared/prompts/systemPrompt";
+
+type DeepSeekChatResponse = {
+  choices?: {
+    message?: {
+      content?: string;
+    };
+  }[];
+};
 
 export async function callDeepSeek(prompt: string): Promise<string> {
   const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
@@ -34,7 +42,7 @@ export async function callDeepSeek(prompt: string): Promise<string> {
     throw new Error(errorText);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as DeepSeekChatResponse;
 
   return data.choices?.[0]?.message?.content ?? "";
 }

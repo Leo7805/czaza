@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { explainTailwindClass } from "@/core/tailwind/explainTailwindClass";
-import type { TailwindExplanation } from "@/types/types";
+import { explainTailwindClass } from "@shared/tailwind/explainTailwindClass";
+import type { TailwindExplanation } from "@shared/types/types";
 
 const examples = [
   "fixed right-4 bottom-4 rounded-full",

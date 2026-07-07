@@ -1,7 +1,7 @@
-import { callDeepSeek } from "@/core/providers/deepseek";
-import { explainFilePrompt } from "@/core/prompts/explainFilePrompt";
-import type { CodeExplanation } from "@/types/types";
-import { parseTypeScriptSource } from "@/core/parser/typescriptParser";
+import { callDeepSeek } from "@shared/providers/deepseek";
+import { explainFilePrompt } from "@shared/prompts/explainFilePrompt";
+import type { CodeExplanation } from "@shared/types/types";
+import { parseTypeScriptSource } from "@shared/parser/typescriptParser";
 
 /**
  * Call ai to explain a given code snippet and returns a structured explanation.

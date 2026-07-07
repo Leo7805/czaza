@@ -27,5 +27,6 @@ export const DEFAULT_SCAN_RULES = {
     "images/**",
     "icons/**",
     "fonts/**",
+    "tests/**",
   ],
 } as const;

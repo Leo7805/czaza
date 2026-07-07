@@ -1,4 +1,4 @@
-import type { ParsedTailwindClass } from "../../types/types.ts";
+import type { ParsedTailwindClass } from "@shared/types/types";
 
 /**
  * Parses a Tailwind class string into its modifiers and base class.

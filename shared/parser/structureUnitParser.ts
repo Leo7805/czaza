@@ -6,8 +6,8 @@
  */
 
 import ts from "typescript";
-import type { Language } from "@/types/common";
-import type { BasicStructureUnit, StructureUnitKind } from "@/types/structureUnit";
+import type { Language } from "@shared/types/common";
+import type { BasicStructureUnit, StructureUnitKind } from "@shared/types/structureUnit";
 
 type TypeScriptLikeLanguage = Extract<Language, "ts" | "tsx" | "js" | "jsx">;
 
@@ -69,14 +69,7 @@ function parseTypeScriptStructureUnits(
    */
   function visit(node: ts.Node): void {
     if (ts.isFunctionDeclaration(node) && node.name) {
-      units.push(
-        createBasicStructureUnit(
-          sourceFile,
-          node,
-          getFunctionKind(node),
-          node.name.text,
-        ),
-      );
+      units.push(createBasicStructureUnit(sourceFile, node, getFunctionKind(node), node.name.text));
       return;
     }
 
@@ -139,9 +132,7 @@ function parseVariableStatement(
 /**
  * Classifies a function declaration as a React component, custom hook, or normal function.
  */
-function getFunctionKind(
-  node: ts.FunctionDeclaration,
-): StructureUnitKind {
+function getFunctionKind(node: ts.FunctionDeclaration): StructureUnitKind {
   const name = node.name?.text ?? "";
 
   if (isHookName(name)) {
@@ -158,10 +149,7 @@ function getFunctionKind(
 /**
  * Classifies a variable declaration as a component, hook, or variable.
  */
-function getVariableKind(
-  name: string,
-  initializer: ts.Expression | undefined,
-): StructureUnitKind {
+function getVariableKind(name: string, initializer: ts.Expression | undefined): StructureUnitKind {
   if (initializer && isFunctionLikeExpression(initializer)) {
     if (isHookName(name)) {
       return "hook";

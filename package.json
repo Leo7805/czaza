@@ -8,16 +8,17 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test:parser": "tsx src/core/parser/structureUnitParser.dev.ts",
     "test": "vitest",
     "test:run": "vitest run"
   },
   "dependencies": {
+    "picomatch": "^4.0.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",
+    "@types/picomatch": "^4.0.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",

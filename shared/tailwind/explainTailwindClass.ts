@@ -1,6 +1,6 @@
-import { parseTailwindClass } from "@/core/tailwind/parseTailwindClass";
-import { explainTailwindToken } from "@/core/tailwind/explainTailwindToken";
-import type { TailwindExplanation } from "@/types/types";
+import { parseTailwindClass } from "./parseTailwindClass";
+import { explainTailwindToken } from "./explainTailwindToken";
+import type { TailwindExplanation } from "@shared/types/types";
 
 /**
  * Explains a Tailwind class by attaching notes to each parsed component.
