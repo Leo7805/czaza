@@ -8,9 +8,25 @@ export type CZazaConfig = {
   /** Internal output directory used by CZaza. */
   outDir: string;
 
-  /** File glob patterns to include during scanning. */
-  include: string[];
+  /** Project scanning configuration. */
+  scan: CZazaScanConfig;
+};
 
-  /** File or directory glob patterns to exclude during scanning. */
-  exclude: string[];
+export type CZazaScanConfig = {
+  /** Maximum depth of directories to scan before stopping. */
+  maxDepth: number;
+
+  /** Maximum number of files and directories to scan before stopping. */
+  maxEntries: number;
+
+  /** Path rules used when building the Project Map. */
+  rules: CZazaScanRules;
+};
+
+export type CZazaScanRules = {
+  /** Paths that should be completely hidden from the Project Map. */
+  ignore: string[];
+
+  /** Paths that should be shown without scanning their internal files. */
+  collapseOnly: string[];
 };

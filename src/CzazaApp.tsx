@@ -4,7 +4,7 @@ import type { CodeExplanation } from "@shared/types/types";
 import sampleCode from "@shared/data/sampleCode.txt?raw";
 import "@/App.css";
 
-export default function CodeExplainPlayground() {
+export default function CzazaApp() {
   const [code, setCode] = useState(sampleCode);
   const [result, setResult] = useState<CodeExplanation | null>(null);
   const [error, setError] = useState("");
@@ -44,11 +44,11 @@ export default function CodeExplainPlayground() {
       <div className="playground__shell">
         <header className="playground__hero">
           <div>
-            <p className="playground__eyebrow">Code Explain Playground</p>
+            <p className="playground__eyebrow">CZaza</p>
             <h1>把代码拆成结构化说明</h1>
             <p className="playground__lede">
-              import sampleCode from "@shared/data/sampleCode.txt?raw"; 输入一段 TypeScript 或
-              JavaScript, 点击 Explain, 左边看源码, 右边看 AI 生成的分段解释。
+              输入一段 TypeScript 或 JavaScript, 点击 Explain, 左边看源码, 右边看 AI
+              生成的分段解释。
             </p>
           </div>
         </header>
@@ -90,7 +90,7 @@ export default function CodeExplainPlayground() {
               {loading ? (
                 <div className="playground__empty-state">
                   <div className="playground__spinner" />
-                  <strong>Explaining…</strong>
+                  <strong>Explaining...</strong>
                   <span>正在整理文件作用、主逻辑、函数与注意事项。</span>
                 </div>
               ) : result ? (

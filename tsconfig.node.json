@@ -26,5 +26,5 @@
       "@tests/*": ["./tests/*"]
     }
   },
-  "include": ["vite.config.ts", "shared", "node", "tests"]
+  "include": ["vite.config.ts", "shared", "node", "tests", "vscode"]
 }

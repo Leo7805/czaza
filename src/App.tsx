@@ -1,8 +1,5 @@
-// App.tsx
-
-// import TailwindPlayground from "./playground/TailwindPlayground";
-import CodeExplainPlayground from "./playground/CodeExplainPlayground";
+import CzazaApp from "./CzazaApp";
 
 export default function App() {
-  return <CodeExplainPlayground />;
+  return <CzazaApp />;
 }

@@ -1,11 +1,18 @@
 import type { CZazaConfig } from "@shared/types/config";
+import { DEFAULT_SCAN_RULES } from "@shared/config/scanRules";
 
 /**
  * Default CZaza configuration.
  */
 export const defaultConfig: CZazaConfig = {
-  language: "zh-CN",
+  language: "en",
   outDir: ".czaza",
-  include: ["src/**/*.{ts,tsx,js,jsx}"],
-  exclude: ["node_modules", "dist", "build", ".git", ".czaza", "coverage"],
+  scan: {
+    maxDepth: 8,
+    maxEntries: 5000,
+    rules: {
+      ignore: [...DEFAULT_SCAN_RULES.ignore],
+      collapseOnly: [...DEFAULT_SCAN_RULES.collapseOnly],
+    },
+  },
 };

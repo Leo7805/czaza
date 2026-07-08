@@ -1,7 +1,9 @@
 import path from "node:path";
 import { readdir } from "node:fs/promises";
 import picomatch from "picomatch";
+import { createPathMatcher, type ProjectPathMatcher } from "./createPathMatcher";
 import { DEFAULT_SCAN_RULES } from "@shared/config/scanRules";
+import type { CZazaScanRules } from "@shared/types/config";
 import type {
   ProjectTreeCategory,
   ProjectTreeUnit,
@@ -11,18 +13,18 @@ import type {
 const DEFAULT_MAX_DEPTH = 8; // Maximum depth of directories to scan before stopping.
 const DEFAULT_MAX_ENTRIES = 5000; // Maximum number of files and directories to scan before stopping.
 
-const isIgnored = picomatch([...DEFAULT_SCAN_RULES.ignore]);
-const isCollapsed = picomatch([...DEFAULT_SCAN_RULES.collapseOnly]);
-
 type ScanProjectTreeOptions = {
   maxDepth?: number;
   maxEntries?: number;
+  rules?: CZazaScanRules;
 };
 
 type ScanProjectTreeContext = {
   visitedCount: number;
   maxDepth: number;
   maxEntries: number;
+  isIgnored: ProjectPathMatcher;
+  isCollapsed: ProjectPathMatcher;
 };
 
 /**
@@ -38,6 +40,8 @@ export async function scanProjectTree(
     visitedCount: 0,
     maxDepth: options.maxDepth ?? DEFAULT_MAX_DEPTH,
     maxEntries: options.maxEntries ?? DEFAULT_MAX_ENTRIES,
+    isIgnored: createPathMatcher(options.rules?.ignore ?? DEFAULT_SCAN_RULES.ignore),
+    isCollapsed: createPathMatcher(options.rules?.collapseOnly ?? DEFAULT_SCAN_RULES.collapseOnly),
   };
 
   return {
@@ -74,18 +78,18 @@ async function scanDirectory(
   for (const dirent of dirents) {
     const absolutePath = path.join(currentDir, dirent.name);
     const relativePath = normalizePath(path.relative(root, absolutePath));
+    const kind: "file" | "directory" = dirent.isDirectory() ? "directory" : "file";
 
-    const ignored = isIgnored(relativePath) || isIgnored(`${relativePath}/`);
+    const ignored = context.isIgnored(relativePath, kind);
 
     if (ignored) {
       continue;
     }
 
-    const kind: "file" | "directory" = dirent.isDirectory() ? "directory" : "file";
     const category = getProjectTreeCategory(relativePath);
 
     if (kind === "directory") {
-      const collapsed = isCollapsed(relativePath) || isCollapsed(`${relativePath}/`);
+      const collapsed = context.isCollapsed(relativePath, kind);
       const status: ProjectTreeStatus = collapsed ? "collapsed" : "normal";
 
       const unit: ProjectTreeUnit = {

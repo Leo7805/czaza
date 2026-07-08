@@ -1,0 +1,827 @@
+{
+  "version": 1,
+  "scannedAt": "2026-07-08T06:46:53.635Z",
+  "root": "/Users/leo/Projects/czaza",
+  "signature": {
+    "entryCount": 99,
+    "hash": "023799517d7895a9edcd6a560b6654b940f74fdc8f3f2fb32314109a65b39314"
+  },
+  "tree": {
+    "id": ".",
+    "kind": "directory",
+    "category": "authored",
+    "status": "normal",
+    "path": ".",
+    "name": "czaza",
+    "children": [
+      {
+        "id": ".czaza",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": ".czaza",
+        "name": ".czaza",
+        "children": [
+          {
+            "id": ".czaza/config.json",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": ".czaza/config.json",
+            "name": "config.json",
+            "description": "czaza 配置文件"
+          },
+          {
+            "id": ".czaza/project-tree-cache.json",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": ".czaza/project-tree-cache.json",
+            "name": "project-tree-cache.json"
+          }
+        ]
+      },
+      {
+        "id": ".env.example",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": ".env.example",
+        "name": ".env.example"
+      },
+      {
+        "id": ".env.local",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": ".env.local",
+        "name": ".env.local"
+      },
+      {
+        "id": ".gitignore",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": ".gitignore",
+        "name": ".gitignore"
+      },
+      {
+        "id": ".oxlintrc.json",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": ".oxlintrc.json",
+        "name": ".oxlintrc.json"
+      },
+      {
+        "id": ".prettierignore",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": ".prettierignore",
+        "name": ".prettierignore"
+      },
+      {
+        "id": ".prettierrc",
+        "kind": "file",
+        "category": "config",
+        "status": "normal",
+        "path": ".prettierrc",
+        "name": ".prettierrc"
+      },
+      {
+        "id": ".vscode",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": ".vscode",
+        "name": ".vscode",
+        "children": [
+          {
+            "id": ".vscode/launch.json",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": ".vscode/launch.json",
+            "name": "launch.json"
+          },
+          {
+            "id": ".vscode/settings.json",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": ".vscode/settings.json",
+            "name": "settings.json"
+          },
+          {
+            "id": ".vscode/tasks.json",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": ".vscode/tasks.json",
+            "name": "tasks.json"
+          }
+        ]
+      },
+      {
+        "id": "README.md",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": "README.md",
+        "name": "README.md"
+      },
+      {
+        "id": "czaza-0.0.1.vsix",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": "czaza-0.0.1.vsix",
+        "name": "czaza-0.0.1.vsix"
+      },
+      {
+        "id": "czaza-0.0.2.vsix",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": "czaza-0.0.2.vsix",
+        "name": "czaza-0.0.2.vsix"
+      },
+      {
+        "id": "dist",
+        "kind": "directory",
+        "category": "generated",
+        "status": "collapsed",
+        "path": "dist",
+        "name": "dist"
+      },
+      {
+        "id": "docs",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": "docs",
+        "name": "docs",
+        "children": [
+          {
+            "id": "docs/decisions.md",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": "docs/decisions.md",
+            "name": "decisions.md",
+            "description": "这个主要是管理我的一些重要的写代码的决策"
+          }
+        ],
+        "description": "目前这里只放了一些AI相关的一些文档"
+      },
+      {
+        "id": "index.html",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": "index.html",
+        "name": "index.html"
+      },
+      {
+        "id": "media",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": "media",
+        "name": "media",
+        "children": [
+          {
+            "id": "media/icon.svg",
+            "kind": "file",
+            "category": "asset",
+            "status": "normal",
+            "path": "media/icon.svg",
+            "name": "icon.svg"
+          }
+        ]
+      },
+      {
+        "id": "node",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": "node",
+        "name": "node",
+        "children": [
+          {
+            "id": "node/cache",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "node/cache",
+            "name": "cache",
+            "children": [
+              {
+                "id": "node/cache/projectTreeCache.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "node/cache/projectTreeCache.ts",
+                "name": "projectTreeCache.ts"
+              }
+            ]
+          },
+          {
+            "id": "node/config",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "node/config",
+            "name": "config",
+            "children": [
+              {
+                "id": "node/config/defaultConfig.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "node/config/defaultConfig.ts",
+                "name": "defaultConfig.ts"
+              },
+              {
+                "id": "node/config/loadConfig.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "node/config/loadConfig.ts",
+                "name": "loadConfig.ts"
+              }
+            ]
+          },
+          {
+            "id": "node/scan",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "node/scan",
+            "name": "scan",
+            "children": [
+              {
+                "id": "node/scan/createPathMatcher.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "node/scan/createPathMatcher.ts",
+                "name": "createPathMatcher.ts"
+              },
+              {
+                "id": "node/scan/getProjectScanSignature.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "node/scan/getProjectScanSignature.ts",
+                "name": "getProjectScanSignature.ts"
+              },
+              {
+                "id": "node/scan/scanProjectTree.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "node/scan/scanProjectTree.ts",
+                "name": "scanProjectTree.ts"
+              },
+              {
+                "id": "node/scan/scanProjectTreeDebug.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "node/scan/scanProjectTreeDebug.ts",
+                "name": "scanProjectTreeDebug.ts"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "node_modules",
+        "kind": "directory",
+        "category": "dependency",
+        "status": "collapsed",
+        "path": "node_modules",
+        "name": "node_modules"
+      },
+      {
+        "id": "package-lock.json",
+        "kind": "file",
+        "category": "dependency",
+        "status": "normal",
+        "path": "package-lock.json",
+        "name": "package-lock.json"
+      },
+      {
+        "id": "package.json",
+        "kind": "file",
+        "category": "config",
+        "status": "normal",
+        "path": "package.json",
+        "name": "package.json"
+      },
+      {
+        "id": "public",
+        "kind": "directory",
+        "category": "asset",
+        "status": "collapsed",
+        "path": "public",
+        "name": "public"
+      },
+      {
+        "id": "shared",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": "shared",
+        "name": "shared",
+        "children": [
+          {
+            "id": "shared/config",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/config",
+            "name": "config",
+            "children": [
+              {
+                "id": "shared/config/scanRules.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/config/scanRules.ts",
+                "name": "scanRules.ts"
+              }
+            ]
+          },
+          {
+            "id": "shared/data",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/data",
+            "name": "data",
+            "children": [
+              {
+                "id": "shared/data/sampleCode.txt",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/data/sampleCode.txt",
+                "name": "sampleCode.txt"
+              },
+              {
+                "id": "shared/data/tailwindTokens.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/data/tailwindTokens.ts",
+                "name": "tailwindTokens.ts"
+              }
+            ]
+          },
+          {
+            "id": "shared/parser",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/parser",
+            "name": "parser",
+            "children": [
+              {
+                "id": "shared/parser/index.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/parser/index.ts",
+                "name": "index.ts"
+              },
+              {
+                "id": "shared/parser/language.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/parser/language.ts",
+                "name": "language.ts"
+              },
+              {
+                "id": "shared/parser/structureUnitParser.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/parser/structureUnitParser.ts",
+                "name": "structureUnitParser.ts"
+              },
+              {
+                "id": "shared/parser/typescriptParser.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/parser/typescriptParser.ts",
+                "name": "typescriptParser.ts"
+              }
+            ]
+          },
+          {
+            "id": "shared/prompts",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/prompts",
+            "name": "prompts",
+            "children": [
+              {
+                "id": "shared/prompts/explainFilePrompt.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/prompts/explainFilePrompt.ts",
+                "name": "explainFilePrompt.ts"
+              },
+              {
+                "id": "shared/prompts/systemPrompt.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/prompts/systemPrompt.ts",
+                "name": "systemPrompt.ts"
+              }
+            ]
+          },
+          {
+            "id": "shared/providers",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/providers",
+            "name": "providers",
+            "children": [
+              {
+                "id": "shared/providers/deepseek.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/providers/deepseek.ts",
+                "name": "deepseek.ts"
+              }
+            ]
+          },
+          {
+            "id": "shared/services",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/services",
+            "name": "services",
+            "children": [
+              {
+                "id": "shared/services/explainFileService.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/services/explainFileService.ts",
+                "name": "explainFileService.ts"
+              }
+            ]
+          },
+          {
+            "id": "shared/tailwind",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/tailwind",
+            "name": "tailwind",
+            "children": [
+              {
+                "id": "shared/tailwind/explainTailwindClass.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/tailwind/explainTailwindClass.ts",
+                "name": "explainTailwindClass.ts"
+              },
+              {
+                "id": "shared/tailwind/explainTailwindToken.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/tailwind/explainTailwindToken.ts",
+                "name": "explainTailwindToken.ts"
+              },
+              {
+                "id": "shared/tailwind/parseTailwindClass.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/tailwind/parseTailwindClass.test.ts",
+                "name": "parseTailwindClass.test.ts"
+              },
+              {
+                "id": "shared/tailwind/parseTailwindClass.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/tailwind/parseTailwindClass.ts",
+                "name": "parseTailwindClass.ts"
+              }
+            ]
+          },
+          {
+            "id": "shared/types",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/types",
+            "name": "types",
+            "children": [
+              {
+                "id": "shared/types/codeExplanation.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/codeExplanation.ts",
+                "name": "codeExplanation.ts"
+              },
+              {
+                "id": "shared/types/common.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/common.ts",
+                "name": "common.ts"
+              },
+              {
+                "id": "shared/types/config.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/config.ts",
+                "name": "config.ts"
+              },
+              {
+                "id": "shared/types/fileUnit.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/fileUnit.ts",
+                "name": "fileUnit.ts",
+                "description": "文件级的输出格式定义"
+              },
+              {
+                "id": "shared/types/index.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/index.ts",
+                "name": "index.ts"
+              },
+              {
+                "id": "shared/types/lineUnit.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/lineUnit.ts",
+                "name": "lineUnit.ts"
+              },
+              {
+                "id": "shared/types/projectTreeUnit.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/projectTreeUnit.ts",
+                "name": "projectTreeUnit.ts",
+                "description": "目录树级的输出文件格式定义"
+              },
+              {
+                "id": "shared/types/semanticUnit.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/semanticUnit.ts",
+                "name": "semanticUnit.ts",
+                "description": "语义级的输出文件格式定义，主要针对 AI 扫描的语义块"
+              },
+              {
+                "id": "shared/types/structureUnit.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/structureUnit.ts",
+                "name": "structureUnit.ts",
+                "description": "结构级的，主要针对用编译器 AST(语法树)提取出来的结构块"
+              },
+              {
+                "id": "shared/types/tokenUnit.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/tokenUnit.ts",
+                "name": "tokenUnit.ts",
+                "description": "这个就是czaza支持的最小单元，比如变量、字符串等"
+              },
+              {
+                "id": "shared/types/types.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/types/types.ts",
+                "name": "types.ts",
+                "description": "之前的旧版本字义，写到一块了，后面会删掉"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "src",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": "src",
+        "name": "src",
+        "children": [
+          {
+            "id": "src/App.css",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": "src/App.css",
+            "name": "App.css"
+          },
+          {
+            "id": "src/App.tsx",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": "src/App.tsx",
+            "name": "App.tsx"
+          },
+          {
+            "id": "src/CzazaApp.tsx",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": "src/CzazaApp.tsx",
+            "name": "CzazaApp.tsx"
+          },
+          {
+            "id": "src/assets",
+            "kind": "directory",
+            "category": "asset",
+            "status": "collapsed",
+            "path": "src/assets",
+            "name": "assets"
+          },
+          {
+            "id": "src/core",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "src/core",
+            "name": "core",
+            "children": [
+              {
+                "id": "src/core/cache",
+                "kind": "directory",
+                "category": "authored",
+                "status": "normal",
+                "path": "src/core/cache",
+                "name": "cache",
+                "children": [
+                  {
+                    "id": "src/core/cache/cache.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "src/core/cache/cache.ts",
+                    "name": "cache.ts"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "src/index.css",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": "src/index.css",
+            "name": "index.css"
+          },
+          {
+            "id": "src/main.tsx",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": "src/main.tsx",
+            "name": "main.tsx"
+          },
+          {
+            "id": "src/playground",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "src/playground",
+            "name": "playground",
+            "children": [
+              {
+                "id": "src/playground/TailwindPlayground.tsx",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "src/playground/TailwindPlayground.tsx",
+                "name": "TailwindPlayground.tsx"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "tests",
+        "kind": "directory",
+        "category": "authored",
+        "status": "collapsed",
+        "path": "tests",
+        "name": "tests",
+        "description": "主要放测试脚本"
+      },
+      {
+        "id": "tsconfig.app.json",
+        "kind": "file",
+        "category": "config",
+        "status": "normal",
+        "path": "tsconfig.app.json",
+        "name": "tsconfig.app.json"
+      },
+      {
+        "id": "tsconfig.json",
+        "kind": "file",
+        "category": "config",
+        "status": "normal",
+        "path": "tsconfig.json",
+        "name": "tsconfig.json"
+      },
+      {
+        "id": "tsconfig.node.json",
+        "kind": "file",
+        "category": "config",
+        "status": "normal",
+        "path": "tsconfig.node.json",
+        "name": "tsconfig.node.json"
+      },
+      {
+        "id": "vite.config.ts",
+        "kind": "file",
+        "category": "config",
+        "status": "normal",
+        "path": "vite.config.ts",
+        "name": "vite.config.ts"
+      },
+      {
+        "id": "vscode",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": "vscode",
+        "name": "vscode",
+        "children": [
+          {
+            "id": "vscode/extension.ts",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": "vscode/extension.ts",
+            "name": "extension.ts"
+          },
+          {
+            "id": "vscode/webview",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "vscode/webview",
+            "name": "webview",
+            "children": [
+              {
+                "id": "vscode/webview/CzazaViewProvider.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/webview/CzazaViewProvider.ts",
+                "name": "CzazaViewProvider.ts"
+              },
+              {
+                "id": "vscode/webview/getWebviewHtml.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/webview/getWebviewHtml.ts",
+                "name": "getWebviewHtml.ts"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

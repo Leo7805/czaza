@@ -11,71 +11,39 @@ export const DEFAULT_SCAN_RULES = {
    */
   ignore: [
     // Version control
-    "**/.git",
-    "**/.git/**",
-    "**/.svn",
-    "**/.svn/**",
-    "**/.hg",
-    "**/.hg/**",
-
-    // Dependencies
-    "**/node_modules",
-    "**/node_modules/**",
+    ".git/",
+    ".svn/",
+    ".hg/",
 
     // IDE
-    "**/.idea",
-    "**/.idea/**",
-    "**/.vscode",
-    "**/.vscode/**",
+    ".idea/",
+    ".vscode/",
 
     // Build cache
-    "**/.turbo",
-    "**/.turbo/**",
-    "**/.cache",
-    "**/.cache/**",
-    "**/.next",
-    "**/.next/**",
-    "**/.expo",
-    "**/.expo/**",
-    "**/.vercel",
-    "**/.vercel/**",
-    "**/.netlify",
-    "**/.netlify/**",
+    ".turbo/",
+    ".expo/",
+    ".vercel/",
+    ".netlify/",
 
     // Build outputs
-    "**/dist",
-    "**/dist/**",
-    "**/build",
-    "**/build/**",
-    "**/coverage",
-    "**/coverage/**",
-    "**/.nyc_output",
-    "**/.nyc_output/**",
+    "coverage/",
+    ".nyc_output/",
 
     // Python
-    "**/__pycache__",
-    "**/__pycache__/**",
-    "**/.pytest_cache",
-    "**/.pytest_cache/**",
-    "**/.venv",
-    "**/.venv/**",
-    "**/venv",
-    "**/venv/**",
+    "__pycache__/",
+    ".pytest_cache/",
+    ".venv/",
+    "venv/",
 
     // Java / Kotlin
-    "**/.gradle",
-    "**/.gradle/**",
-    "**/target",
-    "**/target/**",
+    ".gradle/",
 
     // .NET
-    "**/bin",
-    "**/bin/**",
-    "**/obj",
-    "**/obj/**",
+    "bin/",
+    "obj/",
 
     // Misc
-    "**/.DS_Store",
+    ".DS_Store",
   ],
 
   /**
@@ -83,17 +51,17 @@ export const DEFAULT_SCAN_RULES = {
    * without scanning their internal files.
    */
   collapseOnly: [
-    "**/node_modules/**",
-    "**/.next/**",
-    "**/.cache/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/coverage/**",
-    "**/public/**",
-    "**/assets/**",
-    "**/images/**",
-    "**/icons/**",
-    "**/fonts/**",
-    "**/tests/**",
+    "node_modules/",
+    ".next/",
+    ".cache/",
+    "dist/",
+    "build/",
+    "target/",
+    "public/",
+    "assets/",
+    "images/",
+    "icons/",
+    "fonts/",
+    "tests/",
   ],
 } as const;

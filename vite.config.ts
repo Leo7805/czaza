@@ -11,6 +11,7 @@ export default defineConfig({
       "@shared": fileURLToPath(new URL("./shared", import.meta.url)),
       "@node": fileURLToPath(new URL("./node", import.meta.url)),
       "@tests": fileURLToPath(new URL("./tests", import.meta.url)),
+      "@vscode": fileURLToPath(new URL("./vscode", import.meta.url)),
     },
   },
 });
