@@ -10,7 +10,7 @@ import type { ExplanationBlock, Range } from "./common";
 /**
  * A logical section identified by the AI.
  *
- * Unlike CodeUnit, this is not necessarily a direct syntax node.
+ * Unlike StructureUnit, this is not necessarily a direct syntax node.
  * It is based on how humans understand the code.
  */
 export type SemanticUnit = {

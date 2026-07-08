@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "scannedAt": "2026-07-08T06:46:53.635Z",
+  "scannedAt": "2026-07-08T13:25:03.703Z",
   "root": "/Users/leo/Projects/czaza",
   "signature": {
-    "entryCount": 99,
-    "hash": "023799517d7895a9edcd6a560b6654b940f74fdc8f3f2fb32314109a65b39314"
+    "entryCount": 97,
+    "hash": "e80d683474ac536d431bf936efdafa5418de95a73e1a056c9039478209667ce5"
   },
   "tree": {
     "id": ".",
@@ -338,6 +338,24 @@
         "name": "shared",
         "children": [
           {
+            "id": "shared/ai",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/ai",
+            "name": "ai",
+            "children": [
+              {
+                "id": "shared/ai/aiClient.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/ai/aiClient.ts",
+                "name": "aiClient.ts"
+              }
+            ]
+          },
+          {
             "id": "shared/config",
             "kind": "directory",
             "category": "authored",
@@ -362,24 +380,7 @@
             "status": "normal",
             "path": "shared/data",
             "name": "data",
-            "children": [
-              {
-                "id": "shared/data/sampleCode.txt",
-                "kind": "file",
-                "category": "authored",
-                "status": "normal",
-                "path": "shared/data/sampleCode.txt",
-                "name": "sampleCode.txt"
-              },
-              {
-                "id": "shared/data/tailwindTokens.ts",
-                "kind": "file",
-                "category": "authored",
-                "status": "normal",
-                "path": "shared/data/tailwindTokens.ts",
-                "name": "tailwindTokens.ts"
-              }
-            ]
+            "children": []
           },
           {
             "id": "shared/parser",
@@ -432,12 +433,36 @@
             "name": "prompts",
             "children": [
               {
-                "id": "shared/prompts/explainFilePrompt.ts",
+                "id": "shared/prompts/commonPrompt.ts",
                 "kind": "file",
                 "category": "authored",
                 "status": "normal",
-                "path": "shared/prompts/explainFilePrompt.ts",
-                "name": "explainFilePrompt.ts"
+                "path": "shared/prompts/commonPrompt.ts",
+                "name": "commonPrompt.ts"
+              },
+              {
+                "id": "shared/prompts/explainFileStructurePrompt.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/prompts/explainFileStructurePrompt.ts",
+                "name": "explainFileStructurePrompt.ts"
+              },
+              {
+                "id": "shared/prompts/explainLineRangePrompt.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/prompts/explainLineRangePrompt.ts",
+                "name": "explainLineRangePrompt.ts"
+              },
+              {
+                "id": "shared/prompts/explainSemanticPrompt.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/prompts/explainSemanticPrompt.ts",
+                "name": "explainSemanticPrompt.ts"
               },
               {
                 "id": "shared/prompts/systemPrompt.ts",
@@ -476,12 +501,36 @@
             "name": "services",
             "children": [
               {
-                "id": "shared/services/explainFileService.ts",
+                "id": "shared/services/explainFileStructureService.ts",
                 "kind": "file",
                 "category": "authored",
                 "status": "normal",
-                "path": "shared/services/explainFileService.ts",
-                "name": "explainFileService.ts"
+                "path": "shared/services/explainFileStructureService.ts",
+                "name": "explainFileStructureService.ts"
+              },
+              {
+                "id": "shared/services/explainLineRangeService.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/services/explainLineRangeService.ts",
+                "name": "explainLineRangeService.ts"
+              },
+              {
+                "id": "shared/services/explainSemanticService.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/services/explainSemanticService.ts",
+                "name": "explainSemanticService.ts"
+              },
+              {
+                "id": "shared/services/explainUtils.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/services/explainUtils.ts",
+                "name": "explainUtils.ts"
               }
             ]
           },
@@ -492,40 +541,7 @@
             "status": "normal",
             "path": "shared/tailwind",
             "name": "tailwind",
-            "children": [
-              {
-                "id": "shared/tailwind/explainTailwindClass.ts",
-                "kind": "file",
-                "category": "authored",
-                "status": "normal",
-                "path": "shared/tailwind/explainTailwindClass.ts",
-                "name": "explainTailwindClass.ts"
-              },
-              {
-                "id": "shared/tailwind/explainTailwindToken.ts",
-                "kind": "file",
-                "category": "authored",
-                "status": "normal",
-                "path": "shared/tailwind/explainTailwindToken.ts",
-                "name": "explainTailwindToken.ts"
-              },
-              {
-                "id": "shared/tailwind/parseTailwindClass.test.ts",
-                "kind": "file",
-                "category": "authored",
-                "status": "normal",
-                "path": "shared/tailwind/parseTailwindClass.test.ts",
-                "name": "parseTailwindClass.test.ts"
-              },
-              {
-                "id": "shared/tailwind/parseTailwindClass.ts",
-                "kind": "file",
-                "category": "authored",
-                "status": "normal",
-                "path": "shared/tailwind/parseTailwindClass.ts",
-                "name": "parseTailwindClass.ts"
-              }
-            ]
+            "children": []
           },
           {
             "id": "shared/types",
@@ -619,15 +635,6 @@
                 "path": "shared/types/tokenUnit.ts",
                 "name": "tokenUnit.ts",
                 "description": "这个就是czaza支持的最小单元，比如变量、字符串等"
-              },
-              {
-                "id": "shared/types/types.ts",
-                "kind": "file",
-                "category": "authored",
-                "status": "normal",
-                "path": "shared/types/types.ts",
-                "name": "types.ts",
-                "description": "之前的旧版本字义，写到一块了，后面会删掉"
               }
             ]
           }
@@ -658,14 +665,6 @@
             "name": "App.tsx"
           },
           {
-            "id": "src/CzazaApp.tsx",
-            "kind": "file",
-            "category": "authored",
-            "status": "normal",
-            "path": "src/CzazaApp.tsx",
-            "name": "CzazaApp.tsx"
-          },
-          {
             "id": "src/assets",
             "kind": "directory",
             "category": "asset",
@@ -688,16 +687,7 @@
                 "status": "normal",
                 "path": "src/core/cache",
                 "name": "cache",
-                "children": [
-                  {
-                    "id": "src/core/cache/cache.ts",
-                    "kind": "file",
-                    "category": "authored",
-                    "status": "normal",
-                    "path": "src/core/cache/cache.ts",
-                    "name": "cache.ts"
-                  }
-                ]
+                "children": []
               }
             ]
           },
@@ -724,16 +714,7 @@
             "status": "normal",
             "path": "src/playground",
             "name": "playground",
-            "children": [
-              {
-                "id": "src/playground/TailwindPlayground.tsx",
-                "kind": "file",
-                "category": "authored",
-                "status": "normal",
-                "path": "src/playground/TailwindPlayground.tsx",
-                "name": "TailwindPlayground.tsx"
-              }
-            ]
+            "children": []
           }
         ]
       },

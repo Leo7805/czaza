@@ -18,8 +18,8 @@ export type CodeExplanation = {
   /** File-level explanation. */
   file: FileUnit;
 
-  /** Parser-detected code units enriched with AI explanations. */
-  codeUnits: StructureUnit[];
+  /** Parser-detected structure units enriched with AI explanations. */
+  structureUnits: StructureUnit[];
 
   /** AI-generated semantic sections. */
   semanticUnits: SemanticUnit[];

@@ -16,7 +16,9 @@ export type TokenUnit = {
   /** Optional category of the token. */
   kind?:
     | "tailwind-class"
+    | "css-class"
     | "jsx-prop"
+    | "jsx-tag"
     | "operator"
     | "keyword"
     | "identifier"

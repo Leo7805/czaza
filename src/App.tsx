@@ -1,5 +1,9 @@
-import CzazaApp from "./CzazaApp";
+import "./App.css";
 
 export default function App() {
-  return <CzazaApp />;
+  return (
+    <main className="app-shell">
+      <h1>CZaza React shell</h1>
+    </main>
+  );
 }
