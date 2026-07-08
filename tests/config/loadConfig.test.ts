@@ -14,11 +14,13 @@ describe("loadConfig()", () => {
 
     expect(config.language).toBe("en");
     expect(config.outDir).toBe(".czaza");
+    expect(config.ai.deepSeekApiKey).toBe("");
     expect(config.scan.maxDepth).toBe(8);
     expect(config.scan.rules.ignore).not.toContain(".czaza/");
     expect(config.scan.rules.ignore).not.toContain("node_modules/");
     expect(config.scan.rules.collapseOnly).toContain("node_modules/");
     expect(savedConfig.scan.rules.collapseOnly).toContain("dist/");
+    expect(savedConfig.ai.deepSeekApiKey).toBe("");
   });
 
   it("merges project config over defaults", async () => {
@@ -48,6 +50,7 @@ describe("loadConfig()", () => {
 
     expect(config.language).toBe("en");
     expect(config.outDir).toBe(".czaza");
+    expect(config.ai.deepSeekApiKey).toBe("");
     expect(config.scan.maxDepth).toBe(3);
     expect(config.scan.maxEntries).toBe(5000);
     expect(config.scan.rules.ignore).toEqual(["**/.custom-cache/**"]);

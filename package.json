@@ -41,14 +41,30 @@
     "vscode": "^1.100.0"
   },
   "activationEvents": [
+    "onStartupFinished",
     "onView:czaza.descriptionView",
-    "onCommand:czaza.showDescription"
+    "onCommand:czaza.showDescription",
+    "onCommand:czaza.analyzeFileStructure",
+    "onCommand:czaza.analyzeSemantic",
+    "onCommand:czaza.analyzeLineRange"
   ],
   "contributes": {
     "commands": [
       {
         "command": "czaza.showDescription",
         "title": "CZaza: Show Description"
+      },
+      {
+        "command": "czaza.analyzeFileStructure",
+        "title": "CZaza: Analyze File Structure"
+      },
+      {
+        "command": "czaza.analyzeSemantic",
+        "title": "CZaza: Analyze Semantic Units"
+      },
+      {
+        "command": "czaza.analyzeLineRange",
+        "title": "CZaza: Analyze Nearby Lines"
       }
     ],
     "menus": {
@@ -66,6 +82,11 @@
           "type": "string",
           "default": "#22c55e",
           "description": "Highlight color for user-added CZaza descriptions."
+        },
+        "czaza.deepSeekApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "DeepSeek API key used by CZaza AI analysis in VS Code."
         }
       }
     },

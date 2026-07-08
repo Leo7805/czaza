@@ -11,11 +11,15 @@ type DeepSeekChatResponse = {
 
 const DEFAULT_DEEPSEEK_TIMEOUT_MS = 75_000;
 
-export async function callDeepSeek(prompt: string): Promise<string> {
-  const apiKey = process.env.DEEPSEEK_API_KEY ?? process.env.VITE_DEEPSEEK_API_KEY;
+type DeepSeekOptions = {
+  apiKey?: string;
+};
+
+export async function callDeepSeek(prompt: string, options: DeepSeekOptions = {}): Promise<string> {
+  const apiKey = options.apiKey ?? process.env.DEEPSEEK_API_KEY ?? process.env.VITE_DEEPSEEK_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Missing DEEPSEEK_API_KEY");
+    throw new Error("Missing DeepSeek API key. Set czaza.deepSeekApiKey or DEEPSEEK_API_KEY.");
   }
 
   const abortController = new AbortController();

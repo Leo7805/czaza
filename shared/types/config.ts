@@ -10,6 +10,14 @@ export type CZazaConfig = {
 
   /** Project scanning configuration. */
   scan: CZazaScanConfig;
+
+  /** AI provider configuration. */
+  ai: CZazaAiConfig;
+};
+
+export type CZazaAiConfig = {
+  /** DeepSeek API key used by CZaza AI analysis. Leave empty to use VS Code settings or environment variables. */
+  deepSeekApiKey: string;
 };
 
 export type CZazaScanConfig = {

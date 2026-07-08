@@ -27,6 +27,10 @@ export async function loadConfig(projectRoot: string): Promise<CZazaConfig> {
   return {
     ...defaultConfig,
     ...userConfig,
+    ai: {
+      ...defaultConfig.ai,
+      ...userConfig.ai,
+    },
     scan: {
       ...defaultConfig.scan,
       ...userConfig.scan,

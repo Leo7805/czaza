@@ -7,6 +7,9 @@ import { DEFAULT_SCAN_RULES } from "@shared/config/scanRules";
 export const defaultConfig: CZazaConfig = {
   language: "en",
   outDir: ".czaza",
+  ai: {
+    deepSeekApiKey: "",
+  },
   scan: {
     maxDepth: 8,
     maxEntries: 5000,

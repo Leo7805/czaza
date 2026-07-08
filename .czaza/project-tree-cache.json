@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "scannedAt": "2026-07-08T13:25:03.703Z",
+  "scannedAt": "2026-07-08T13:37:35.203Z",
   "root": "/Users/leo/Projects/czaza",
   "signature": {
-    "entryCount": 97,
-    "hash": "e80d683474ac536d431bf936efdafa5418de95a73e1a056c9039478209667ce5"
+    "entryCount": 100,
+    "hash": "fc47ccf66d057b817d7a58cc7e3fb65dcb6d201ec4fbb8de52c10c10380919d3"
   },
   "tree": {
     "id": ".",
@@ -535,15 +535,6 @@
             ]
           },
           {
-            "id": "shared/tailwind",
-            "kind": "directory",
-            "category": "authored",
-            "status": "normal",
-            "path": "shared/tailwind",
-            "name": "tailwind",
-            "children": []
-          },
-          {
             "id": "shared/types",
             "kind": "directory",
             "category": "authored",
@@ -767,6 +758,40 @@
         "path": "vscode",
         "name": "vscode",
         "children": [
+          {
+            "id": "vscode/explanations",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "vscode/explanations",
+            "name": "explanations",
+            "children": [
+              {
+                "id": "vscode/explanations/ExplanationHoverProvider.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/explanations/ExplanationHoverProvider.ts",
+                "name": "ExplanationHoverProvider.ts"
+              },
+              {
+                "id": "vscode/explanations/ExplanationStore.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/explanations/ExplanationStore.ts",
+                "name": "ExplanationStore.ts"
+              },
+              {
+                "id": "vscode/explanations/registerExplanationCommands.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/explanations/registerExplanationCommands.ts",
+                "name": "registerExplanationCommands.ts"
+              }
+            ]
+          },
           {
             "id": "vscode/extension.ts",
             "kind": "file",

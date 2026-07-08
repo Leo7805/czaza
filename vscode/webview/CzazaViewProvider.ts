@@ -7,6 +7,7 @@ import {
   type ProjectTreeState,
 } from "@node/cache/projectTreeCache";
 import type { ProjectTreeUnit } from "@shared/types/projectTreeUnit";
+import { ExplanationStore } from "../explanations/ExplanationStore";
 import { getWebviewHtml } from "./getWebviewHtml";
 
 type DescriptionMessage = {
@@ -18,6 +19,9 @@ type DescriptionMessage = {
   status: ProjectTreeUnit["status"] | null;
   description: string;
   hasUserDescription: boolean;
+  aiDescription: string | null;
+  aiDetail: string | null;
+  aiNotes: string[];
   canEditDescription: boolean;
   highlightColor: string;
   isEditing: boolean;
@@ -31,6 +35,8 @@ type FileRoleItem = {
   description: string;
 };
 
+type AnalysisMessageType = "analyzeFileStructure" | "analyzeSemantic" | "analyzeLineRange";
+
 type WebviewMessage =
   | {
       type: "startEdit";
@@ -41,6 +47,9 @@ type WebviewMessage =
     }
   | {
       type: "cancelEdit";
+    }
+  | {
+      type: AnalysisMessageType;
     };
 
 /**
@@ -56,9 +65,11 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
   private editingResourceUri?: vscode.Uri;
 
   private readonly extensionUri: vscode.Uri;
+  private readonly explanations: ExplanationStore;
 
-  constructor(extensionUri: vscode.Uri) {
+  constructor(extensionUri: vscode.Uri, explanations: ExplanationStore) {
     this.extensionUri = extensionUri;
+    this.explanations = explanations;
   }
 
   /**
@@ -93,6 +104,15 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
 
         if (message.type === "startEdit") {
           await this.startEditingCurrentResource();
+          return;
+        }
+
+        if (
+          message.type === "analyzeFileStructure" ||
+          message.type === "analyzeSemantic" ||
+          message.type === "analyzeLineRange"
+        ) {
+          await this.runAnalysisCommand(message.type);
           return;
         }
 
@@ -132,6 +152,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
         status: null,
         description: "No file or folder selected.",
         hasUserDescription: false,
+        ...emptyAiDescription(),
         canEditDescription: false,
         highlightColor: getDescriptionHighlightColor(),
         isEditing: false,
@@ -195,6 +216,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
         status: null,
         description: "No active file.",
         hasUserDescription: false,
+        ...emptyAiDescription(),
         canEditDescription: false,
         highlightColor: getDescriptionHighlightColor(),
         isEditing: false,
@@ -241,6 +263,50 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
     await this.sendResourceDescription(resourceUri);
   }
 
+  private async runAnalysisCommand(type: AnalysisMessageType) {
+    const resourceUri = this.currentResourceUri ?? vscode.window.activeTextEditor?.document.uri;
+
+    if (!resourceUri) {
+      vscode.window.showWarningMessage("Open a local source file before analyzing CZaza explanations.");
+      return;
+    }
+
+    const commandByType = {
+      analyzeFileStructure: "czaza.analyzeFileStructure",
+      analyzeSemantic: "czaza.analyzeSemantic",
+      analyzeLineRange: "czaza.analyzeLineRange",
+    } as const;
+
+    const labelByType = {
+      analyzeFileStructure: "file and structure units",
+      analyzeSemantic: "semantic units",
+      analyzeLineRange: "nearby lines",
+    } as const;
+    const startedAt = Date.now();
+
+    try {
+      await vscode.commands.executeCommand(commandByType[type], {
+        uri: resourceUri.toString(),
+      });
+      this.postMessage({
+        type: "analysisResult",
+        ok: true,
+        label: labelByType[type],
+        elapsedMs: Date.now() - startedAt,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown analysis error.";
+      this.postMessage({
+        type: "analysisResult",
+        ok: false,
+        label: labelByType[type],
+        elapsedMs: Date.now() - startedAt,
+        message,
+      });
+      vscode.window.showErrorMessage(`CZaza analysis failed: ${message}`);
+    }
+  }
+
   private async sendResourceDescription(
     resourceUri: vscode.Uri,
     options: { isEditing?: boolean } = {},
@@ -256,6 +322,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
         status: null,
         description: "This resource is not backed by a local workspace file.",
         hasUserDescription: false,
+        ...emptyAiDescription(),
         canEditDescription: false,
         highlightColor: getDescriptionHighlightColor(),
         isEditing: false,
@@ -274,6 +341,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
         status: null,
         description: "This resource is outside the current workspace.",
         hasUserDescription: false,
+        ...emptyAiDescription(),
         canEditDescription: false,
         highlightColor: getDescriptionHighlightColor(),
         isEditing: false,
@@ -299,6 +367,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
         status: null,
         description: "No scanned CZaza metadata found for this resource.",
         hasUserDescription: false,
+        ...emptyAiDescription(),
         canEditDescription: false,
         highlightColor: getDescriptionHighlightColor(),
         isEditing: false,
@@ -307,6 +376,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
     }
 
     const hasUserDescription = Boolean(matchedUnit.description?.trim());
+    const aiDescription = getAiDescription(this.explanations, resourceUri);
 
     this.postDescription({
       fileName: matchedUnit.name,
@@ -316,6 +386,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
       status: matchedUnit.status,
       description: matchedUnit.description ?? describeProjectTreeUnit(matchedUnit),
       hasUserDescription,
+      ...aiDescription,
       canEditDescription: true,
       highlightColor: getDescriptionHighlightColor(),
       isEditing: options.isEditing ?? false,
@@ -470,6 +541,28 @@ function getDescriptionHighlightColor(): string {
     .get("descriptionHighlightColor", "#22c55e");
 }
 
+function getAiDescription(explanations: ExplanationStore, resourceUri: vscode.Uri) {
+  const explanation = explanations.get(resourceUri)?.fileStructure?.file.explanation;
+
+  if (!explanation) {
+    return emptyAiDescription();
+  }
+
+  return {
+    aiDescription: explanation.summary || null,
+    aiDetail: explanation.detail || null,
+    aiNotes: explanation.aiNotes ?? [],
+  };
+}
+
+function emptyAiDescription() {
+  return {
+    aiDescription: null,
+    aiDetail: null,
+    aiNotes: [],
+  };
+}
+
 function normalizeFsPath(fsPath: string): string {
   return normalizePath(path.resolve(fsPath));
 }
@@ -490,6 +583,14 @@ function isWebviewMessage(message: unknown): message is WebviewMessage {
   }
 
   if (candidate.type === "startEdit") {
+    return true;
+  }
+
+  if (
+    candidate.type === "analyzeFileStructure" ||
+    candidate.type === "analyzeSemantic" ||
+    candidate.type === "analyzeLineRange"
+  ) {
     return true;
   }
 

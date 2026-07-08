@@ -58,16 +58,18 @@ export function getWebviewHtml() {
 
     .description-badge {
       max-width: 100%;
-      padding: 1px 6px;
-      border: 1px solid var(--vscode-badge-background);
-      border-radius: 999px;
-      color: var(--vscode-badge-foreground);
-      background: var(--vscode-badge-background);
+      padding: 1px 0;
+      border: 0;
+      border-radius: 0;
+      color: var(--vscode-descriptionForeground);
+      background: transparent;
       font-size: 11px;
-      line-height: 18px;
+      font-weight: 600;
+      line-height: 16px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      text-transform: uppercase;
     }
 
     .description-section {
@@ -129,6 +131,33 @@ export function getWebviewHtml() {
       flex-wrap: wrap;
     }
 
+    .ai-actions {
+      padding: 10px;
+      border: 1px solid var(--vscode-focusBorder);
+      border-left-width: 3px;
+      border-radius: 4px;
+      background: color-mix(in srgb, var(--vscode-focusBorder) 13%, transparent);
+    }
+
+    .ai-actions__body {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .ai-actions__buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .ai-actions__status {
+      min-height: 16px;
+      color: var(--vscode-descriptionForeground);
+      font-size: 11px;
+      line-height: 16px;
+    }
+
     .description-button {
       padding: 3px 10px;
       border: 1px solid var(--vscode-button-border, transparent);
@@ -141,6 +170,11 @@ export function getWebviewHtml() {
 
     .description-button:hover {
       background: var(--vscode-button-hoverBackground);
+    }
+
+    .description-button:disabled {
+      opacity: 0.65;
+      cursor: default;
     }
 
     .description-icon-button {
@@ -335,6 +369,10 @@ export function getWebviewHtml() {
     const vscode = acquireVsCodeApi();
     let currentDescription = null;
     let fileRolesExpanded = false;
+    let analysisStatus = "";
+    let analysisLabel = "";
+    let analysisStartedAt = 0;
+    let analysisTimerId = 0;
 
     window.addEventListener("message", event => {
       const message = event.data;
@@ -343,6 +381,10 @@ export function getWebviewHtml() {
         currentDescription = message;
         fileRolesExpanded = false;
         render();
+      }
+
+      if (message.type === "analysisResult") {
+        finishAnalysis(message);
       }
     });
 
@@ -366,6 +408,8 @@ export function getWebviewHtml() {
       const editAction = currentDescription.isEditing || !currentDescription.canEditDescription
         ? ""
         : renderEditAction();
+      const aiActions = renderAiActions(currentDescription);
+      const aiDescription = renderAiDescription(currentDescription);
       const fileRoles = renderFileRoles(currentDescription.fileRoles ?? []);
 
       description.innerHTML = \`
@@ -385,7 +429,75 @@ export function getWebviewHtml() {
           \${descriptionContent}
         </section>
 
+        \${aiActions}
+        \${aiDescription}
         \${fileRoles}
+      \`;
+    }
+
+    function renderAiActions(currentDescription) {
+      if (!currentDescription.canEditDescription) {
+        return "";
+      }
+
+      const status = analysisStatus
+        ? \`<div class="ai-actions__status">\${escapeHtml(analysisStatus)}</div>\`
+        : "";
+      const disabled = analysisStartedAt > 0 ? " disabled" : "";
+
+      return \`
+        <section class="ai-actions">
+          <div class="description-section-title">AI Analysis</div>
+          <div class="ai-actions__body">
+            <div class="ai-actions__buttons">
+              <button class="description-button" type="button" onclick="analyzeFileStructure()"\${disabled}>
+                Analyze File
+              </button>
+              <button
+                class="description-button description-button--secondary"
+                type="button"
+                onclick="analyzeSemantic()"
+                \${disabled}
+              >
+                Semantic
+              </button>
+              <button
+                class="description-button description-button--secondary"
+                type="button"
+                onclick="analyzeLineRange()"
+                \${disabled}
+              >
+                Nearby Lines
+              </button>
+            </div>
+            \${status}
+          </div>
+        </section>
+      \`;
+    }
+
+    function renderAiDescription(currentDescription) {
+      const summary = String(currentDescription.aiDescription ?? "").trim();
+      const detail = String(currentDescription.aiDetail ?? "").trim();
+      const notes = Array.isArray(currentDescription.aiNotes) ? currentDescription.aiNotes : [];
+
+      if (!summary && !detail && notes.length === 0) {
+        return "";
+      }
+
+      const body = [
+        summary ? \`<p class="description-body">\${escapeHtml(summary)}</p>\` : "",
+        detail ? \`<p class="description-body">\${escapeHtml(detail)}</p>\` : "",
+        notes.length > 0
+          ? \`<p class="description-body"><strong>AI notes:</strong> \${escapeHtml(notes.join(" "))}</p>\`
+          : "",
+      ].join("");
+
+      return \`
+        <section class="description-section">
+          <div class="description-section-title">AI Description</div>
+          \${body}
+        </section>
       \`;
     }
 
@@ -501,6 +613,89 @@ export function getWebviewHtml() {
       vscode.postMessage({
         type: "cancelEdit",
       });
+    }
+
+    function analyzeFileStructure() {
+      postAnalysisMessage("analyzeFileStructure", "file and structure units");
+    }
+
+    function analyzeSemantic() {
+      postAnalysisMessage("analyzeSemantic", "semantic units");
+    }
+
+    function analyzeLineRange() {
+      postAnalysisMessage("analyzeLineRange", "nearby lines");
+    }
+
+    function postAnalysisMessage(type, label) {
+      if (analysisStartedAt > 0) {
+        return;
+      }
+
+      analysisLabel = label;
+      analysisStartedAt = Date.now();
+      updateAnalysisStatus();
+      startAnalysisTimer();
+      render();
+      vscode.postMessage({ type });
+    }
+
+    function startAnalysisTimer() {
+      stopAnalysisTimer();
+      analysisTimerId = window.setInterval(() => {
+        updateAnalysisStatus();
+        updateAnalysisStatusElement();
+      }, 1000);
+    }
+
+    function stopAnalysisTimer() {
+      if (analysisTimerId) {
+        window.clearInterval(analysisTimerId);
+        analysisTimerId = 0;
+      }
+    }
+
+    function updateAnalysisStatus() {
+      if (!analysisStartedAt) {
+        return;
+      }
+
+      const elapsedMs = Date.now() - analysisStartedAt;
+      const dots = ".".repeat(Math.floor(elapsedMs / 1000) % 4);
+      analysisStatus = \`Analyzing \${analysisLabel}\${dots} \${formatElapsed(elapsedMs)}\`;
+    }
+
+    function updateAnalysisStatusElement() {
+      const statusElement = document.querySelector(".ai-actions__status");
+
+      if (statusElement) {
+        statusElement.textContent = analysisStatus;
+      }
+    }
+
+    function finishAnalysis(message) {
+      stopAnalysisTimer();
+      analysisStartedAt = 0;
+      analysisLabel = String(message.label ?? analysisLabel);
+
+      if (message.ok) {
+        analysisStatus = \`Finished \${analysisLabel} in \${formatElapsed(message.elapsedMs)}.\`;
+      } else {
+        const errorMessage = message.message ? \` \${message.message}\` : "";
+        analysisStatus = \`Failed \${analysisLabel} after \${formatElapsed(message.elapsedMs)}.\${errorMessage}\`;
+      }
+
+      render();
+    }
+
+    function formatElapsed(elapsedMs) {
+      const seconds = Math.max(0, Number(elapsedMs) || 0) / 1000;
+
+      if (seconds < 10) {
+        return \`\${seconds.toFixed(1)}s\`;
+      }
+
+      return \`\${Math.round(seconds)}s\`;
     }
 
     function toggleFileRoles() {
