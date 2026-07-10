@@ -23,7 +23,8 @@
     "paths": {
       "@shared/*": ["./shared/*"],
       "@node/*": ["./node/*"],
-      "@tests/*": ["./tests/*"]
+      "@tests/*": ["./tests/*"],
+      "@vscode/*": ["./vscode/*"]
     }
   },
   "include": ["vite.config.ts", "shared", "node", "tests", "vscode"]

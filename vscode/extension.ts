@@ -1,19 +1,25 @@
-// export function activate(context: ExtensionContext) {
-//   registerCommands(context);
-//   registerViews(context);
-//   registerProviders(context);
-// }
+/**
+ * Main entry point for the CZaza VS Code extension.
+ */
 
 import * as vscode from "vscode";
 import { ExplanationHoverProvider } from "./explanations/ExplanationHoverProvider";
 import { ExplanationStore } from "./explanations/ExplanationStore";
 import { registerExplanationCommands } from "./explanations/registerExplanationCommands";
 import { CzazaViewProvider } from "./webview/CzazaViewProvider";
+import { registerCopyForAICommands } from "./copyForAI/registerCopyForAICommands";
 
+/**
+ * Activates the CZaza VS Code extension.
+ */
 export function activate(context: vscode.ExtensionContext) {
   const explanations = new ExplanationStore();
   const provider = new CzazaViewProvider(context.extensionUri, explanations);
 
+  /** Register Copy for AI commands */
+  registerCopyForAICommands(context);
+
+  /** Register explanation commands */
   registerExplanationCommands(context, explanations, async (uri) => {
     await provider.showResourceDescription(uri);
   });
@@ -42,4 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
   );
 }
 
+/**
+ * Deactivates the CZaza VS Code extension.
+ */
 export function deactivate() {}

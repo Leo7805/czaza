@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:copy-for-ai": "vitest run tests/copyForAI/copyForAI.test.ts --reporter=verbose",
     "build:vscode": "tsup vscode/extension.ts --tsconfig tsconfig.node.json --format cjs --platform node --external vscode --out-dir dist/vscode",
     "package:vscode": "npm run build:vscode && vsce package",
     "watch:vscode": "tsup vscode/extension.ts --tsconfig tsconfig.node.json --format cjs --platform node --external vscode --out-dir dist/vscode --watch"
@@ -65,13 +66,45 @@
       {
         "command": "czaza.analyzeLineRange",
         "title": "CZaza: Analyze Nearby Lines"
+      },
+      {
+        "command": "czaza.copyForAI.copyFile",
+        "title": "CZaza: Copy File ❤️",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "czaza.copyForAI.copyFileDiff",
+        "title": "CZaza: Copy File Diff ❤️",
+        "icon": "$(diff)"
       }
     ],
     "menus": {
       "explorer/context": [
         {
+          "command": "czaza.copyForAI.copyFile",
+          "when": "resourceScheme == file && !explorerResourceIsFolder",
+          "group": "navigation@2"
+        },
+        {
+          "command": "czaza.copyForAI.copyFileDiff",
+          "when": "resourceScheme == file && !explorerResourceIsFolder",
+          "group": "navigation@3"
+        },
+        {
           "command": "czaza.showDescription",
-          "group": "navigation"
+          "group": "navigation@1"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "czaza.copyForAI.copyFile",
+          "when": "resourceScheme == file",
+          "group": "1_cutcopypaste@200"
+        },
+        {
+          "command": "czaza.copyForAI.copyFileDiff",
+          "when": "resourceScheme == file",
+          "group": "1_cutcopypaste@201"
         }
       ]
     },
@@ -90,8 +123,17 @@
         }
       }
     },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "czaza",
+          "title": "CZaza",
+          "icon": "media/czaza-icon.svg"
+        }
+      ]
+    },
     "views": {
-      "explorer": [
+      "czaza": [
         {
           "type": "webview",
           "id": "czaza.descriptionView",

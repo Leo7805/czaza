@@ -37,7 +37,7 @@
         "images/",
         "icons/",
         "fonts/",
-        "tests/"
+        "tests/fixtures/"
       ]
     }
   }

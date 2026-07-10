@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "scannedAt": "2026-07-08T13:37:35.203Z",
+  "scannedAt": "2026-07-10T05:20:16.861Z",
   "root": "/Users/leo/Projects/czaza",
   "signature": {
-    "entryCount": 100,
-    "hash": "fc47ccf66d057b817d7a58cc7e3fb65dcb6d201ec4fbb8de52c10c10380919d3"
+    "entryCount": 134,
+    "hash": "af4b743ea44b4068af448867332a6ba9c35cf1ff20e008cb1bc67765d997d609"
   },
   "tree": {
     "id": ".",
@@ -14,6 +14,62 @@
     "path": ".",
     "name": "czaza",
     "children": [
+      {
+        "id": ".UI",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": ".UI",
+        "name": ".UI",
+        "children": [
+          {
+            "id": ".UI/testa.html",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": ".UI/testa.html",
+            "name": "testa.html"
+          }
+        ]
+      },
+      {
+        "id": ".codex",
+        "kind": "directory",
+        "category": "authored",
+        "status": "normal",
+        "path": ".codex",
+        "name": ".codex",
+        "children": [
+          {
+            "id": ".codex/skills",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": ".codex/skills",
+            "name": "skills",
+            "children": [
+              {
+                "id": ".codex/skills/locate",
+                "kind": "directory",
+                "category": "authored",
+                "status": "normal",
+                "path": ".codex/skills/locate",
+                "name": "locate",
+                "children": [
+                  {
+                    "id": ".codex/skills/locate/SKILL.md",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": ".codex/skills/locate/SKILL.md",
+                    "name": "SKILL.md"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       {
         "id": ".czaza",
         "kind": "directory",
@@ -124,6 +180,14 @@
         ]
       },
       {
+        "id": "AGENT.md",
+        "kind": "file",
+        "category": "authored",
+        "status": "normal",
+        "path": "AGENT.md",
+        "name": "AGENT.md"
+      },
+      {
         "id": "README.md",
         "kind": "file",
         "category": "authored",
@@ -192,12 +256,12 @@
         "name": "media",
         "children": [
           {
-            "id": "media/icon.svg",
+            "id": "media/czaza-icon.svg",
             "kind": "file",
             "category": "asset",
             "status": "normal",
-            "path": "media/icon.svg",
-            "name": "icon.svg"
+            "path": "media/czaza-icon.svg",
+            "name": "czaza-icon.svg"
           }
         ]
       },
@@ -319,7 +383,8 @@
         "category": "config",
         "status": "normal",
         "path": "package.json",
-        "name": "package.json"
+        "name": "package.json",
+        "description": "1. Main — 插件入口\n2. Engine — VS Code 版本要求\n3. activationEvents — 激活条件\n4. contributes — 插件声明区\n    4.1 contributes.commands — 注册命令\n    4.2 contributes.menus — 菜单配置 \n        4.2.1 explorer/content — 左侧 File Explorer 文件右键菜单\n        4.2.2 editor/title/context — 编辑器上方标签页右键\n        4.2.3 editor/context — 代码编辑区域内右键\n    4.3 contributes.configuration — 配置项\n    4.4 contributes.viewsContainers — 视图容器位置（如活动栏/侧边栏）\n    4.5 contributes.views — 视图定义"
       },
       {
         "id": "public",
@@ -713,9 +778,192 @@
         "id": "tests",
         "kind": "directory",
         "category": "authored",
-        "status": "collapsed",
+        "status": "normal",
         "path": "tests",
         "name": "tests",
+        "children": [
+          {
+            "id": "tests/config",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "tests/config",
+            "name": "config",
+            "children": [
+              {
+                "id": "tests/config/loadConfig.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/config/loadConfig.test.ts",
+                "name": "loadConfig.test.ts"
+              }
+            ]
+          },
+          {
+            "id": "tests/copyForAI",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "tests/copyForAI",
+            "name": "copyForAI",
+            "children": [
+              {
+                "id": "tests/copyForAI/copyFileDiffCommand.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/copyForAI/copyFileDiffCommand.test.ts",
+                "name": "copyFileDiffCommand.test.ts",
+                "description": "这份测试重点确认了：\n\n真实 diff          → 写入剪贴板\n未保存文件         → 不读取 Git diff\n无修改             → 不覆盖原剪贴板\n未跟踪文件         → 不覆盖原剪贴板\n非 Git 仓库        → 不覆盖原剪贴板\nGit 或剪贴板异常   → 显示错误消息"
+              },
+              {
+                "id": "tests/copyForAI/copyForAI.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/copyForAI/copyForAI.test.ts",
+                "name": "copyForAI.test.ts",
+                "description": "copy to file 测试"
+              },
+              {
+                "id": "tests/copyForAI/getFileDiff.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/copyForAI/getFileDiff.test.ts",
+                "name": "getFileDiff.test.ts"
+              }
+            ]
+          },
+          {
+            "id": "tests/fixtures",
+            "kind": "directory",
+            "category": "authored",
+            "status": "collapsed",
+            "path": "tests/fixtures",
+            "name": "fixtures"
+          },
+          {
+            "id": "tests/parser",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "tests/parser",
+            "name": "parser",
+            "children": [
+              {
+                "id": "tests/parser/structureUnitParser.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/parser/structureUnitParser.test.ts",
+                "name": "structureUnitParser.test.ts"
+              }
+            ]
+          },
+          {
+            "id": "tests/project-map",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "tests/project-map",
+            "name": "project-map",
+            "children": []
+          },
+          {
+            "id": "tests/scan",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "tests/scan",
+            "name": "scan",
+            "children": [
+              {
+                "id": "tests/scan/createPathMatcher.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/scan/createPathMatcher.test.ts",
+                "name": "createPathMatcher.test.ts"
+              },
+              {
+                "id": "tests/scan/scanProjectTree.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/scan/scanProjectTree.test.ts",
+                "name": "scanProjectTree.test.ts"
+              }
+            ]
+          },
+          {
+            "id": "tests/services",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "tests/services",
+            "name": "services",
+            "children": [
+              {
+                "id": "tests/services/deepseekBenchmark.real.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/services/deepseekBenchmark.real.test.ts",
+                "name": "deepseekBenchmark.real.test.ts"
+              },
+              {
+                "id": "tests/services/explainFileStructureService.real.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/services/explainFileStructureService.real.test.ts",
+                "name": "explainFileStructureService.real.test.ts"
+              },
+              {
+                "id": "tests/services/explainFileStructureService.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/services/explainFileStructureService.test.ts",
+                "name": "explainFileStructureService.test.ts"
+              },
+              {
+                "id": "tests/services/explainLineRangeService.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/services/explainLineRangeService.test.ts",
+                "name": "explainLineRangeService.test.ts"
+              },
+              {
+                "id": "tests/services/explainSemanticService.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/services/explainSemanticService.test.ts",
+                "name": "explainSemanticService.test.ts"
+              },
+              {
+                "id": "tests/services/explainWorkflow.real.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/services/explainWorkflow.real.test.ts",
+                "name": "explainWorkflow.real.test.ts"
+              },
+              {
+                "id": "tests/services/realAiTestUtils.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/services/realAiTestUtils.ts",
+                "name": "realAiTestUtils.ts"
+              }
+            ]
+          }
+        ],
         "description": "主要放测试脚本"
       },
       {
@@ -759,6 +1007,61 @@
         "name": "vscode",
         "children": [
           {
+            "id": "vscode/copyForAI",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "vscode/copyForAI",
+            "name": "copyForAI",
+            "children": [
+              {
+                "id": "vscode/copyForAI/copyFileCommand.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/copyForAI/copyFileCommand.ts",
+                "name": "copyFileCommand.ts",
+                "description": "这个文件负责 VS Code command 本身。\n\n完整职责：\n\n获得菜单传入的文件 URI\n    ↓\n没有 URI 时，尝试使用当前打开的编辑器文件\n    ↓\n检查是不是 macOS\n    ↓\n检查是不是本地文件\n    ↓\n检查是不是普通文件而不是文件夹\n    ↓\n调用底层 copyFileToClipboard()\n    ↓\n显示成功或失败消息"
+              },
+              {
+                "id": "vscode/copyForAI/copyFileDiffCommand.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/copyForAI/copyFileDiffCommand.ts",
+                "name": "copyFileDiffCommand.ts",
+                "description": "它负责拿到选中的文件、检查未保存修改、调用 getFileDiff()，最后用 VS Code 的 env.clipboard.writeText() 把 diff 文本写入剪贴板。"
+              },
+              {
+                "id": "vscode/copyForAI/copyFileToClipboard.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/copyForAI/copyFileToClipboard.ts",
+                "name": "copyFileToClipboard.ts",
+                "description": "这个文件负责底层的 macOS 剪贴板操作。"
+              },
+              {
+                "id": "vscode/copyForAI/getFileDiff.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/copyForAI/getFileDiff.ts",
+                "name": "getFileDiff.ts",
+                "description": "这段代码依次\n用 git rev-parse --show-toplevel 找仓库根目录，\n用 git ls-files --error-unmatch 判断文件是否已被 Git 跟踪，\n最后用 git diff HEAD -- <path> 获取该文件相对于 HEAD 的 staged 和 unstaged 变化。\n\nHEAD（最近一次提交）\n    ↓\nIndex / Stage（暂存区）\n    ↓\nWorking Directory（磁盘上的当前文件）\n\ngit diff HEAD -- <path> 只比较两个最终端点：\n\nHEAD 里的文件\nvs.\nWorking Directory 里的当前文件\n\ngetFileDiff() 返回的数据大概是：(!!!真正数据在diff)\n{\n  kind: \"diff\",\n  diff: \"diff --git ...\",\n  repositoryRoot: \"...\",\n  relativePath: \"src/Button.tsx\",\n}"
+              },
+              {
+                "id": "vscode/copyForAI/registerCopyForAICommands.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/copyForAI/registerCopyForAICommands.ts",
+                "name": "registerCopyForAICommands.ts",
+                "description": "这个文件只负责注册命令。\n\nCopy File \nCopy File Diff"
+              }
+            ]
+          },
+          {
             "id": "vscode/explanations",
             "kind": "directory",
             "category": "authored",
@@ -798,7 +1101,8 @@
             "category": "authored",
             "status": "normal",
             "path": "vscode/extension.ts",
-            "name": "extension.ts"
+            "name": "extension.ts",
+            "description": "整个 Czaza 插件的主入口\n只负责扩展启动和顶层注册，不塞具体逻辑\n\nextension.ts\n├── 注册 Project Tree\n├── 注册 Webview\n├── 注册 Explain 命令\n├── 注册 Copy for AI 命令\n└── 注册其他 VS Code 功能"
           },
           {
             "id": "vscode/webview",
