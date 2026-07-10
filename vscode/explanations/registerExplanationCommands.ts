@@ -7,6 +7,7 @@ import { explainFileStructureService } from "@shared/services/explainFileStructu
 import { explainLineRangeService } from "@shared/services/explainLineRangeService";
 import { explainSemanticService } from "@shared/services/explainSemanticService";
 import type { CodeExplanation } from "@shared/types/codeExplanation";
+import { ExplanationCache } from "./ExplanationCache";
 import { ExplanationStore } from "./ExplanationStore";
 
 type CommandPayload = {
@@ -17,6 +18,7 @@ type CommandPayload = {
 export function registerExplanationCommands(
   context: vscode.ExtensionContext,
   store: ExplanationStore,
+  cache: ExplanationCache,
   refreshDescription: (uri: vscode.Uri) => Promise<void>,
 ) {
   context.subscriptions.push(
@@ -28,7 +30,9 @@ export function registerExplanationCommands(
         return;
       }
 
+      await cache.loadForUri(document.uri, store);
       const explanation = await analyzeFileStructure(document, store);
+      await cache.saveForUri(document.uri, store);
       await refreshDescription(document.uri);
       vscode.window.showInformationMessage(
         `CZaza analyzed file and ${explanation.structureUnits.length} structure unit(s).`,
@@ -42,7 +46,7 @@ export function registerExplanationCommands(
         return;
       }
 
-      const contextExplanation = await ensureFileStructure(document, store);
+      const contextExplanation = await ensureFileStructure(document, store, cache);
 
       await vscode.window.withProgress(
         {
@@ -62,6 +66,7 @@ export function registerExplanationCommands(
           );
 
           store.setSemanticUnits(document.uri, semanticUnits);
+          await cache.saveForUri(document.uri, store);
           vscode.window.showInformationMessage(
             `CZaza analyzed ${semanticUnits.length} semantic unit(s).`,
           );
@@ -76,7 +81,7 @@ export function registerExplanationCommands(
         return;
       }
 
-      const contextExplanation = await ensureFileStructure(document, store);
+      const contextExplanation = await ensureFileStructure(document, store, cache);
       const state = store.get(document.uri);
       const contextWithSemantic: CodeExplanation = {
         ...contextExplanation,
@@ -103,6 +108,7 @@ export function registerExplanationCommands(
           );
 
           store.addLineUnits(document.uri, lineUnits);
+          await cache.saveForUri(document.uri, store);
           vscode.window.showInformationMessage(`CZaza analyzed ${lineUnits.length} line(s).`);
         },
       );
@@ -113,7 +119,9 @@ export function registerExplanationCommands(
 async function ensureFileStructure(
   document: vscode.TextDocument,
   store: ExplanationStore,
+  cache: ExplanationCache,
 ): Promise<CodeExplanation> {
+  await cache.loadForUri(document.uri, store);
   const existing = store.get(document.uri)?.fileStructure;
 
   if (existing) {

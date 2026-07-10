@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "scannedAt": "2026-07-10T05:20:16.861Z",
+  "scannedAt": "2026-07-10T08:48:00.287Z",
   "root": "/Users/leo/Projects/czaza",
   "signature": {
-    "entryCount": 134,
-    "hash": "af4b743ea44b4068af448867332a6ba9c35cf1ff20e008cb1bc67765d997d609"
+    "entryCount": 139,
+    "hash": "973549d5e1c47842e096e2b365ec5d9bf53527e99a42344ce074750892598bb4"
   },
   "tree": {
     "id": ".",
@@ -22,6 +22,14 @@
         "path": ".UI",
         "name": ".UI",
         "children": [
+          {
+            "id": ".UI/description.html",
+            "kind": "file",
+            "category": "authored",
+            "status": "normal",
+            "path": ".UI/description.html",
+            "name": "description.html"
+          },
           {
             "id": ".UI/testa.html",
             "kind": "file",
@@ -1070,6 +1078,14 @@
             "name": "explanations",
             "children": [
               {
+                "id": "vscode/explanations/ExplanationCache.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/explanations/ExplanationCache.ts",
+                "name": "ExplanationCache.ts"
+              },
+              {
                 "id": "vscode/explanations/ExplanationHoverProvider.ts",
                 "kind": "file",
                 "category": "authored",
@@ -1119,6 +1135,30 @@
                 "status": "normal",
                 "path": "vscode/webview/CzazaViewProvider.ts",
                 "name": "CzazaViewProvider.ts"
+              },
+              {
+                "id": "vscode/webview/descriptionView.css",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/webview/descriptionView.css",
+                "name": "descriptionView.css"
+              },
+              {
+                "id": "vscode/webview/descriptionView.html",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/webview/descriptionView.html",
+                "name": "descriptionView.html"
+              },
+              {
+                "id": "vscode/webview/descriptionView.js",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "vscode/webview/descriptionView.js",
+                "name": "descriptionView.js"
               },
               {
                 "id": "vscode/webview/getWebviewHtml.ts",
