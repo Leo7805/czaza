@@ -15,7 +15,12 @@ import { registerCopyForAICommands } from "./copyForAI/registerCopyForAICommands
 export function activate(context: vscode.ExtensionContext) {
   const explanations = new ExplanationStore();
   const explanationCache = new ExplanationCache();
-  const provider = new CzazaViewProvider(context.extensionUri, explanations, explanationCache);
+  const provider = new CzazaViewProvider(
+    context.extensionUri,
+    context.workspaceState,
+    explanations,
+    explanationCache,
+  );
 
   /** Register Copy for AI commands */
   registerCopyForAICommands(context);

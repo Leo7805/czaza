@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { loadConfig } from "@node/config/loadConfig";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { AiClient } from "@shared/ai/aiClient";
 import { getLanguageFromId } from "@shared/parser/language";
 import { callDeepSeek } from "@shared/providers/deepseek";
@@ -179,8 +180,26 @@ async function getDeepSeekApiKey(resourceUri: vscode.Uri): Promise<string | unde
     return undefined;
   }
 
-  const config = await loadConfig(workspace.uri.fsPath);
-  return config.ai.deepSeekApiKey.trim() || undefined;
+  return readExistingDeepSeekApiKey(workspace.uri.fsPath);
+}
+
+/**
+ * Reads an existing CZaza config for backwards compatibility without creating
+ * a default config file or scanner rules during VS Code extension runtime.
+ */
+async function readExistingDeepSeekApiKey(workspaceRoot: string): Promise<string | undefined> {
+  try {
+    const raw = await readFile(path.join(workspaceRoot, ".czaza", "config.json"), "utf-8");
+    const config = JSON.parse(raw) as {
+      ai?: {
+        deepSeekApiKey?: unknown;
+      };
+    };
+    const key = typeof config.ai?.deepSeekApiKey === "string" ? config.ai.deepSeekApiKey.trim() : "";
+    return key || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function resolveDocument(payload: CommandPayload | undefined): Promise<vscode.TextDocument | undefined> {

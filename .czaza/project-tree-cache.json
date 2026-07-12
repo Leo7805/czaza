@@ -1,10 +1,10 @@
 {
   "version": 1,
-  "scannedAt": "2026-07-10T08:48:00.287Z",
+  "scannedAt": "2026-07-10T14:46:40.505Z",
   "root": "/Users/leo/Projects/czaza",
   "signature": {
-    "entryCount": 139,
-    "hash": "973549d5e1c47842e096e2b365ec5d9bf53527e99a42344ce074750892598bb4"
+    "entryCount": 160,
+    "hash": "5f8f3143eccadd46feaf86b32c3740aeca974662640f0ffcb1d9e8d48d4f73fa"
   },
   "tree": {
     "id": ".",
@@ -454,6 +454,166 @@
             "path": "shared/data",
             "name": "data",
             "children": []
+          },
+          {
+            "id": "shared/models",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "shared/models",
+            "name": "models",
+            "children": [
+              {
+                "id": "shared/models/ai",
+                "kind": "directory",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/models/ai",
+                "name": "ai",
+                "children": [
+                  {
+                    "id": "shared/models/ai/common.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/ai/common.ts",
+                    "name": "common.ts"
+                  },
+                  {
+                    "id": "shared/models/ai/file.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/ai/file.ts",
+                    "name": "file.ts"
+                  },
+                  {
+                    "id": "shared/models/ai/line.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/ai/line.ts",
+                    "name": "line.ts"
+                  },
+                  {
+                    "id": "shared/models/ai/section.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/ai/section.ts",
+                    "name": "section.ts"
+                  }
+                ]
+              },
+              {
+                "id": "shared/models/common.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/models/common.ts",
+                "name": "common.ts"
+              },
+              {
+                "id": "shared/models/domain",
+                "kind": "directory",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/models/domain",
+                "name": "domain",
+                "children": [
+                  {
+                    "id": "shared/models/domain/common.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/domain/common.ts",
+                    "name": "common.ts"
+                  },
+                  {
+                    "id": "shared/models/domain/file.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/domain/file.ts",
+                    "name": "file.ts"
+                  },
+                  {
+                    "id": "shared/models/domain/line.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/domain/line.ts",
+                    "name": "line.ts"
+                  },
+                  {
+                    "id": "shared/models/domain/section.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/domain/section.ts",
+                    "name": "section.ts"
+                  }
+                ]
+              },
+              {
+                "id": "shared/models/store",
+                "kind": "directory",
+                "category": "authored",
+                "status": "normal",
+                "path": "shared/models/store",
+                "name": "store",
+                "children": [
+                  {
+                    "id": "shared/models/store/common.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/store/common.ts",
+                    "name": "common.ts"
+                  },
+                  {
+                    "id": "shared/models/store/file.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/store/file.ts",
+                    "name": "file.ts"
+                  },
+                  {
+                    "id": "shared/models/store/line.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/store/line.ts",
+                    "name": "line.ts"
+                  },
+                  {
+                    "id": "shared/models/store/section.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/store/section.ts",
+                    "name": "section.ts"
+                  },
+                  {
+                    "id": "shared/models/store/sourceFile.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/store/sourceFile.ts",
+                    "name": "sourceFile.ts"
+                  },
+                  {
+                    "id": "shared/models/store/workspace.ts",
+                    "kind": "file",
+                    "category": "authored",
+                    "status": "normal",
+                    "path": "shared/models/store/workspace.ts",
+                    "name": "workspace.ts"
+                  }
+                ]
+              }
+            ]
           },
           {
             "id": "shared/parser",
@@ -968,6 +1128,24 @@
                 "status": "normal",
                 "path": "tests/services/realAiTestUtils.ts",
                 "name": "realAiTestUtils.ts"
+              }
+            ]
+          },
+          {
+            "id": "tests/vscode",
+            "kind": "directory",
+            "category": "authored",
+            "status": "normal",
+            "path": "tests/vscode",
+            "name": "vscode",
+            "children": [
+              {
+                "id": "tests/vscode/runtimeDoesNotUseProjectTreeScanner.test.ts",
+                "kind": "file",
+                "category": "authored",
+                "status": "normal",
+                "path": "tests/vscode/runtimeDoesNotUseProjectTreeScanner.test.ts",
+                "name": "runtimeDoesNotUseProjectTreeScanner.test.ts"
               }
             ]
           }

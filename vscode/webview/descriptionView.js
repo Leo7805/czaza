@@ -10,7 +10,6 @@ const vscode = acquireVsCodeApi();
 let currentDescription = null;
 
 // View-only state kept in the webview so tab/collapse choices survive re-renders.
-let fileRolesExpanded = false;
 let userDescriptionExpanded = true;
 let aiDescriptionExpanded = true;
 let fileDescriptionTab = "user";
@@ -36,7 +35,6 @@ window.addEventListener("message", (event) => {
     const previousPath = currentDescription?.path;
     currentDescription = message;
     if (previousPath !== currentDescription.path) {
-      fileRolesExpanded = false;
       userDescriptionExpanded = true;
       aiDescriptionExpanded = true;
       fileDescriptionTab = "user";
@@ -72,7 +70,6 @@ function render() {
   const fileDescriptionCard = renderFileDescriptionCard(currentDescription);
   const structureCard = renderStructureCard(currentDescription);
   const lineCard = renderLineCard(currentDescription);
-  const fileRoles = renderFileRoles(currentDescription.fileRoles ?? []);
 
   description.innerHTML = `
 	        <section class="description-panel">
@@ -86,7 +83,6 @@ function render() {
 			            ${fileDescriptionCard}
 			            ${structureCard}
 			            ${lineCard}
-			            ${fileRoles}
 		          </div>
 	        </section>
 	      `;
@@ -597,63 +593,6 @@ function renderEditAction() {
 }
 
 /**
- * Renders child file roles for directory resources.
- */
-function renderFileRoles(fileRoles) {
-  if (!Array.isArray(fileRoles) || fileRoles.length === 0) {
-    return "";
-  }
-
-  const longestName = fileRoles.reduce((max, item) => {
-    return Math.max(max, String(item.name ?? "").length);
-  }, 0);
-  const fileNameWidth = Math.min(Math.max(longestName, 8), 32);
-  const expandedClass = fileRolesExpanded ? " file-roles--expanded" : "";
-  const mark = fileRolesExpanded ? "-" : "+";
-  const rows = fileRoles.map(renderFileRole).join("");
-
-  return `
-        <section
-          class="file-roles${expandedClass}"
-          style="--file-role-name-width: ${fileNameWidth}ch"
-        >
-          <button
-            class="file-roles__toggle"
-            type="button"
-            aria-expanded="${fileRolesExpanded ? "true" : "false"}"
-            onclick="toggleFileRoles()"
-          >
-            <span class="file-roles__mark" aria-hidden="true">${mark}</span>
-            <span class="file-roles__title">File Roles</span>
-            <span class="file-roles__count">${fileRoles.length}</span>
-          </button>
-          <div class="file-roles__panel">
-            ${rows}
-          </div>
-        </section>
-      `;
-}
-
-/**
- * Renders one row in the directory file-role list.
- */
-function renderFileRole(fileRole) {
-  const name = String(fileRole.name ?? "");
-  const description = String(fileRole.description ?? "");
-  const isDirectory = fileRole.kind === "directory";
-  const ext = isDirectory ? "DIR" : getFileExtensionLabel(name);
-  const iconClass = isDirectory ? "file-role__icon file-role__icon--directory" : "file-role__icon";
-
-  return `
-        <div class="file-role" title="${escapeHtml(description)}">
-          <span class="${iconClass}" aria-hidden="true">${escapeHtml(ext)}</span>
-          <span class="file-role__name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
-          <span class="file-role__description">${escapeHtml(description)}</span>
-        </div>
-      `;
-}
-
-/**
  * Renders the textarea editor used for the file-level user description.
  */
 function renderEditor(value) {
@@ -823,14 +762,6 @@ function formatElapsed(elapsedMs) {
 }
 
 /**
- * Toggles the directory file-role list.
- */
-function toggleFileRoles() {
-  fileRolesExpanded = !fileRolesExpanded;
-  render();
-}
-
-/**
  * Toggles the combined file Description card body.
  */
 function toggleUserDescription() {
@@ -955,32 +886,6 @@ function notesToText(notes) {
  */
 function isAnalysisRunning(type) {
   return analysisStartedAt > 0 && analysisType === type;
-}
-
-/**
- * Produces a short file-type label for file-role icons.
- */
-function getFileExtensionLabel(fileName) {
-  const lowerName = String(fileName).toLowerCase();
-
-  if (lowerName.endsWith(".tsx")) {
-    return "TSX";
-  }
-
-  if (lowerName.endsWith(".ts")) {
-    return "TS";
-  }
-
-  if (lowerName.endsWith(".jsx")) {
-    return "JSX";
-  }
-
-  if (lowerName.endsWith(".js")) {
-    return "JS";
-  }
-
-  const extension = lowerName.split(".").pop();
-  return extension && extension !== lowerName ? extension.slice(0, 3) : "F";
 }
 
 /**

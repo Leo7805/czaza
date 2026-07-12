@@ -2,30 +2,29 @@
  * VS Code WebviewViewProvider for the CZaza Description panel.
  *
  * The provider bridges VS Code editor/project state with the plain webview UI:
- * it resolves the active resource, loads cached project metadata, persists user
- * notes, runs analysis commands, and posts render payloads to the webview.
+ * it resolves the active resource, persists user notes, runs analysis commands,
+ * and posts render payloads to the webview.
  */
 import * as vscode from "vscode";
 import path from "node:path";
-import { realpath } from "node:fs/promises";
-import {
-  loadProjectTreeState,
-  saveProjectTreeState,
-  type ProjectTreeState,
-} from "@node/cache/projectTreeCache";
-import type { ProjectTreeUnit } from "@shared/types/projectTreeUnit";
 import type { StructureUnit } from "@shared/types/structureUnit";
 import { ExplanationCache } from "../explanations/ExplanationCache";
 import { ExplanationStore } from "../explanations/ExplanationStore";
 import { getWebviewHtml } from "./getWebviewHtml";
 
+const FILE_DESCRIPTION_STORE_KEY = "czaza.fileDescriptions";
+
+type ResourceKind = "file" | "directory" | "unknown";
+
+type FileDescriptionStore = Record<string, Record<string, string>>;
+
 type DescriptionMessage = {
   type: "description";
   fileName: string | null;
   path: string | null;
-  kind: ProjectTreeUnit["kind"] | null;
-  category: ProjectTreeUnit["category"] | null;
-  status: ProjectTreeUnit["status"] | null;
+  kind: ResourceKind | null;
+  category: string | null;
+  status: string | null;
   description: string;
   hasUserDescription: boolean;
   aiDescription: string | null;
@@ -34,18 +33,10 @@ type DescriptionMessage = {
   canEditDescription: boolean;
   highlightColor: string;
   isEditing: boolean;
-  fileRoles?: FileRoleItem[];
   activeLine: number | null;
   hasStructureMetadata: boolean;
   activeStructure: ActiveStructureItem | null;
   activeLineExplanation: ActiveLineExplanation | null;
-};
-
-type FileRoleItem = {
-  name: string;
-  path: string;
-  kind: ProjectTreeUnit["kind"];
-  description: string;
 };
 
 type AnalysisMessageType = "analyzeFileStructure" | "analyzeSemantic" | "analyzeLineRange";
@@ -103,8 +94,6 @@ type WebviewMessage =
 export class CzazaViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
   private readonly viewDisposables: vscode.Disposable[] = [];
-  private projectTreeState?: ProjectTreeState;
-  private projectTreeIndex = new Map<string, ProjectTreeUnit>();
   private currentResourceUri?: vscode.Uri;
   private editingResourceUri?: vscode.Uri;
   private currentActiveLine?: number;
@@ -115,15 +104,18 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
   });
 
   private readonly extensionUri: vscode.Uri;
+  private readonly workspaceState: vscode.Memento;
   private readonly explanations: ExplanationStore;
   private readonly explanationCache: ExplanationCache;
 
   constructor(
     extensionUri: vscode.Uri,
+    workspaceState: vscode.Memento,
     explanations: ExplanationStore,
     explanationCache: ExplanationCache,
   ) {
     this.extensionUri = extensionUri;
+    this.workspaceState = workspaceState;
     this.explanations = explanations;
     this.explanationCache = explanationCache;
   }
@@ -144,8 +136,6 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
 
     // The HTML shell reads native webview assets from the extension root.
     webviewView.webview.html = getWebviewHtml(this.extensionUri.fsPath);
-
-    await this.refreshProjectTreeIndex();
 
     this.viewDisposables.push(
       webviewView.webview.onDidReceiveMessage(async (message: unknown) => {
@@ -259,24 +249,8 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const workspace = vscode.workspace.getWorkspaceFolder(resourceUri);
-
-    if (!workspace) {
+    if (!vscode.workspace.getWorkspaceFolder(resourceUri)) {
       vscode.window.showWarningMessage("CZaza descriptions can only be added inside the current workspace.");
-      return;
-    }
-
-    await this.refreshProjectTreeIndex(workspace);
-
-    const matchedUnit = await findProjectTreeUnitByUri(
-      this.projectTreeIndex,
-      workspace.uri.fsPath,
-      resourceUri,
-    );
-
-    if (!matchedUnit) {
-      vscode.window.showWarningMessage("This resource was not found in the CZaza scan cache.");
-      await this.sendResourceDescription(resourceUri);
       return;
     }
 
@@ -317,7 +291,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Persists the file-level user description into the project tree cache.
+   * Persists the file-level user description without using project tree scanning.
    */
   private async saveEditingDescription(description: string) {
     const resourceUri = this.editingResourceUri;
@@ -334,23 +308,7 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    await this.refreshProjectTreeIndex(workspace);
-
-    const matchedUnit = await findProjectTreeUnitByUri(
-      this.projectTreeIndex,
-      workspace.uri.fsPath,
-      resourceUri,
-    );
-
-    if (!matchedUnit) {
-      vscode.window.showWarningMessage("This resource was not found in the CZaza scan cache.");
-      this.editingResourceUri = undefined;
-      await this.sendResourceDescription(resourceUri);
-      return;
-    }
-
-    matchedUnit.description = description.trim();
-    await this.saveProjectTreeState(workspace);
+    await this.saveFileDescription(workspace, resourceUri, description.trim());
     this.editingResourceUri = undefined;
     await this.sendResourceDescription(resourceUri);
   }
@@ -504,57 +462,29 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    await this.refreshProjectTreeIndex(workspace);
     await this.explanationCache.loadForUri(resourceUri, this.explanations);
 
     const relativePath = normalizePath(path.relative(workspace.uri.fsPath, resourceUri.fsPath)) || ".";
-    const matchedUnit = await findProjectTreeUnitByUri(
-      this.projectTreeIndex,
-      workspace.uri.fsPath,
-      resourceUri,
-    );
-
-    if (!matchedUnit) {
-      this.postDescription({
-        fileName: path.basename(resourceUri.fsPath),
-        path: relativePath,
-        kind: null,
-        category: null,
-        status: null,
-        description: "No scanned CZaza metadata found for this resource.",
-        hasUserDescription: false,
-        ...emptyAiDescription(),
-        canEditDescription: false,
-        highlightColor: getDescriptionHighlightColor(),
-        isEditing: false,
-        activeLine: getActiveLineForUri(resourceUri),
-        hasStructureMetadata: false,
-        activeStructure: null,
-        activeLineExplanation: null,
-      });
-      this.clearStructureHighlight();
-      return;
-    }
-
-    const hasUserDescription = Boolean(matchedUnit.description?.trim());
+    const kind = await getResourceKind(resourceUri);
+    const userDescription = this.getFileDescription(workspace, resourceUri);
+    const hasUserDescription = Boolean(userDescription);
     const aiDescription = getAiDescription(this.explanations, resourceUri);
     const structureContext = getActiveStructureContext(this.explanations, resourceUri);
     this.currentActiveLine = structureContext.activeLine ?? undefined;
     this.updateStructureHighlight(resourceUri, structureContext.activeStructure);
 
     this.postDescription({
-      fileName: matchedUnit.name,
-      path: matchedUnit.path,
-      kind: matchedUnit.kind,
-      category: matchedUnit.category,
-      status: matchedUnit.status,
-      description: matchedUnit.description ?? describeProjectTreeUnit(matchedUnit),
+      fileName: path.basename(resourceUri.fsPath),
+      path: relativePath,
+      kind,
+      category: null,
+      status: null,
+      description: userDescription || describeWorkspaceResource(kind, relativePath),
       hasUserDescription,
       ...aiDescription,
       canEditDescription: true,
       highlightColor: getDescriptionHighlightColor(),
       isEditing: options.isEditing ?? false,
-      fileRoles: collectFileRoles(matchedUnit),
       ...structureContext,
     });
   }
@@ -590,21 +520,6 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Rebuilds the lookup index from the persisted project tree cache.
-   */
-  private async refreshProjectTreeIndex(workspace = vscode.workspace.workspaceFolders?.[0]) {
-    if (!workspace) {
-      this.projectTreeIndex.clear();
-      this.projectTreeState = undefined;
-      return;
-    }
-
-    const state = await loadProjectTreeState(workspace.uri.fsPath);
-    this.projectTreeState = state;
-    this.projectTreeIndex = buildProjectTreeIndex(workspace.uri.fsPath, state.tree);
-  }
-
-  /**
    * Adds the webview message discriminator before posting a description payload.
    */
   private postDescription(message: Omit<DescriptionMessage, "type">) {
@@ -615,14 +530,35 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
   }
 
   /**
-   * Writes the in-memory project tree state back to disk.
+   * Reads the user-authored description stored for a workspace resource.
    */
-  private async saveProjectTreeState(workspace: vscode.WorkspaceFolder) {
-    if (!this.projectTreeState) {
-      return;
+  private getFileDescription(workspace: vscode.WorkspaceFolder, resourceUri: vscode.Uri): string {
+    const store = this.workspaceState.get<FileDescriptionStore>(FILE_DESCRIPTION_STORE_KEY, {});
+    const workspaceDescriptions = store[getWorkspaceDescriptionKey(workspace)] ?? {};
+    return workspaceDescriptions[getWorkspaceRelativeResourceKey(workspace, resourceUri)]?.trim() ?? "";
+  }
+
+  /**
+   * Saves or removes the user-authored description for a workspace resource.
+   */
+  private async saveFileDescription(
+    workspace: vscode.WorkspaceFolder,
+    resourceUri: vscode.Uri,
+    description: string,
+  ) {
+    const store = { ...this.workspaceState.get<FileDescriptionStore>(FILE_DESCRIPTION_STORE_KEY, {}) };
+    const workspaceKey = getWorkspaceDescriptionKey(workspace);
+    const resourceKey = getWorkspaceRelativeResourceKey(workspace, resourceUri);
+    const workspaceDescriptions = { ...(store[workspaceKey] ?? {}) };
+
+    if (description) {
+      workspaceDescriptions[resourceKey] = description;
+    } else {
+      delete workspaceDescriptions[resourceKey];
     }
 
-    await saveProjectTreeState(workspace.uri.fsPath, this.projectTreeState);
+    store[workspaceKey] = workspaceDescriptions;
+    await this.workspaceState.update(FILE_DESCRIPTION_STORE_KEY, store);
   }
 
   /**
@@ -675,121 +611,56 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
 }
 
 /**
- * Builds lookup keys for project tree units by absolute path and project-relative path.
+ * Determines the selected resource kind without scanning the workspace tree.
  */
-function buildProjectTreeIndex(rootFsPath: string, root: ProjectTreeUnit): Map<string, ProjectTreeUnit> {
-  const index = new Map<string, ProjectTreeUnit>();
-
-  function visit(unit: ProjectTreeUnit) {
-    const absolutePath =
-      unit.path === "." ? rootFsPath : path.join(rootFsPath, ...unit.path.split("/"));
-
-    index.set(normalizeFsPath(absolutePath), unit);
-    index.set(getProjectTreeRelativeIndexKey(unit.path), unit);
-
-    for (const child of unit.children ?? []) {
-      visit(child);
-    }
-  }
-
-  visit(root);
-
-  return index;
-}
-
-/**
- * Finds the project tree unit for a URI, including symlink-normalized fallback matching.
- */
-async function findProjectTreeUnitByUri(
-  index: Map<string, ProjectTreeUnit>,
-  rootFsPath: string,
-  resourceUri: vscode.Uri,
-): Promise<ProjectTreeUnit | undefined> {
-  const exactMatch = index.get(normalizeFsPath(resourceUri.fsPath));
-
-  if (exactMatch) {
-    return exactMatch;
-  }
-
-  const relativePath = normalizePath(path.relative(rootFsPath, resourceUri.fsPath)) || ".";
-  const relativeMatch = index.get(getProjectTreeRelativeIndexKey(relativePath));
-
-  if (relativeMatch) {
-    return relativeMatch;
-  }
-
+async function getResourceKind(resourceUri: vscode.Uri): Promise<ResourceKind> {
   try {
-    const realFsPath = await realpath(resourceUri.fsPath);
-    const realPathMatch = index.get(normalizeFsPath(realFsPath));
+    const stat = await vscode.workspace.fs.stat(resourceUri);
 
-    if (realPathMatch) {
-      return realPathMatch;
+    if (stat.type & vscode.FileType.Directory) {
+      return "directory";
     }
 
-    const realRootFsPath = await realpath(rootFsPath);
-    const realRelativePath = normalizePath(path.relative(realRootFsPath, realFsPath)) || ".";
-    return index.get(getProjectTreeRelativeIndexKey(realRelativePath));
+    if (stat.type & vscode.FileType.File) {
+      return "file";
+    }
   } catch {
-    return undefined;
+    // Missing or inaccessible resources are still shown with path-level details.
   }
+
+  return "unknown";
 }
 
 /**
- * Creates a namespaced key for project-relative project tree lookups.
+ * Generates fallback detail text when the user has not written a description.
  */
-function getProjectTreeRelativeIndexKey(relativePath: string): string {
-  return `project:${normalizePath(relativePath)}`;
+function describeWorkspaceResource(kind: ResourceKind, relativePath: string): string {
+  if (kind === "directory") {
+    return `Workspace directory: ${relativePath}`;
+  }
+
+  if (kind === "file") {
+    return `Workspace file: ${relativePath}`;
+  }
+
+  return `Workspace resource: ${relativePath}`;
 }
 
 /**
- * Generates fallback description text when the scan cache has no user description.
+ * Creates the workspace bucket key used by VS Code workspaceState.
  */
-function describeProjectTreeUnit(unit: ProjectTreeUnit): string {
-  const role =
-    unit.category === "authored"
-      ? "project-authored source"
-      : `${unit.category} project resource`;
-
-  if (unit.kind === "directory") {
-    return unit.status === "collapsed"
-      ? `Collapsed ${role} directory.`
-      : `Scanned ${role} directory.`;
-  }
-
-  return `Scanned ${role} file.`;
+function getWorkspaceDescriptionKey(workspace: vscode.WorkspaceFolder): string {
+  return workspace.uri.toString();
 }
 
 /**
- * Collects described child resources for directory cards.
+ * Creates a stable per-resource key relative to the workspace root.
  */
-function collectFileRoles(unit: ProjectTreeUnit): FileRoleItem[] {
-  if (unit.kind !== "directory") {
-    return [];
-  }
-
-  return (unit.children ?? [])
-    .filter((child) => Boolean(child.description?.trim()))
-    .sort(compareProjectTreeUnitForDisplay)
-    .map((child) => ({
-      name: child.name,
-      path: child.path,
-      kind: child.kind,
-      description: child.description?.trim() ?? "",
-    }));
-}
-
-/**
- * Sorts directories before files, then by natural filename order.
- */
-function compareProjectTreeUnitForDisplay(a: ProjectTreeUnit, b: ProjectTreeUnit): number {
-  if (a.kind !== b.kind) {
-    return a.kind === "directory" ? -1 : 1;
-  }
-
-  return a.name.localeCompare(b.name, undefined, {
-    numeric: true,
-    sensitivity: "base",
-  });
+function getWorkspaceRelativeResourceKey(
+  workspace: vscode.WorkspaceFolder,
+  resourceUri: vscode.Uri,
+): string {
+  return normalizePath(path.relative(workspace.uri.fsPath, resourceUri.fsPath)) || ".";
 }
 
 /**
@@ -923,13 +794,6 @@ function emptyAiDescription() {
     aiDetail: null,
     aiNotes: [],
   };
-}
-
-/**
- * Normalizes absolute filesystem paths for cross-platform map keys.
- */
-function normalizeFsPath(fsPath: string): string {
-  return normalizePath(path.resolve(fsPath));
 }
 
 /**
