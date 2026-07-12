@@ -1,3 +1,58 @@
+/**
+ * Shared prompt rule blocks for AI response formatting and analysis style.
+ */
+
+/**
+ * Common JSON output rules for AI-first DTO prompts.
+ *
+ * These rules intentionally do not define the response language because that
+ * comes from the user's VS Code AI response language setting.
+ *
+ * @example
+ * const prompt = `Rules:\n${COMMON_JSON_OUTPUT_RULES}`;
+ */
+export const COMMON_JSON_OUTPUT_RULES = `
+- Return only valid JSON.
+- Do not include markdown fences.
+- Do not include explanatory text outside the JSON object.
+`;
+
+/**
+ * Common source-code reference rules for AI-first code analysis prompts.
+ *
+ * @example
+ * const prompt = `Rules:\n${COMMON_CODE_REFERENCE_RULES}`;
+ */
+export const COMMON_CODE_REFERENCE_RULES = `
+- Keep code identifiers, API names, file names, package names, and string literals unchanged.
+- Do not invent source code, line numbers, file paths, imports, or APIs.
+`;
+
+/**
+ * Common analysis style rules for AI-first code explanation prompts.
+ *
+ * @example
+ * const prompt = `Rules:\n${COMMON_ANALYSIS_STYLE_RULES}`;
+ */
+export const COMMON_ANALYSIS_STYLE_RULES = `
+- Focus on what the code does and why it exists.
+- Explain behavior, responsibility, and important context.
+- Do not suggest edits, rewrites, refactors, or style changes unless an aiNote must call out a real risk.
+- Keep explanations concise but specific.
+`;
+
+/**
+ * Common aiNotes rules for AI-first DTO prompts.
+ *
+ * @example
+ * const prompt = `Rules:\n${COMMON_AI_NOTES_RULES}`;
+ */
+export const COMMON_AI_NOTES_RULES = `
+- aiNotes must contain useful extra context only when needed.
+- Use aiNotes for risks, assumptions, edge cases, surprising behavior, or important caveats.
+- Use [] when there are no useful notes.
+`;
+
 export const COMMON_RESPONSE_RULES = `
 - Write all explanation text in Simplified Chinese.
 - Keep variable names, function names, class names, file names, APIs, and package names in English.

@@ -22,6 +22,11 @@ describe("explainFilePrompt()", () => {
     expect(prompt).toContain('"summary": ""');
     expect(prompt).toContain('"detail": ""');
     expect(prompt).toContain('"aiNotes": []');
+    expect(prompt).toContain("Return only valid JSON.");
+    expect(prompt).toContain("Do not include markdown fences.");
+    expect(prompt).toContain("Keep code identifiers, API names, file names, package names");
+    expect(prompt).toContain("Focus on what the code does and why it exists.");
+    expect(prompt).toContain("Use aiNotes for risks, assumptions, edge cases");
     expect(prompt).toContain("export function Button()");
     expect(prompt).toContain("return <button>Save</button>;");
   });

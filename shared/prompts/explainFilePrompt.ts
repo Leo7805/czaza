@@ -2,6 +2,13 @@
  * Builds prompts for file-level AI analysis.
  */
 
+import {
+  COMMON_AI_NOTES_RULES,
+  COMMON_ANALYSIS_STYLE_RULES,
+  COMMON_CODE_REFERENCE_RULES,
+  COMMON_JSON_OUTPUT_RULES,
+} from "./commonPrompt";
+
 /**
  * Input required to build a file-level AI analysis prompt.
  */
@@ -56,9 +63,10 @@ Required JSON shape:
 Field rules:
 - summary must be concise and explain the file's primary responsibility.
 - detail must explain the file's purpose, important behavior, and relevant context.
-- aiNotes must be an array of useful extra notes, risks, assumptions, or edge cases. Use [] when there are none.
-- Keep code identifiers, API names, file names, and package names unchanged.
-- Do not suggest edits unless an aiNote must call out a real risk in the current code.
+${COMMON_JSON_OUTPUT_RULES}
+${COMMON_CODE_REFERENCE_RULES}
+${COMMON_ANALYSIS_STYLE_RULES}
+${COMMON_AI_NOTES_RULES}
 
 Source code:
 \`\`\`

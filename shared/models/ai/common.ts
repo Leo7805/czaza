@@ -7,17 +7,37 @@
  *
  * This model contains AI-generated content only.
  * It must not include user notes, domain status, or persistence metadata.
+ *
+ * @example
+ * const explanation: AIExplanation = {
+ *   summary: "Loads and validates CZaza settings.",
+ *   detail: "The code reads extension settings, validates supported options, and falls back to defaults.",
+ *   aiNotes: ["The API key is intentionally not stored in this model."],
+ * };
  */
 export type AIExplanation = {
-  /** A concise explanation for quickly understanding the code. */
+  /**
+   * Concise explanation for quickly understanding the analyzed code.
+   *
+   * @example
+   * "Loads and validates CZaza settings."
+   */
   summary: string;
 
-  /** A detailed explanation of the code's responsibility and behaviour. */
+  /**
+   * Detailed explanation of the code's responsibility, behavior, and important context.
+   *
+   * @example
+   * "The file reads VS Code settings, validates provider options, and returns safe defaults."
+   */
   detail: string;
 
   /**
    * Additional insights, warnings, edge cases,
    * or important details that deserve separate visual emphasis.
+   *
+   * @example
+   * ["The API key must stay outside persisted analysis data."]
    */
   aiNotes?: string[];
 };

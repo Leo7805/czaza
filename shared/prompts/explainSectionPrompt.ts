@@ -1,5 +1,5 @@
 /**
- * Builds prompts for combined file and section AI analysis.
+ * Builds prompts for section-level AI analysis.
  */
 
 import {
@@ -10,10 +10,10 @@ import {
 } from "./commonPrompt";
 
 /**
- * Input required to build a combined file and section analysis prompt.
+ * Input required to build a section-level AI analysis prompt.
  */
-export type ExplainFileSectionPromptInput = {
-  /** Complete source code for the file being analyzed. */
+export type ExplainSectionPromptInput = {
+  /** Complete source code for the file whose sections should be identified. */
   sourceCode: string;
 
   /** Workspace-relative or absolute path used only as prompt context. */
@@ -27,27 +27,27 @@ export type ExplainFileSectionPromptInput = {
 };
 
 /**
- * Creates a prompt that asks the AI to return file analysis and section analysis together.
+ * Creates a prompt that asks the AI to identify and explain meaningful sections.
  *
- * @param input - Source file context and response-language instruction.
- * @returns Prompt text for a combined file and section AI request.
+ * @param input - Source file context, optional file analysis, and response-language instruction.
+ * @returns Prompt text for a section-level AI request.
  *
  * @example
- * const prompt = explainFileSectionPrompt({
+ * const prompt = explainSectionPrompt({
  *   sourceCode: "export function Button() { return <button>Save</button>; }",
  *   filePath: "src/Button.tsx",
  *   programmingLanguage: "typescriptreact",
  *   responseLanguageInstruction: "Respond in English.",
  * });
  */
-export function explainFileSectionPrompt(input: ExplainFileSectionPromptInput): string {
+export function explainSectionPrompt(input: ExplainSectionPromptInput): string {
   return `
-You are explaining one source file for CZaza, an IDE code understanding tool.
+You are identifying meaningful sections in one source file for CZaza, an IDE code understanding tool.
 
 ${input.responseLanguageInstruction}
 
-Return only a stable JSON object matching the combined file and section analysis DTO.
-Do not return line analysis, token analysis, markdown, or extra text.
+Return only a stable JSON object matching the section analysis DTO list.
+Do not return file analysis, line analysis, token analysis, markdown, or extra text.
 
 Context:
 - filePath: ${input.filePath}
@@ -55,11 +55,6 @@ Context:
 
 Required JSON shape:
 {
-  "file": {
-    "summary": "",
-    "detail": "",
-    "aiNotes": []
-  },
   "sections": [
     {
       "title": "",
@@ -75,10 +70,6 @@ Required JSON shape:
   ]
 }
 
-File rules:
-- file.summary must be concise and explain the file's primary responsibility.
-- file.detail must explain the file's purpose, important behavior, and relevant context.
-
 Section rules:
 - Use 1-based inclusive line numbers.
 - Each section must describe a meaningful code region.
@@ -87,7 +78,6 @@ Section rules:
 - kind should be a short category when useful. Use an empty string when no category is useful.
 - summary must be concise and explain the section's primary responsibility.
 - detail must explain the section's behavior and important context.
-
 ${COMMON_JSON_OUTPUT_RULES}
 ${COMMON_CODE_REFERENCE_RULES}
 ${COMMON_ANALYSIS_STYLE_RULES}
@@ -102,7 +92,7 @@ ${formatSourceCodeWithLineNumbers(input.sourceCode)}
 }
 
 /**
- * Formats source code with one-based line number prefixes for section range selection.
+ * Formats source code with one-based line number prefixes for AI range selection.
  *
  * @param sourceCode - Complete source code to format.
  * @returns Source code where each line is prefixed with its one-based line number.

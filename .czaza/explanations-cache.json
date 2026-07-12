@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-12T05:26:10.625Z",
+  "root": "/Users/leo/Projects/czaza",
+  "files": {
+    "vscode/config/czazaSettings.ts": {
+      "semanticUnits": [],
+      "lineUnits": [
+        {
+          "lineNumber": 42,
+          "code": "  const config = vscode.workspace.getConfiguration(\"czaza\", resource);",
+          "explanation": {
+            "summary": "",
+            "detail": "",
+            "userNotes": [
+              "获取 CZaza 配置对象, 这是本文件最核心的一行。\n\n所以后面读取时使用：config.get(\"ai.provider\");\n不用/要再写：config.get(\"czaza.ai.provider\");"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

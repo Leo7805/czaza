@@ -1,43 +1,15 @@
 /**
- * Provides combined file and section AI analysis using the new AI model DTOs.
+ * Provides section-level AI analysis using the new AI model DTOs.
  */
 
 import type { AiClient } from "@shared/ai/aiClient";
-import type { FileAnalysis } from "@shared/models/ai/file";
-import type { SectionAnalysis } from "@shared/models/ai/section";
 import type { LineRange } from "@shared/models/common";
+import type { SectionAnalysis } from "@shared/models/ai/section";
 
 /**
- * Combined AI analysis for one source file.
- *
- * @example
- * const analysis: FileSectionAnalysis = {
- *   file: {
- *     summary: "Defines a reusable button component.",
- *     detail: "The file exports a React component that renders a styled button.",
- *   },
- *   sections: [
- *     {
- *       title: "Button rendering",
- *       range: { startLine: 1, endLine: 3 },
- *       summary: "Renders the button.",
- *       detail: "This section returns the JSX output.",
- *     },
- *   ],
- * };
+ * Validation context for section-level AI analysis.
  */
-export type FileSectionAnalysis = {
-  /** Whole-file AI analysis. */
-  file: FileAnalysis;
-
-  /** AI-generated meaningful sections for the same file. */
-  sections: SectionAnalysis[];
-};
-
-/**
- * Optional validation context for combined file and section analysis.
- */
-export type ExplainFileSectionServiceContext = {
+export type ExplainSectionServiceContext = {
   /**
    * Current source line count used to validate AI-generated section ranges.
    *
@@ -48,25 +20,25 @@ export type ExplainFileSectionServiceContext = {
 };
 
 /**
- * Requests and normalizes combined file and section AI analysis.
+ * Requests and normalizes section-level AI analysis.
  *
- * @param prompt - Complete prompt for the combined file and section AI request.
+ * @param prompt - Complete prompt for the section-level AI request.
  * @param aiClient - AI client used to complete the generated prompt.
  * @param context - Optional source validation context for section ranges.
- * @returns Normalized file and section analysis DTOs.
+ * @returns Normalized section analysis DTOs.
  *
  * @example
- * const analysis = await explainFileSectionService("Return file and section JSON.", aiClient);
+ * const sections = await explainSectionService("Return section JSON.", aiClient);
  */
-export async function explainFileSectionService(
+export async function explainSectionService(
   prompt: string,
   aiClient: AiClient,
-  context?: ExplainFileSectionServiceContext,
-): Promise<FileSectionAnalysis> {
+  context?: ExplainSectionServiceContext,
+): Promise<SectionAnalysis[]> {
   const responseText = await aiClient.complete(prompt);
   const parsedResponse = parseAiJsonObject(responseText);
 
-  return normalizeFileSectionAnalysis(parsedResponse, context);
+  return normalizeSectionAnalyses(parsedResponse, context);
 }
 
 /**
@@ -76,7 +48,7 @@ export async function explainFileSectionService(
  * @returns Parsed JSON value.
  *
  * @example
- * const parsed = parseAiJsonObject('{"file":{},"sections":[]}');
+ * const parsed = parseAiJsonObject('{"sections":[]}');
  */
 function parseAiJsonObject(value: string): unknown {
   return JSON.parse(extractJsonObjectText(value)) as unknown;
@@ -105,80 +77,27 @@ function extractJsonObjectText(value: string): string {
 }
 
 /**
- * Normalizes unknown AI output into the combined file and section analysis DTO.
+ * Normalizes unknown AI output into section analysis DTOs.
  *
  * @param value - Parsed AI response payload.
  * @param context - Optional source validation context for section ranges.
- * @returns Validated combined file and section analysis.
- * @throws Error when the response shape or any required field is invalid.
- *
- * @example
- * const analysis = normalizeFileSectionAnalysis({ file: {}, sections: [] });
- */
-function normalizeFileSectionAnalysis(
-  value: unknown,
-  context?: ExplainFileSectionServiceContext,
-): FileSectionAnalysis {
-  const record = toRecord(value);
-
-  return {
-    file: normalizeFileAnalysis(record.file),
-    sections: normalizeSectionAnalyses(record.sections, context),
-  };
-}
-
-/**
- * Normalizes unknown AI output into the FileAnalysis DTO.
- *
- * @param value - Parsed file analysis payload.
- * @returns FileAnalysis with validated required fields.
- * @throws Error when summary or detail is missing or empty.
- *
- * @example
- * const file = normalizeFileAnalysis({ summary: "Reads settings", detail: "..." });
- */
-function normalizeFileAnalysis(value: unknown): FileAnalysis {
-  const record = toRecord(value);
-  const summary = nonEmptyString(record.summary);
-  const detail = nonEmptyString(record.detail);
-
-  if (!summary || !detail) {
-    throw new Error("Invalid file section analysis response: file.summary and file.detail are required.");
-  }
-
-  const aiNotes = normalizeStringArray(record.aiNotes);
-  const analysis: FileAnalysis = {
-    summary,
-    detail,
-  };
-
-  if (aiNotes.length > 0) {
-    analysis.aiNotes = aiNotes;
-  }
-
-  return analysis;
-}
-
-/**
- * Normalizes unknown AI output into section analysis DTOs.
- *
- * @param value - Parsed sections payload.
- * @param context - Optional source validation context for section ranges.
  * @returns SectionAnalysis list sorted by start line.
- * @throws Error when sections is not an array or any section is invalid.
+ * @throws Error when the response shape or any section is invalid.
  *
  * @example
- * const sections = normalizeSectionAnalyses([]);
+ * const sections = normalizeSectionAnalyses({ sections: [] });
  */
 function normalizeSectionAnalyses(
   value: unknown,
-  context?: ExplainFileSectionServiceContext,
+  context?: ExplainSectionServiceContext,
 ): SectionAnalysis[] {
-  if (!Array.isArray(value)) {
-    throw new Error("Invalid file section analysis response: sections must be an array.");
+  const record = toRecord(value);
+
+  if (!Array.isArray(record.sections)) {
+    throw new Error("Invalid section analysis response: sections must be an array.");
   }
 
-  return value
+  return record.sections
     .map((section, index) => normalizeSectionAnalysis(section, index, context))
     .sort((left, right) => left.range.startLine - right.range.startLine);
 }
@@ -198,7 +117,7 @@ function normalizeSectionAnalyses(
 function normalizeSectionAnalysis(
   value: unknown,
   index: number,
-  context?: ExplainFileSectionServiceContext,
+  context?: ExplainSectionServiceContext,
 ): SectionAnalysis {
   const record = toRecord(value);
   const title = nonEmptyString(record.title);
@@ -208,7 +127,7 @@ function normalizeSectionAnalysis(
 
   if (!title || !summary || !detail || !range) {
     throw new Error(
-      `Invalid file section analysis response: section ${index} requires title, range, summary, and detail.`,
+      `Invalid section analysis response: section ${index} requires title, range, summary, and detail.`,
     );
   }
 
@@ -288,7 +207,7 @@ function normalizeLineNumber(value: unknown, lineCount?: number): number | undef
  * @returns Object record or an empty object for non-object values.
  *
  * @example
- * const record = toRecord({ file: {}, sections: [] });
+ * const record = toRecord({ sections: [] });
  */
 function toRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
