@@ -1,35 +1,99 @@
 /**
- * Top-level persistent note store for one workspace.
+ * Top-level workspace note index models.
  */
 
-import type { StoredSourceFile } from "./sourceFile";
+import type { ProgrammingLanguage } from "./sourceFile";
 
 /**
- * Top-level persistent note store for one workspace.
+ * Index entry pointing from a source file path to its stored note file.
  *
  * @example
- * const store: WorkspaceNoteStoreV1 = {
+ * const entry: WorkspaceNoteFileIndexEntry = {
+ *   noteFile: "files/abc123.json",
+ *   sourceHash: "sha256:abc123",
+ *   programmingLanguage: "typescriptreact",
+ *   updatedAt: "2026-07-13T00:00:00.000Z",
+ * };
+ */
+export type WorkspaceNoteFileIndexEntry = {
+  /**
+   * Path to the per-source-file note JSON, relative to `.czaza/notes`.
+   *
+   * @example
+   * "files/abc123.json"
+   */
+  noteFile: string;
+
+  /**
+   * Hash of the source content when this index entry was last updated.
+   *
+   * @example
+   * "sha256:abc123"
+   */
+  sourceHash: string;
+
+  /**
+   * VS Code TextDocument.languageId for this source file, when available.
+   *
+   * @example
+   * "typescriptreact"
+   */
+  programmingLanguage?: ProgrammingLanguage;
+
+  /**
+   * ISO 8601 timestamp for when this file index entry was last updated.
+   *
+   * @example
+   * "2026-07-13T00:00:00.000Z"
+   */
+  updatedAt: string;
+};
+
+/**
+ * Top-level persistent note index for one workspace.
+ *
+ * @example
+ * const index: WorkspaceNoteIndexV1 = {
  *   schemaVersion: 1,
+ *   updatedAt: "2026-07-13T00:00:00.000Z",
+ *   workspaceRoot: "/workspace/project",
  *   files: {
  *     "src/Button.tsx": {
- *       source: {
- *         hash: "sha256:abc123",
- *         programmingLanguage: "typescriptreact",
- *       },
- *       sectionNotes: [],
- *       lineNotes: [],
+ *       noteFile: "files/abc123.json",
+ *       sourceHash: "sha256:abc123",
+ *       programmingLanguage: "typescriptreact",
+ *       updatedAt: "2026-07-13T00:00:00.000Z",
  *     },
  *   },
  * };
  */
-export type WorkspaceNoteStoreV1 = {
+export type WorkspaceNoteIndexV1 = {
   /** Version of the persisted storage schema. */
   schemaVersion: 1;
 
   /**
-   * Source-file notes indexed by workspace-relative source file path.
+   * ISO 8601 timestamp for when the store file was last written.
    *
-   * The key carries the file path, so individual file entries do not repeat it.
+   * @example
+   * "2026-07-13T00:00:00.000Z"
    */
-  files: Record<string, StoredSourceFile>;
+  updatedAt: string;
+
+  /**
+   * Optional normalized workspace root used for debugging and migration checks.
+   *
+   * The persisted file path key remains the source of truth for individual
+   * source files, so this field is not required for note lookup.
+   *
+   * @example
+   * "/workspace/project"
+   */
+  workspaceRoot?: string;
+
+  /**
+   * Source-file note files indexed by workspace-relative source file path.
+   *
+   * The key carries the source path, and the value points to the per-file note JSON.
+   */
+  files: Record<string, WorkspaceNoteFileIndexEntry>;
 };

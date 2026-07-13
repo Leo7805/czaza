@@ -16,6 +16,7 @@
     "watch:vscode": "tsup vscode/extension.ts --tsconfig tsconfig.node.json --format cjs --platform node --external vscode --out-dir dist/vscode --watch"
   },
   "dependencies": {
+    "@noble/hashes": "^2.2.0",
     "picomatch": "^4.0.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

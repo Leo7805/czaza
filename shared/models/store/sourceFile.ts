@@ -20,7 +20,7 @@ export type ProgrammingLanguage = string;
  *
  * @example
  * const source: StoredSourceMetadata = {
- *   hash: "sha256:abc123",
+ *   sourceHash: "sha256:abc123",
  *   programmingLanguage: "typescriptreact",
  * };
  */
@@ -29,7 +29,7 @@ export type StoredSourceMetadata = {
    * Hash of the source content when the notes were last synchronised
    * with the file.
    */
-  hash: string;
+  sourceHash: string;
 
   /**
    * VS Code TextDocument.languageId for this source file.
@@ -47,7 +47,7 @@ export type StoredSourceMetadata = {
  * @example
  * const file: StoredSourceFile = {
  *   source: {
- *     hash: "sha256:abc123",
+ *     sourceHash: "sha256:abc123",
  *     programmingLanguage: "typescriptreact",
  *   },
  *   sectionNotes: [],
