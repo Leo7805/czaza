@@ -13,7 +13,7 @@ import {
   getWorkspaceNoteIndexPath,
   isWorkspaceNoteIndexV1,
   WorkspaceNoteStoreRepository,
-} from "@vscode/explanations/WorkspaceNoteStoreRepository";
+} from "@vscode/notes/WorkspaceNoteStoreRepository";
 
 const now = "2026-07-13T00:00:00.000Z";
 const outputDirectory = ".caca";

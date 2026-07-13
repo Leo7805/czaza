@@ -7,13 +7,14 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import { WorkspaceNoteStoreManager } from "@vscode/explanations/WorkspaceNoteStoreManager";
+import { createSourceHash } from "@shared/utils/hashUtils";
+import { WorkspaceNoteStoreManager } from "@vscode/notes/WorkspaceNoteStoreManager";
 import {
   createWorkspaceNoteFileName,
   getWorkspaceNoteFilePath,
   getWorkspaceNoteIndexPath,
   WorkspaceNoteStoreRepository,
-} from "@vscode/explanations/WorkspaceNoteStoreRepository";
+} from "@vscode/notes/WorkspaceNoteStoreRepository";
 
 const outputDirectory = ".caca";
 const relativeFilePath = "src/index.ts";
@@ -128,6 +129,426 @@ describe("WorkspaceNoteStoreManager", () => {
     await expect(
       manager.upsertLineNote(root, outputDirectory, relativeFilePath, createLineNoteInput("line:1", 1, "x"), now),
     ).rejects.toThrow("Source file notes are not initialized: src/index.ts");
+  });
+
+  it("checks tracked source file notes and returns a detection report", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => randomId);
+    const manager = new WorkspaceNoteStoreManager(repository);
+    const sourceText = ["const first = 1;", "const second = 2;"].join("\n");
+    const sourceFile = {
+      ...createStoredSourceFile(),
+      source: {
+        sourceHash: createSourceHash(sourceText),
+        programmingLanguage: "typescript",
+      },
+    };
+
+    await manager.saveSourceFile(root, outputDirectory, relativeFilePath, sourceFile, createdAt);
+
+    const result = await manager.checkEntireSourceFileNotes(root, outputDirectory, relativeFilePath, sourceText, {
+      programmingLanguage: "typescriptreact",
+    });
+
+    console.log("Manager tracked source file check:", JSON.stringify(result, null, 2));
+
+    expect(result).toMatchObject({
+      kind: "tracked",
+      relativeFilePath,
+      report: {
+        file: {
+          status: {
+            content: "current",
+            anchor: "confirmed",
+          },
+          sourceHashChanged: false,
+          programmingLanguageChanged: true,
+          previousSourceHash: createSourceHash(sourceText),
+          currentSourceHash: createSourceHash(sourceText),
+          previousProgrammingLanguage: "typescript",
+          currentProgrammingLanguage: "typescriptreact",
+          currentLineCount: 2,
+        },
+        sections: [],
+        lines: [],
+      },
+    });
+  });
+
+  it("checks changed source range notes through the manager", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => randomId);
+    const manager = new WorkspaceNoteStoreManager(repository);
+    const oldSourceText = [
+      "const first = 1;",
+      "const second = 2;",
+      "const third = first + second;",
+      "const fourth = 4;",
+    ].join("\n");
+    const nextSourceText = [
+      "const first = 1;",
+      "const second = 2;",
+      "const third = 30;",
+      "const fourth = 4;",
+    ].join("\n");
+
+    await manager.saveSourceFile(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      createStoredSourceFileWithAnchors(oldSourceText),
+      createdAt,
+    );
+
+    const result = await manager.checkChangedSourceRangeNotes(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      nextSourceText,
+      {
+        changedStartLine: 3,
+        programmingLanguage: "typescript",
+      },
+    );
+
+    console.log("Manager changed source range check:", JSON.stringify(result, null, 2));
+
+    expect(result).toMatchObject({
+      kind: "tracked",
+      relativeFilePath,
+      report: {
+        file: {
+          status: {
+            content: "stale",
+            anchor: "confirmed",
+          },
+          sourceHashChanged: true,
+          programmingLanguageChanged: false,
+          currentLineCount: 4,
+        },
+      },
+    });
+
+    if (result.kind !== "tracked") {
+      throw new Error("Expected tracked source file notes.");
+    }
+
+    expect(result.report.sections.map((section) => section.id)).toEqual([
+      "section:crosses-change",
+      "section:after-change",
+    ]);
+    expect(result.report.lines.map((line) => line.id)).toEqual(["line:3"]);
+  });
+
+  it("checks and applies entire source file note statuses through the manager", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => randomId);
+    const manager = new WorkspaceNoteStoreManager(repository);
+    const oldSourceText = [
+      "const first = 1;",
+      "const second = 2;",
+      "const third = first + second;",
+      "const fourth = 4;",
+    ].join("\n");
+    const nextSourceText = [
+      "const first = 1;",
+      "const second = 20;",
+      "const third = 30;",
+      "const fourth = 4;",
+    ].join("\n");
+
+    await manager.saveSourceFile(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      createStoredSourceFileWithAnchors(oldSourceText),
+      createdAt,
+    );
+
+    const result = await manager.checkAndApplyEntireSourceFileNoteStatus(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      nextSourceText,
+      {
+        programmingLanguage: "typescript",
+      },
+      later,
+    );
+    const persisted = await repository.getSourceFile(root, outputDirectory, relativeFilePath);
+
+    console.log("Manager check and apply entire source file:", JSON.stringify(result, null, 2));
+
+    expect(result).toMatchObject({
+      kind: "tracked",
+      updatedSourceFile: {
+        fileNote: {
+          status: {
+            content: "stale",
+            anchor: "confirmed",
+          },
+          updatedAt: later,
+        },
+      },
+    });
+    expect(persisted?.fileNote?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+    expect(persisted?.sectionNotes.map((section) => section.status)).toEqual([
+      {
+        content: "stale",
+        anchor: "needsConfirmation",
+      },
+      {
+        content: "stale",
+        anchor: "needsConfirmation",
+      },
+      {
+        content: "stale",
+        anchor: "needsConfirmation",
+      },
+    ]);
+    expect(persisted?.lineNotes.map((line) => line.status)).toEqual([
+      {
+        content: "stale",
+        anchor: "needsConfirmation",
+      },
+      {
+        content: "stale",
+        anchor: "needsConfirmation",
+      },
+    ]);
+  });
+
+  it("checks and applies changed source range note statuses through the manager", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => randomId);
+    const manager = new WorkspaceNoteStoreManager(repository);
+    const oldSourceText = [
+      "const first = 1;",
+      "const second = 2;",
+      "const third = first + second;",
+      "const fourth = 4;",
+    ].join("\n");
+    const nextSourceText = [
+      "const first = 1;",
+      "const second = 2;",
+      "const third = 30;",
+      "const fourth = 4;",
+    ].join("\n");
+
+    await manager.saveSourceFile(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      createStoredSourceFileWithAnchors(oldSourceText),
+      createdAt,
+    );
+
+    const result = await manager.checkAndApplyChangedSourceRangeNoteStatus(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      nextSourceText,
+      {
+        changedStartLine: 3,
+        programmingLanguage: "typescript",
+      },
+      later,
+    );
+    const persisted = await repository.getSourceFile(root, outputDirectory, relativeFilePath);
+
+    console.log("Manager check and apply changed source range:", JSON.stringify(result, null, 2));
+
+    expect(result.kind).toBe("tracked");
+    expect(persisted?.fileNote?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+    expect(persisted?.sectionNotes.map((section) => [section.id, section.status])).toEqual([
+      [
+        "section:before-change",
+        {
+          content: "current",
+          anchor: "confirmed",
+        },
+      ],
+      [
+        "section:crosses-change",
+        {
+          content: "stale",
+          anchor: "needsConfirmation",
+        },
+      ],
+      [
+        "section:after-change",
+        {
+          content: "stale",
+          anchor: "needsConfirmation",
+        },
+      ],
+    ]);
+    expect(persisted?.lineNotes.map((line) => [line.id, line.status])).toEqual([
+      [
+        "line:2",
+        {
+          content: "current",
+          anchor: "confirmed",
+        },
+      ],
+      [
+        "line:3",
+        {
+          content: "stale",
+          anchor: "needsConfirmation",
+        },
+      ],
+    ]);
+  });
+
+  it("confirms file, section, and line anchors through the manager", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => randomId);
+    const manager = new WorkspaceNoteStoreManager(repository);
+    const oldSourceText = [
+      "const first = 1;",
+      "const second = 2;",
+      "const third = first + second;",
+      "const fourth = 4;",
+    ].join("\n");
+    const nextSourceText = [
+      "const first = 1;",
+      "const second = 20;",
+      "const third = 30;",
+      "const fourth = 4;",
+    ].join("\n");
+
+    await manager.saveSourceFile(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      createStoredSourceFileWithAnchors(oldSourceText),
+      createdAt,
+    );
+
+    await manager.confirmFileSource(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      nextSourceText,
+      "typescriptreact",
+      later,
+    );
+    await manager.confirmSectionRange(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      "section:before-change",
+      {
+        startLine: 2,
+        endLine: 3,
+      },
+      nextSourceText,
+      later,
+    );
+    await manager.confirmLineNumber(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      "line:2",
+      3,
+      nextSourceText,
+      later,
+    );
+
+    const persisted = await repository.getSourceFile(root, outputDirectory, relativeFilePath);
+    const indexRaw = await readFile(getWorkspaceNoteIndexPath(root, outputDirectory), "utf-8");
+
+    console.log("Manager confirmation persisted source file:", JSON.stringify(persisted, null, 2));
+    console.log("Manager confirmation persisted index:", indexRaw.trim());
+
+    expect(persisted?.source).toEqual({
+      sourceHash: createSourceHash(nextSourceText),
+      programmingLanguage: "typescriptreact",
+    });
+    expect(persisted?.fileNote).toMatchObject({
+      status: {
+        content: "current",
+        anchor: "confirmed",
+      },
+      updatedAt: later,
+    });
+    expect(persisted?.sectionNotes[0]).toMatchObject({
+      id: "section:before-change",
+      range: {
+        startLine: 2,
+        endLine: 3,
+      },
+      anchorHash: createSourceHash(["const second = 20;", "const third = 30;"].join("\n")),
+      status: {
+        content: "current",
+        anchor: "confirmed",
+      },
+      updatedAt: later,
+    });
+    expect(persisted?.lineNotes.find((line) => line.id === "line:2")).toMatchObject({
+      line: 3,
+      anchorText: "const third = 30;",
+      status: {
+        content: "current",
+        anchor: "confirmed",
+      },
+      updatedAt: later,
+    });
+    expect(JSON.parse(indexRaw) as unknown).toMatchObject({
+      updatedAt: later,
+      files: {
+        [relativeFilePath]: {
+          sourceHash: createSourceHash(nextSourceText),
+          programmingLanguage: "typescriptreact",
+          updatedAt: later,
+        },
+      },
+    });
+  });
+
+  it("returns indexEntryMissing when checking an untracked source file", async () => {
+    const root = await createTempWorkspaceRoot();
+    const manager = new WorkspaceNoteStoreManager();
+    const result = await manager.checkSourceFileNotes(root, outputDirectory, relativeFilePath, "const value = 1;");
+
+    expect(result).toEqual({
+      kind: "indexEntryMissing",
+      relativeFilePath,
+    });
+  });
+
+  it("returns noteFileMissingOrInvalid when the index entry points to a missing note file", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => randomId);
+    const manager = new WorkspaceNoteStoreManager(repository);
+
+    await repository.saveIndex(root, outputDirectory, {
+      schemaVersion: 1,
+      updatedAt: createdAt,
+      workspaceRoot: root,
+      files: {
+        [relativeFilePath]: {
+          noteFile: "files/missing-note.json",
+          sourceHash: "sha256:missing",
+          programmingLanguage: "typescript",
+          updatedAt: createdAt,
+        },
+      },
+    });
+
+    const result = await manager.checkSourceFileNotes(root, outputDirectory, relativeFilePath, "const value = 1;");
+
+    expect(result).toEqual({
+      kind: "noteFileMissingOrInvalid",
+      relativeFilePath,
+    });
   });
 
   it("renames and deletes source file index entries without deleting the note file", async () => {
@@ -380,6 +801,111 @@ function createStoredSourceFile(): StoredSourceFile {
     },
     sectionNotes: [],
     lineNotes: [],
+  };
+}
+
+/**
+ * Creates a stored source file with section and line anchors for detection tests.
+ *
+ * @param sourceText - Source text used for the stored file hash.
+ * @returns Stored source file fixture with notes before, across, and after a change.
+ *
+ * @example
+ * const sourceFile = createStoredSourceFileWithAnchors(sourceText);
+ */
+function createStoredSourceFileWithAnchors(sourceText: string): StoredSourceFile {
+  return {
+    source: {
+      sourceHash: createSourceHash(sourceText),
+      programmingLanguage: "typescript",
+    },
+    fileNote: {
+      id: "file",
+      userNote: "File note.",
+      status: {
+        content: "current",
+        anchor: "confirmed",
+      },
+      createdBy: "ai",
+      createdAt,
+      updatedAt: createdAt,
+    },
+    sectionNotes: [
+      {
+        id: "section:before-change",
+        title: "Before change",
+        range: {
+          startLine: 1,
+          endLine: 2,
+        },
+        anchorHash: createSourceHash(["const first = 1;", "const second = 2;"].join("\n")),
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
+        createdBy: "ai",
+        createdAt,
+        updatedAt: createdAt,
+      },
+      {
+        id: "section:crosses-change",
+        title: "Crosses change",
+        range: {
+          startLine: 2,
+          endLine: 3,
+        },
+        anchorHash: createSourceHash(["const second = 2;", "const third = first + second;"].join("\n")),
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
+        createdBy: "ai",
+        createdAt,
+        updatedAt: createdAt,
+      },
+      {
+        id: "section:after-change",
+        title: "After change",
+        range: {
+          startLine: 3,
+          endLine: 4,
+        },
+        anchorHash: createSourceHash(["const third = first + second;", "const fourth = 4;"].join("\n")),
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
+        createdBy: "ai",
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ],
+    lineNotes: [
+      {
+        id: "line:2",
+        line: 2,
+        anchorText: "const second = 2;",
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
+        createdBy: "ai",
+        createdAt,
+        updatedAt: createdAt,
+      },
+      {
+        id: "line:3",
+        line: 3,
+        anchorText: "const third = first + second;",
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
+        createdBy: "ai",
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ],
   };
 }
 

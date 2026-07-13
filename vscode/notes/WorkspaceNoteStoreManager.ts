@@ -1,69 +1,55 @@
 /**
- * Manages cached workspace note index and per-file note CRUD operations.
+ * Provides the main facade for workspace note store operations.
  */
 
-import type { FileNoteUpsertInput, LineNoteUpsertInput, SectionNoteUpsertInput } from "@shared/services/notes/sourceFileNoteCrudService";
 import type { AIExplanation } from "@shared/models/ai/common";
 import type { LineRange } from "@shared/models/common";
 import type { NoteStatus } from "@shared/models/domain/common";
-import {
-  deleteFileNote,
-  deleteLineNote,
-  deleteSectionNote,
-  getFileNote,
-  getLineNote,
-  getSectionNote,
-  upsertFileNote,
-  upsertLineNote,
-  upsertSectionNote,
-} from "@shared/services/notes/sourceFileNoteCrudService";
 import type { StoredFileNote } from "@shared/models/store/file";
 import type { StoredLineNote } from "@shared/models/store/line";
 import type { StoredSectionNote } from "@shared/models/store/section";
 import type { ProgrammingLanguage, StoredSourceFile } from "@shared/models/store/sourceFile";
 import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
-import {
-  markSourceFileNotesCurrentConfirmed,
-  markSourceFileNotesStale,
-  updateFileNoteStatus,
-  updateLineNoteStatus,
-  updateSectionNoteStatus,
-} from "@shared/services/notes/noteStatusService";
-import {
-  updateLineAnchorText,
-  updateLineNumber,
-  updateProgrammingLanguage,
-  updateSectionAnchorHash,
-  updateSectionRange,
-  updateSourceHash,
-} from "@shared/services/notes/noteAnchorService";
-import {
-  updateFileAiExplanation,
-  updateFileUserNote,
-  updateLineAiExplanation,
-  updateLineUserNote,
-  updateSectionAiExplanation,
-  updateSectionKind,
-  updateSectionTitle,
-  updateSectionUserNote,
-} from "@shared/services/notes/noteContentService";
-import {
-  deleteSourceFileEntry,
-  renameSourceFileEntry,
-} from "@shared/services/notes/noteIndexService";
+import type {
+  ChangedSourceRangeNoteDetectionOptions,
+  SourceFileNoteDetectionOptions,
+} from "@shared/services/notes/noteDetectionService";
+import type {
+  FileNoteUpsertInput,
+  LineNoteUpsertInput,
+  SectionNoteUpsertInput,
+} from "@shared/services/notes/sourceFileNoteCrudService";
+import { WorkspaceNoteConfirmationManager } from "./WorkspaceNoteConfirmationManager";
+import { WorkspaceNoteCrudManager } from "./WorkspaceNoteCrudManager";
+import { WorkspaceNoteDetectionManager } from "./WorkspaceNoteDetectionManager";
+import { WorkspaceNoteSourceIndexManager } from "./WorkspaceNoteSourceIndexManager";
+import { WorkspaceNoteStoreCache } from "./WorkspaceNoteStoreCache";
 import { WorkspaceNoteStoreRepository } from "./WorkspaceNoteStoreRepository";
+import type {
+  SourceFileNoteCheckResult,
+  SourceFileNoteStatusApplyResult,
+} from "./WorkspaceNoteStoreTypes";
+import { WorkspaceNoteUpdateManager } from "./WorkspaceNoteUpdateManager";
+
+export type {
+  SourceFileNoteCheckResult,
+  SourceFileNoteStatusApplyResult,
+} from "./WorkspaceNoteStoreTypes";
 
 /**
- * Coordinates repository IO, in-memory cache, and note-level CRUD operations.
+ * Coordinates cache, persistence, detection, confirmation, update, and CRUD managers.
  *
  * @example
  * const manager = new WorkspaceNoteStoreManager();
  * const sourceFile = await manager.getSourceFile("/workspace/project", ".czaza", "src/index.ts");
  */
 export class WorkspaceNoteStoreManager {
-  private readonly repository: WorkspaceNoteStoreRepository;
-  private readonly indexCache = new Map<string, WorkspaceNoteIndexV1 | null>();
-  private readonly sourceFileCache = new Map<string, StoredSourceFile | undefined>();
+  private readonly cache: WorkspaceNoteStoreCache;
+  private readonly confirmationManager: WorkspaceNoteConfirmationManager;
+  private readonly crudManager: WorkspaceNoteCrudManager;
+  private readonly detectionManager: WorkspaceNoteDetectionManager;
+  private readonly sourceIndexManager: WorkspaceNoteSourceIndexManager;
+  private readonly updateManager: WorkspaceNoteUpdateManager;
 
   /**
    * Creates a workspace note store manager.
@@ -74,7 +60,12 @@ export class WorkspaceNoteStoreManager {
    * const manager = new WorkspaceNoteStoreManager(new WorkspaceNoteStoreRepository());
    */
   constructor(repository = new WorkspaceNoteStoreRepository()) {
-    this.repository = repository;
+    this.cache = new WorkspaceNoteStoreCache(repository);
+    this.confirmationManager = new WorkspaceNoteConfirmationManager(this.cache);
+    this.crudManager = new WorkspaceNoteCrudManager(this.cache);
+    this.detectionManager = new WorkspaceNoteDetectionManager(this.cache);
+    this.sourceIndexManager = new WorkspaceNoteSourceIndexManager(this.cache);
+    this.updateManager = new WorkspaceNoteUpdateManager(this.cache);
   }
 
   /**
@@ -87,14 +78,8 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const index = await manager.loadIndex("/workspace/project", ".czaza");
    */
-  async loadIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV1 | null> {
-    const key = getWorkspaceCacheKey(workspaceRoot, outputDirectory);
-
-    if (!this.indexCache.has(key)) {
-      this.indexCache.set(key, await this.repository.loadIndex(workspaceRoot, outputDirectory));
-    }
-
-    return this.indexCache.get(key) ?? null;
+  loadIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV1 | null> {
+    return this.cache.loadIndex(workspaceRoot, outputDirectory);
   }
 
   /**
@@ -107,15 +92,7 @@ export class WorkspaceNoteStoreManager {
    * manager.clearCache("/workspace/project", ".czaza");
    */
   clearCache(workspaceRoot: string, outputDirectory: string): void {
-    const prefix = `${getWorkspaceCacheKey(workspaceRoot, outputDirectory)}::`;
-
-    this.indexCache.delete(getWorkspaceCacheKey(workspaceRoot, outputDirectory));
-
-    for (const key of this.sourceFileCache.keys()) {
-      if (key.startsWith(prefix)) {
-        this.sourceFileCache.delete(key);
-      }
-    }
+    this.cache.clearCache(workspaceRoot, outputDirectory);
   }
 
   /**
@@ -129,21 +106,12 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const sourceFile = await manager.getSourceFile("/workspace/project", ".czaza", "src/index.ts");
    */
-  async getSourceFile(
+  getSourceFile(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
   ): Promise<StoredSourceFile | undefined> {
-    const key = getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath);
-
-    if (!this.sourceFileCache.has(key)) {
-      this.sourceFileCache.set(
-        key,
-        await this.repository.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath),
-      );
-    }
-
-    return this.sourceFileCache.get(key);
+    return this.cache.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
   }
 
   /**
@@ -159,29 +127,266 @@ export class WorkspaceNoteStoreManager {
    * @example
    * await manager.saveSourceFile("/workspace/project", ".czaza", "src/index.ts", sourceFile, now);
    */
-  async saveSourceFile(
+  saveSourceFile(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     sourceFile: StoredSourceFile,
     now: string,
   ): Promise<void> {
-    await this.repository.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, sourceFile, now);
-    this.sourceFileCache.set(
-      getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath),
-      sourceFile,
-    );
-    this.indexCache.set(
-      getWorkspaceCacheKey(workspaceRoot, outputDirectory),
-      await this.repository.loadIndex(workspaceRoot, outputDirectory),
-    );
+    return this.cache.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, sourceFile, now);
+  }
+
+  /**
+   * Checks whether notes for the current source file still match current source text.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param sourceText - Current full source text.
+   * @param options - Optional current source metadata.
+   * @returns Detection result, or a missing/corrupt note-store state.
+   *
+   * @example
+   * const result = await manager.checkSourceFileNotes("/workspace/project", ".czaza", "src/index.ts", text);
+   */
+  checkSourceFileNotes(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    sourceText: string,
+    options: SourceFileNoteDetectionOptions = {},
+  ): Promise<SourceFileNoteCheckResult> {
+    return this.detectionManager.checkSourceFileNotes(workspaceRoot, outputDirectory, relativeFilePath, sourceText, options);
+  }
+
+  /**
+   * Checks every note for the current source file against current source text.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param sourceText - Current full source text.
+   * @param options - Optional current source metadata.
+   * @returns Detection result, or a missing/corrupt note-store state.
+   *
+   * @example
+   * const result = await manager.checkEntireSourceFileNotes("/workspace/project", ".czaza", "src/index.ts", text);
+   */
+  checkEntireSourceFileNotes(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    sourceText: string,
+    options: SourceFileNoteDetectionOptions = {},
+  ): Promise<SourceFileNoteCheckResult> {
+    return this.detectionManager.checkEntireSourceFileNotes(workspaceRoot, outputDirectory, relativeFilePath, sourceText, options);
+  }
+
+  /**
+   * Checks notes affected by a source change that starts at a specific line.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param sourceText - Current full source text.
+   * @param options - Changed range and optional current source metadata.
+   * @returns Detection result, or a missing/corrupt note-store state.
+   *
+   * @example
+   * const result = await manager.checkChangedSourceRangeNotes("/workspace/project", ".czaza", "src/index.ts", text, { changedStartLine: 20 });
+   */
+  checkChangedSourceRangeNotes(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    sourceText: string,
+    options: ChangedSourceRangeNoteDetectionOptions,
+  ): Promise<SourceFileNoteCheckResult> {
+    return this.detectionManager.checkChangedSourceRangeNotes(workspaceRoot, outputDirectory, relativeFilePath, sourceText, options);
+  }
+
+  /**
+   * Checks every note for one source file and persists the suggested statuses.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param sourceText - Current full source text.
+   * @param options - Optional current source metadata.
+   * @param now - ISO 8601 timestamp used for updatedAt.
+   * @returns Apply result, or a missing/corrupt note-store state.
+   *
+   * @example
+   * const result = await manager.checkAndApplyEntireSourceFileNoteStatus("/workspace/project", ".czaza", "src/index.ts", text, {}, now);
+   */
+  checkAndApplyEntireSourceFileNoteStatus(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    sourceText: string,
+    options: SourceFileNoteDetectionOptions = {},
+    now: string,
+  ): Promise<SourceFileNoteStatusApplyResult> {
+    return this.detectionManager.checkAndApplyEntireSourceFileNoteStatus(workspaceRoot, outputDirectory, relativeFilePath, sourceText, options, now);
+  }
+
+  /**
+   * Checks notes affected by a changed source range and persists suggested statuses.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param sourceText - Current full source text.
+   * @param options - Changed range and optional current source metadata.
+   * @param now - ISO 8601 timestamp used for updatedAt.
+   * @returns Apply result, or a missing/corrupt note-store state.
+   *
+   * @example
+   * const result = await manager.checkAndApplyChangedSourceRangeNoteStatus("/workspace/project", ".czaza", "src/index.ts", text, { changedStartLine: 20 }, now);
+   */
+  checkAndApplyChangedSourceRangeNoteStatus(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    sourceText: string,
+    options: ChangedSourceRangeNoteDetectionOptions,
+    now: string,
+  ): Promise<SourceFileNoteStatusApplyResult> {
+    return this.detectionManager.checkAndApplyChangedSourceRangeNoteStatus(workspaceRoot, outputDirectory, relativeFilePath, sourceText, options, now);
+  }
+
+  /**
+   * Confirms the current source text as the file-level baseline.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param sourceText - Current full source text.
+   * @param programmingLanguage - Current VS Code TextDocument.languageId, when available.
+   * @param now - ISO 8601 timestamp used for updatedAt.
+   * @returns Updated stored source file.
+   *
+   * @example
+   * const next = await manager.confirmFileSource("/workspace/project", ".czaza", "src/index.ts", sourceText, "typescript", now);
+   */
+  confirmFileSource(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    sourceText: string,
+    programmingLanguage: ProgrammingLanguage | undefined,
+    now: string,
+  ): Promise<StoredSourceFile> {
+    return this.confirmationManager.confirmFileSource(workspaceRoot, outputDirectory, relativeFilePath, sourceText, programmingLanguage, now);
+  }
+
+  /**
+   * Confirms a section note against its currently stored range.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param sectionId - Stable section note id.
+   * @param sourceText - Current full source text.
+   * @param now - ISO 8601 timestamp used for updatedAt.
+   * @returns Updated stored source file.
+   *
+   * @example
+   * const next = await manager.confirmSectionCurrentRange("/workspace/project", ".czaza", "src/index.ts", "section:1", sourceText, now);
+   */
+  confirmSectionCurrentRange(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    sectionId: string,
+    sourceText: string,
+    now: string,
+  ): Promise<StoredSourceFile> {
+    return this.confirmationManager.confirmSectionCurrentRange(workspaceRoot, outputDirectory, relativeFilePath, sectionId, sourceText, now);
+  }
+
+  /**
+   * Confirms a section note against a new source range.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param sectionId - Stable section note id.
+   * @param range - One-based inclusive range to confirm.
+   * @param sourceText - Current full source text.
+   * @param now - ISO 8601 timestamp used for updatedAt.
+   * @returns Updated stored source file.
+   *
+   * @example
+   * const next = await manager.confirmSectionRange("/workspace/project", ".czaza", "src/index.ts", "section:1", { startLine: 2, endLine: 4 }, sourceText, now);
+   */
+  confirmSectionRange(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    sectionId: string,
+    range: LineRange,
+    sourceText: string,
+    now: string,
+  ): Promise<StoredSourceFile> {
+    return this.confirmationManager.confirmSectionRange(workspaceRoot, outputDirectory, relativeFilePath, sectionId, range, sourceText, now);
+  }
+
+  /**
+   * Confirms a line note against its currently stored line number.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param lineId - Stable line note id.
+   * @param sourceText - Current full source text.
+   * @param now - ISO 8601 timestamp used for updatedAt.
+   * @returns Updated stored source file.
+   *
+   * @example
+   * const next = await manager.confirmLineCurrentText("/workspace/project", ".czaza", "src/index.ts", "line:1", sourceText, now);
+   */
+  confirmLineCurrentText(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    lineId: string,
+    sourceText: string,
+    now: string,
+  ): Promise<StoredSourceFile> {
+    return this.confirmationManager.confirmLineCurrentText(workspaceRoot, outputDirectory, relativeFilePath, lineId, sourceText, now);
+  }
+
+  /**
+   * Confirms a line note against a new source line number.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param lineId - Stable line note id.
+   * @param line - One-based source line number to confirm.
+   * @param sourceText - Current full source text.
+   * @param now - ISO 8601 timestamp used for updatedAt.
+   * @returns Updated stored source file.
+   *
+   * @example
+   * const next = await manager.confirmLineNumber("/workspace/project", ".czaza", "src/index.ts", "line:1", 4, sourceText, now);
+   */
+  confirmLineNumber(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    lineId: string,
+    line: number,
+    sourceText: string,
+    now: string,
+  ): Promise<StoredSourceFile> {
+    return this.confirmationManager.confirmLineNumber(workspaceRoot, outputDirectory, relativeFilePath, lineId, line, sourceText, now);
   }
 
   /**
    * Renames or moves one source-file note index entry.
-   *
-   * The physical per-file note JSON path is preserved. Only the source file key
-   * in the workspace note index changes.
    *
    * @param workspaceRoot - Absolute workspace root path.
    * @param outputDirectory - Workspace-relative CZaza output directory.
@@ -193,39 +398,18 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const index = await manager.renameSourceFileEntry("/workspace/project", ".czaza", "src/old.ts", "src/new.ts", now);
    */
-  async renameSourceFileEntry(
+  renameSourceFileEntry(
     workspaceRoot: string,
     outputDirectory: string,
     oldRelativePath: string,
     newRelativePath: string,
     now: string,
   ): Promise<WorkspaceNoteIndexV1> {
-    const index = await this.getRequiredIndex(workspaceRoot, outputDirectory);
-    const next = renameSourceFileEntry(index, oldRelativePath, newRelativePath, now);
-    const workspaceKey = getWorkspaceCacheKey(workspaceRoot, outputDirectory);
-    const oldSourceFileKey = getSourceFileCacheKey(workspaceRoot, outputDirectory, oldRelativePath);
-    const newSourceFileKey = getSourceFileCacheKey(workspaceRoot, outputDirectory, newRelativePath);
-    const cachedSourceFile = this.sourceFileCache.get(oldSourceFileKey);
-
-    await this.repository.saveIndex(workspaceRoot, outputDirectory, next);
-
-    this.indexCache.set(workspaceKey, next);
-    this.sourceFileCache.delete(oldSourceFileKey);
-
-    if (cachedSourceFile) {
-      this.sourceFileCache.set(newSourceFileKey, cachedSourceFile);
-    } else {
-      this.sourceFileCache.delete(newSourceFileKey);
-    }
-
-    return next;
+    return this.sourceIndexManager.renameSourceFileEntry(workspaceRoot, outputDirectory, oldRelativePath, newRelativePath, now);
   }
 
   /**
    * Removes one source-file note index entry.
-   *
-   * The per-file note JSON is left on disk. This is useful when the UI wants to
-   * detach a source path without destroying recoverable notes.
    *
    * @param workspaceRoot - Absolute workspace root path.
    * @param outputDirectory - Workspace-relative CZaza output directory.
@@ -236,23 +420,13 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const index = await manager.deleteSourceFileEntry("/workspace/project", ".czaza", "src/old.ts", now);
    */
-  async deleteSourceFileEntry(
+  deleteSourceFileEntry(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     now: string,
   ): Promise<WorkspaceNoteIndexV1> {
-    const index = await this.getRequiredIndex(workspaceRoot, outputDirectory);
-    const next = deleteSourceFileEntry(index, relativeFilePath, now);
-
-    if (next !== index) {
-      await this.repository.saveIndex(workspaceRoot, outputDirectory, next);
-    }
-
-    this.indexCache.set(getWorkspaceCacheKey(workspaceRoot, outputDirectory), next);
-    this.sourceFileCache.delete(getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath));
-
-    return next;
+    return this.sourceIndexManager.deleteSourceFileEntry(workspaceRoot, outputDirectory, relativeFilePath, now);
   }
 
   /**
@@ -268,20 +442,14 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateSourceHash("/workspace/project", ".czaza", "src/index.ts", "sha256:abc", now);
    */
-  async updateSourceHash(
+  updateSourceHash(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     sourceHash: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateSourceHash(sourceFile, sourceHash),
-    );
+    return this.updateManager.updateSourceHash(workspaceRoot, outputDirectory, relativeFilePath, sourceHash, now);
   }
 
   /**
@@ -297,20 +465,14 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateProgrammingLanguage("/workspace/project", ".czaza", "src/index.ts", "typescriptreact", now);
    */
-  async updateProgrammingLanguage(
+  updateProgrammingLanguage(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     programmingLanguage: ProgrammingLanguage | undefined,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateProgrammingLanguage(sourceFile, programmingLanguage),
-    );
+    return this.updateManager.updateProgrammingLanguage(workspaceRoot, outputDirectory, relativeFilePath, programmingLanguage, now);
   }
 
   /**
@@ -326,20 +488,14 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateFileNoteStatus("/workspace/project", ".czaza", "src/index.ts", status, now);
    */
-  async updateFileNoteStatus(
+  updateFileNoteStatus(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     status: NoteStatus,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateFileNoteStatus(sourceFile, status, now),
-    );
+    return this.updateManager.updateFileNoteStatus(workspaceRoot, outputDirectory, relativeFilePath, status, now);
   }
 
   /**
@@ -356,7 +512,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateSectionNoteStatus("/workspace/project", ".czaza", "src/index.ts", "section:1", status, now);
    */
-  async updateSectionNoteStatus(
+  updateSectionNoteStatus(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -364,13 +520,7 @@ export class WorkspaceNoteStoreManager {
     status: NoteStatus,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateSectionNoteStatus(sourceFile, sectionId, status, now),
-    );
+    return this.updateManager.updateSectionNoteStatus(workspaceRoot, outputDirectory, relativeFilePath, sectionId, status, now);
   }
 
   /**
@@ -387,7 +537,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateLineNoteStatus("/workspace/project", ".czaza", "src/index.ts", "line:1", status, now);
    */
-  async updateLineNoteStatus(
+  updateLineNoteStatus(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -395,13 +545,7 @@ export class WorkspaceNoteStoreManager {
     status: NoteStatus,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateLineNoteStatus(sourceFile, lineId, status, now),
-    );
+    return this.updateManager.updateLineNoteStatus(workspaceRoot, outputDirectory, relativeFilePath, lineId, status, now);
   }
 
   /**
@@ -416,19 +560,13 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.markSourceFileNotesStale("/workspace/project", ".czaza", "src/index.ts", now);
    */
-  async markSourceFileNotesStale(
+  markSourceFileNotesStale(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => markSourceFileNotesStale(sourceFile, now),
-    );
+    return this.updateManager.markSourceFileNotesStale(workspaceRoot, outputDirectory, relativeFilePath, now);
   }
 
   /**
@@ -443,19 +581,13 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.markSourceFileNotesCurrentConfirmed("/workspace/project", ".czaza", "src/index.ts", now);
    */
-  async markSourceFileNotesCurrentConfirmed(
+  markSourceFileNotesCurrentConfirmed(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => markSourceFileNotesCurrentConfirmed(sourceFile, now),
-    );
+    return this.updateManager.markSourceFileNotesCurrentConfirmed(workspaceRoot, outputDirectory, relativeFilePath, now);
   }
 
   /**
@@ -473,7 +605,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateSectionRange("/workspace/project", ".czaza", "src/index.ts", "section:1", { startLine: 1, endLine: 3 }, 20, now);
    */
-  async updateSectionRange(
+  updateSectionRange(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -482,13 +614,7 @@ export class WorkspaceNoteStoreManager {
     lineCount: number,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateSectionRange(sourceFile, sectionId, range, lineCount, now),
-    );
+    return this.updateManager.updateSectionRange(workspaceRoot, outputDirectory, relativeFilePath, sectionId, range, lineCount, now);
   }
 
   /**
@@ -505,7 +631,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateSectionAnchorHash("/workspace/project", ".czaza", "src/index.ts", "section:1", "sha256:abc", now);
    */
-  async updateSectionAnchorHash(
+  updateSectionAnchorHash(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -513,13 +639,7 @@ export class WorkspaceNoteStoreManager {
     anchorHash: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateSectionAnchorHash(sourceFile, sectionId, anchorHash, now),
-    );
+    return this.updateManager.updateSectionAnchorHash(workspaceRoot, outputDirectory, relativeFilePath, sectionId, anchorHash, now);
   }
 
   /**
@@ -537,7 +657,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateLineNumber("/workspace/project", ".czaza", "src/index.ts", "line:1", 3, 20, now);
    */
-  async updateLineNumber(
+  updateLineNumber(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -546,13 +666,7 @@ export class WorkspaceNoteStoreManager {
     lineCount: number,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateLineNumber(sourceFile, lineId, line, lineCount, now),
-    );
+    return this.updateManager.updateLineNumber(workspaceRoot, outputDirectory, relativeFilePath, lineId, line, lineCount, now);
   }
 
   /**
@@ -569,7 +683,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateLineAnchorText("/workspace/project", ".czaza", "src/index.ts", "line:1", "const value = 1;", now);
    */
-  async updateLineAnchorText(
+  updateLineAnchorText(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -577,13 +691,7 @@ export class WorkspaceNoteStoreManager {
     anchorText: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateLineAnchorText(sourceFile, lineId, anchorText, now),
-    );
+    return this.updateManager.updateLineAnchorText(workspaceRoot, outputDirectory, relativeFilePath, lineId, anchorText, now);
   }
 
   /**
@@ -599,20 +707,14 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateFileUserNote("/workspace/project", ".czaza", "src/index.ts", "Remember this.", now);
    */
-  async updateFileUserNote(
+  updateFileUserNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     userNote: string | undefined,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateFileUserNote(sourceFile, userNote, now),
-    );
+    return this.updateManager.updateFileUserNote(workspaceRoot, outputDirectory, relativeFilePath, userNote, now);
   }
 
   /**
@@ -629,7 +731,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateSectionUserNote("/workspace/project", ".czaza", "src/index.ts", "section:1", "Review this.", now);
    */
-  async updateSectionUserNote(
+  updateSectionUserNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -637,13 +739,7 @@ export class WorkspaceNoteStoreManager {
     userNote: string | undefined,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateSectionUserNote(sourceFile, sectionId, userNote, now),
-    );
+    return this.updateManager.updateSectionUserNote(workspaceRoot, outputDirectory, relativeFilePath, sectionId, userNote, now);
   }
 
   /**
@@ -660,7 +756,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateLineUserNote("/workspace/project", ".czaza", "src/index.ts", "line:1", "Important.", now);
    */
-  async updateLineUserNote(
+  updateLineUserNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -668,13 +764,7 @@ export class WorkspaceNoteStoreManager {
     userNote: string | undefined,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateLineUserNote(sourceFile, lineId, userNote, now),
-    );
+    return this.updateManager.updateLineUserNote(workspaceRoot, outputDirectory, relativeFilePath, lineId, userNote, now);
   }
 
   /**
@@ -690,20 +780,14 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateFileAiExplanation("/workspace/project", ".czaza", "src/index.ts", explanation, now);
    */
-  async updateFileAiExplanation(
+  updateFileAiExplanation(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     aiExplanation: AIExplanation | undefined,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateFileAiExplanation(sourceFile, aiExplanation, now),
-    );
+    return this.updateManager.updateFileAiExplanation(workspaceRoot, outputDirectory, relativeFilePath, aiExplanation, now);
   }
 
   /**
@@ -720,7 +804,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateSectionAiExplanation("/workspace/project", ".czaza", "src/index.ts", "section:1", explanation, now);
    */
-  async updateSectionAiExplanation(
+  updateSectionAiExplanation(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -728,13 +812,7 @@ export class WorkspaceNoteStoreManager {
     aiExplanation: AIExplanation | undefined,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateSectionAiExplanation(sourceFile, sectionId, aiExplanation, now),
-    );
+    return this.updateManager.updateSectionAiExplanation(workspaceRoot, outputDirectory, relativeFilePath, sectionId, aiExplanation, now);
   }
 
   /**
@@ -751,7 +829,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateLineAiExplanation("/workspace/project", ".czaza", "src/index.ts", "line:1", explanation, now);
    */
-  async updateLineAiExplanation(
+  updateLineAiExplanation(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -759,13 +837,7 @@ export class WorkspaceNoteStoreManager {
     aiExplanation: AIExplanation | undefined,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateLineAiExplanation(sourceFile, lineId, aiExplanation, now),
-    );
+    return this.updateManager.updateLineAiExplanation(workspaceRoot, outputDirectory, relativeFilePath, lineId, aiExplanation, now);
   }
 
   /**
@@ -782,7 +854,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateSectionTitle("/workspace/project", ".czaza", "src/index.ts", "section:1", "Setup", now);
    */
-  async updateSectionTitle(
+  updateSectionTitle(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -790,13 +862,7 @@ export class WorkspaceNoteStoreManager {
     title: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateSectionTitle(sourceFile, sectionId, title, now),
-    );
+    return this.updateManager.updateSectionTitle(workspaceRoot, outputDirectory, relativeFilePath, sectionId, title, now);
   }
 
   /**
@@ -813,7 +879,7 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.updateSectionKind("/workspace/project", ".czaza", "src/index.ts", "section:1", "setup", now);
    */
-  async updateSectionKind(
+  updateSectionKind(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
@@ -821,13 +887,7 @@ export class WorkspaceNoteStoreManager {
     kind: string | undefined,
     now: string,
   ): Promise<StoredSourceFile> {
-    return this.updateStoredSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-      now,
-      (sourceFile) => updateSectionKind(sourceFile, sectionId, kind, now),
-    );
+    return this.updateManager.updateSectionKind(workspaceRoot, outputDirectory, relativeFilePath, sectionId, kind, now);
   }
 
   /**
@@ -841,14 +901,12 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const note = await manager.getFileNote("/workspace/project", ".czaza", "src/index.ts");
    */
-  async getFileNote(
+  getFileNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
   ): Promise<StoredFileNote | undefined> {
-    const sourceFile = await this.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-
-    return sourceFile ? getFileNote(sourceFile) : undefined;
+    return this.crudManager.getFileNote(workspaceRoot, outputDirectory, relativeFilePath);
   }
 
   /**
@@ -864,19 +922,14 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.upsertFileNote("/workspace/project", ".czaza", "src/index.ts", note, now);
    */
-  async upsertFileNote(
+  upsertFileNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     fileNote: FileNoteUpsertInput,
     now: string,
   ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-    const next = upsertFileNote(sourceFile, fileNote, now);
-
-    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
-
-    return next;
+    return this.crudManager.upsertFileNote(workspaceRoot, outputDirectory, relativeFilePath, fileNote, now);
   }
 
   /**
@@ -891,18 +944,13 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.deleteFileNote("/workspace/project", ".czaza", "src/index.ts", now);
    */
-  async deleteFileNote(
+  deleteFileNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-    const next = deleteFileNote(sourceFile);
-
-    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
-
-    return next;
+    return this.crudManager.deleteFileNote(workspaceRoot, outputDirectory, relativeFilePath, now);
   }
 
   /**
@@ -915,17 +963,15 @@ export class WorkspaceNoteStoreManager {
    * @returns Stored section note when found.
    *
    * @example
-   * const note = await manager.getSectionNote("/workspace/project", ".czaza", "src/index.ts", "section:1:intro:1-3");
+   * const note = await manager.getSectionNote("/workspace/project", ".czaza", "src/index.ts", "section:1");
    */
-  async getSectionNote(
+  getSectionNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     sectionId: string,
   ): Promise<StoredSectionNote | undefined> {
-    const sourceFile = await this.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-
-    return sourceFile ? getSectionNote(sourceFile, sectionId) : undefined;
+    return this.crudManager.getSectionNote(workspaceRoot, outputDirectory, relativeFilePath, sectionId);
   }
 
   /**
@@ -941,19 +987,14 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.upsertSectionNote("/workspace/project", ".czaza", "src/index.ts", note, now);
    */
-  async upsertSectionNote(
+  upsertSectionNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     sectionNote: SectionNoteUpsertInput,
     now: string,
   ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-    const next = upsertSectionNote(sourceFile, sectionNote, now);
-
-    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
-
-    return next;
+    return this.crudManager.upsertSectionNote(workspaceRoot, outputDirectory, relativeFilePath, sectionNote, now);
   }
 
   /**
@@ -967,21 +1008,16 @@ export class WorkspaceNoteStoreManager {
    * @returns Updated stored source file.
    *
    * @example
-   * const next = await manager.deleteSectionNote("/workspace/project", ".czaza", "src/index.ts", "section:1:intro:1-3", now);
+   * const next = await manager.deleteSectionNote("/workspace/project", ".czaza", "src/index.ts", "section:1", now);
    */
-  async deleteSectionNote(
+  deleteSectionNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     sectionId: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-    const next = deleteSectionNote(sourceFile, sectionId);
-
-    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
-
-    return next;
+    return this.crudManager.deleteSectionNote(workspaceRoot, outputDirectory, relativeFilePath, sectionId, now);
   }
 
   /**
@@ -996,15 +1032,13 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const note = await manager.getLineNote("/workspace/project", ".czaza", "src/index.ts", "line:1");
    */
-  async getLineNote(
+  getLineNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     lineId: string,
   ): Promise<StoredLineNote | undefined> {
-    const sourceFile = await this.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-
-    return sourceFile ? getLineNote(sourceFile, lineId) : undefined;
+    return this.crudManager.getLineNote(workspaceRoot, outputDirectory, relativeFilePath, lineId);
   }
 
   /**
@@ -1020,19 +1054,14 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.upsertLineNote("/workspace/project", ".czaza", "src/index.ts", note, now);
    */
-  async upsertLineNote(
+  upsertLineNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     lineNote: LineNoteUpsertInput,
     now: string,
   ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-    const next = upsertLineNote(sourceFile, lineNote, now);
-
-    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
-
-    return next;
+    return this.crudManager.upsertLineNote(workspaceRoot, outputDirectory, relativeFilePath, lineNote, now);
   }
 
   /**
@@ -1048,127 +1077,13 @@ export class WorkspaceNoteStoreManager {
    * @example
    * const next = await manager.deleteLineNote("/workspace/project", ".czaza", "src/index.ts", "line:1", now);
    */
-  async deleteLineNote(
+  deleteLineNote(
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
     lineId: string,
     now: string,
   ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-    const next = deleteLineNote(sourceFile, lineId);
-
-    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
-
-    return next;
+    return this.crudManager.deleteLineNote(workspaceRoot, outputDirectory, relativeFilePath, lineId, now);
   }
-
-  /**
-   * Reads one source file and throws when it has not been initialized.
-   *
-   * @param workspaceRoot - Absolute workspace root path.
-   * @param outputDirectory - Workspace-relative CZaza output directory.
-   * @param relativeFilePath - Normalized workspace-relative source file path.
-   * @returns Stored source file.
-   *
-   * @example
-   * const sourceFile = await manager.getRequiredSourceFile("/workspace/project", ".czaza", "src/index.ts");
-   */
-  private async getRequiredSourceFile(
-    workspaceRoot: string,
-    outputDirectory: string,
-    relativeFilePath: string,
-  ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-
-    if (!sourceFile) {
-      throw new Error(`Source file notes are not initialized: ${relativeFilePath}`);
-    }
-
-    return sourceFile;
-  }
-
-  /**
-   * Applies one stored source file update and persists the result.
-   *
-   * @param workspaceRoot - Absolute workspace root path.
-   * @param outputDirectory - Workspace-relative CZaza output directory.
-   * @param relativeFilePath - Normalized workspace-relative source file path.
-   * @param now - ISO 8601 timestamp used for index updatedAt.
-   * @param update - Pure source file update function.
-   * @returns Updated stored source file.
-   *
-   * @example
-   * const next = await this.updateStoredSourceFile(root, ".czaza", "src/index.ts", now, (sourceFile) => sourceFile);
-   */
-  private async updateStoredSourceFile(
-    workspaceRoot: string,
-    outputDirectory: string,
-    relativeFilePath: string,
-    now: string,
-    update: (sourceFile: StoredSourceFile) => StoredSourceFile,
-  ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
-    const next = update(sourceFile);
-
-    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
-
-    return next;
-  }
-
-  /**
-   * Reads the workspace note index and throws when it has not been initialized.
-   *
-   * @param workspaceRoot - Absolute workspace root path.
-   * @param outputDirectory - Workspace-relative CZaza output directory.
-   * @returns Workspace note index.
-   *
-   * @example
-   * const index = await manager.getRequiredIndex("/workspace/project", ".czaza");
-   */
-  private async getRequiredIndex(
-    workspaceRoot: string,
-    outputDirectory: string,
-  ): Promise<WorkspaceNoteIndexV1> {
-    const index = await this.loadIndex(workspaceRoot, outputDirectory);
-
-    if (!index) {
-      throw new Error(`Workspace note index is not initialized: ${outputDirectory}`);
-    }
-
-    return index;
-  }
-}
-
-/**
- * Creates a cache key for one workspace/output directory pair.
- *
- * @param workspaceRoot - Absolute workspace root path.
- * @param outputDirectory - Workspace-relative CZaza output directory.
- * @returns Cache key.
- *
- * @example
- * const key = getWorkspaceCacheKey("/workspace/project", ".czaza");
- */
-function getWorkspaceCacheKey(workspaceRoot: string, outputDirectory: string): string {
-  return `${workspaceRoot}::${outputDirectory}`;
-}
-
-/**
- * Creates a cache key for one stored source file.
- *
- * @param workspaceRoot - Absolute workspace root path.
- * @param outputDirectory - Workspace-relative CZaza output directory.
- * @param relativeFilePath - Normalized workspace-relative source file path.
- * @returns Cache key.
- *
- * @example
- * const key = getSourceFileCacheKey("/workspace/project", ".czaza", "src/index.ts");
- */
-function getSourceFileCacheKey(
-  workspaceRoot: string,
-  outputDirectory: string,
-  relativeFilePath: string,
-): string {
-  return `${getWorkspaceCacheKey(workspaceRoot, outputDirectory)}::${relativeFilePath}`;
 }
