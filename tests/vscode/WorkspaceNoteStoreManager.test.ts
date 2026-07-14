@@ -1,5 +1,5 @@
 /**
- * Integration-style tests for workspace note store manager CRUD operations.
+ * Integration-style tests for workspace note store notes CRUD operations.
  */
 
 import { mkdtemp, readFile } from "node:fs/promises";
@@ -8,7 +8,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { createSourceHash } from "@shared/utils/hashUtils";
-import { WorkspaceNoteStoreManager } from "@vscode/notes/WorkspaceNoteStoreManager";
+import { WorkspaceNoteStore } from "@vscode/notes";
 import {
   createWorkspaceNoteFileName,
   getWorkspaceNoteFilePath,
@@ -23,24 +23,24 @@ const now = "2026-07-13T00:00:00.000Z";
 const later = "2026-07-14T00:00:00.000Z";
 const randomId = "fixed001";
 
-describe("WorkspaceNoteStoreManager", () => {
+describe("WorkspaceNoteStore", () => {
   it("manages file, section, and line note CRUD with repository persistence", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
     const initialSourceFile = createStoredSourceFile();
 
-    await manager.saveSourceFile(root, outputDirectory, relativeFilePath, initialSourceFile, createdAt);
+    await notes.cache.saveSourceFile(root, outputDirectory, relativeFilePath, initialSourceFile, createdAt);
 
-    await manager.upsertFileNote(root, outputDirectory, relativeFilePath, createFileNoteInput("File note."), now);
-    await manager.upsertSectionNote(
+    await notes.crud.upsertFileNote(root, outputDirectory, relativeFilePath, createFileNoteInput("File note."), now);
+    await notes.crud.upsertSectionNote(
       root,
       outputDirectory,
       relativeFilePath,
       createSectionNoteInput("section:1:intro:1-2", "Intro", 1, 2),
       now,
     );
-    await manager.upsertLineNote(
+    await notes.crud.upsertLineNote(
       root,
       outputDirectory,
       relativeFilePath,
@@ -48,28 +48,28 @@ describe("WorkspaceNoteStoreManager", () => {
       now,
     );
 
-    const afterInsert = await manager.getSourceFile(root, outputDirectory, relativeFilePath);
+    const afterInsert = await notes.cache.getSourceFile(root, outputDirectory, relativeFilePath);
 
-    console.log("Manager source file after inserts:", JSON.stringify(afterInsert, null, 2));
+    console.log("Store source file after inserts:", JSON.stringify(afterInsert, null, 2));
 
-    expect(await manager.getFileNote(root, outputDirectory, relativeFilePath)).toMatchObject({
+    expect(await notes.crud.getFileNote(root, outputDirectory, relativeFilePath)).toMatchObject({
       userNote: "File note.",
       createdAt: now,
       updatedAt: now,
     });
-    expect(await manager.getSectionNote(root, outputDirectory, relativeFilePath, "section:1:intro:1-2"))
+    expect(await notes.crud.getSectionNote(root, outputDirectory, relativeFilePath, "section:1:intro:1-2"))
       .toMatchObject({
         title: "Intro",
         createdAt: now,
         updatedAt: now,
       });
-    expect(await manager.getLineNote(root, outputDirectory, relativeFilePath, "line:2")).toMatchObject({
+    expect(await notes.crud.getLineNote(root, outputDirectory, relativeFilePath, "line:2")).toMatchObject({
       anchorText: "const second = 2;",
       createdAt: now,
       updatedAt: now,
     });
 
-    await manager.upsertSectionNote(
+    await notes.crud.upsertSectionNote(
       root,
       outputDirectory,
       relativeFilePath,
@@ -79,7 +79,7 @@ describe("WorkspaceNoteStoreManager", () => {
       },
       later,
     );
-    await manager.deleteLineNote(root, outputDirectory, relativeFilePath, "line:2", later);
+    await notes.crud.deleteLineNote(root, outputDirectory, relativeFilePath, "line:2", later);
 
     const persisted = await repository.getSourceFile(root, outputDirectory, relativeFilePath);
     const indexRaw = await readFile(getWorkspaceNoteIndexPath(root, outputDirectory), "utf-8");
@@ -88,8 +88,8 @@ describe("WorkspaceNoteStoreManager", () => {
       "utf-8",
     );
 
-    console.log("Manager persisted index:", indexRaw.trim());
-    console.log("Manager persisted note file:", noteRaw.trim());
+    console.log("Store persisted index:", indexRaw.trim());
+    console.log("Store persisted note file:", noteRaw.trim());
 
     expect(persisted?.sectionNotes).toEqual([
       expect.objectContaining({
@@ -113,28 +113,28 @@ describe("WorkspaceNoteStoreManager", () => {
       },
     });
 
-    manager.clearCache(root, outputDirectory);
+    notes.cache.clearCache(root, outputDirectory);
 
-    expect(await manager.getSourceFile(root, outputDirectory, relativeFilePath)).toEqual(persisted);
+    expect(await notes.cache.getSourceFile(root, outputDirectory, relativeFilePath)).toEqual(persisted);
 
-    await manager.deleteFileNote(root, outputDirectory, relativeFilePath, later);
+    await notes.crud.deleteFileNote(root, outputDirectory, relativeFilePath, later);
 
-    expect(await manager.getFileNote(root, outputDirectory, relativeFilePath)).toBeUndefined();
+    expect(await notes.crud.getFileNote(root, outputDirectory, relativeFilePath)).toBeUndefined();
   });
 
   it("throws when note CRUD is requested before a source file is initialized", async () => {
     const root = await createTempWorkspaceRoot();
-    const manager = new WorkspaceNoteStoreManager();
+    const notes = new WorkspaceNoteStore();
 
     await expect(
-      manager.upsertLineNote(root, outputDirectory, relativeFilePath, createLineNoteInput("line:1", 1, "x"), now),
+      notes.crud.upsertLineNote(root, outputDirectory, relativeFilePath, createLineNoteInput("line:1", 1, "x"), now),
     ).rejects.toThrow("Source file notes are not initialized: src/index.ts");
   });
 
   it("checks tracked source file notes and returns a detection report", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
     const sourceText = ["const first = 1;", "const second = 2;"].join("\n");
     const sourceFile = {
       ...createStoredSourceFile(),
@@ -144,13 +144,13 @@ describe("WorkspaceNoteStoreManager", () => {
       },
     };
 
-    await manager.saveSourceFile(root, outputDirectory, relativeFilePath, sourceFile, createdAt);
+    await notes.cache.saveSourceFile(root, outputDirectory, relativeFilePath, sourceFile, createdAt);
 
-    const result = await manager.checkEntireSourceFileNotes(root, outputDirectory, relativeFilePath, sourceText, {
+    const result = await notes.detection.checkEntireSourceFileNotes(root, outputDirectory, relativeFilePath, sourceText, {
       programmingLanguage: "typescriptreact",
     });
 
-    console.log("Manager tracked source file check:", JSON.stringify(result, null, 2));
+    console.log("Store tracked source file check:", JSON.stringify(result, null, 2));
 
     expect(result).toMatchObject({
       kind: "tracked",
@@ -178,7 +178,7 @@ describe("WorkspaceNoteStoreManager", () => {
   it("checks changed source range notes through the manager", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
     const oldSourceText = [
       "const first = 1;",
       "const second = 2;",
@@ -192,7 +192,7 @@ describe("WorkspaceNoteStoreManager", () => {
       "const fourth = 4;",
     ].join("\n");
 
-    await manager.saveSourceFile(
+    await notes.cache.saveSourceFile(
       root,
       outputDirectory,
       relativeFilePath,
@@ -200,7 +200,7 @@ describe("WorkspaceNoteStoreManager", () => {
       createdAt,
     );
 
-    const result = await manager.checkChangedSourceRangeNotes(
+    const result = await notes.detection.checkChangedSourceRangeNotes(
       root,
       outputDirectory,
       relativeFilePath,
@@ -211,7 +211,7 @@ describe("WorkspaceNoteStoreManager", () => {
       },
     );
 
-    console.log("Manager changed source range check:", JSON.stringify(result, null, 2));
+    console.log("Store changed source range check:", JSON.stringify(result, null, 2));
 
     expect(result).toMatchObject({
       kind: "tracked",
@@ -243,7 +243,7 @@ describe("WorkspaceNoteStoreManager", () => {
   it("checks and applies entire source file note statuses through the manager", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
     const oldSourceText = [
       "const first = 1;",
       "const second = 2;",
@@ -257,7 +257,7 @@ describe("WorkspaceNoteStoreManager", () => {
       "const fourth = 4;",
     ].join("\n");
 
-    await manager.saveSourceFile(
+    await notes.cache.saveSourceFile(
       root,
       outputDirectory,
       relativeFilePath,
@@ -265,7 +265,7 @@ describe("WorkspaceNoteStoreManager", () => {
       createdAt,
     );
 
-    const result = await manager.checkAndApplyEntireSourceFileNoteStatus(
+    const result = await notes.detection.checkAndApplyEntireSourceFileNoteStatus(
       root,
       outputDirectory,
       relativeFilePath,
@@ -277,7 +277,7 @@ describe("WorkspaceNoteStoreManager", () => {
     );
     const persisted = await repository.getSourceFile(root, outputDirectory, relativeFilePath);
 
-    console.log("Manager check and apply entire source file:", JSON.stringify(result, null, 2));
+    console.log("Store check and apply entire source file:", JSON.stringify(result, null, 2));
 
     expect(result).toMatchObject({
       kind: "tracked",
@@ -324,7 +324,7 @@ describe("WorkspaceNoteStoreManager", () => {
   it("checks and applies changed source range note statuses through the manager", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
     const oldSourceText = [
       "const first = 1;",
       "const second = 2;",
@@ -338,7 +338,7 @@ describe("WorkspaceNoteStoreManager", () => {
       "const fourth = 4;",
     ].join("\n");
 
-    await manager.saveSourceFile(
+    await notes.cache.saveSourceFile(
       root,
       outputDirectory,
       relativeFilePath,
@@ -346,7 +346,7 @@ describe("WorkspaceNoteStoreManager", () => {
       createdAt,
     );
 
-    const result = await manager.checkAndApplyChangedSourceRangeNoteStatus(
+    const result = await notes.detection.checkAndApplyChangedSourceRangeNoteStatus(
       root,
       outputDirectory,
       relativeFilePath,
@@ -359,7 +359,7 @@ describe("WorkspaceNoteStoreManager", () => {
     );
     const persisted = await repository.getSourceFile(root, outputDirectory, relativeFilePath);
 
-    console.log("Manager check and apply changed source range:", JSON.stringify(result, null, 2));
+    console.log("Store check and apply changed source range:", JSON.stringify(result, null, 2));
 
     expect(result.kind).toBe("tracked");
     expect(persisted?.fileNote?.status).toEqual({
@@ -410,7 +410,7 @@ describe("WorkspaceNoteStoreManager", () => {
   it("confirms file, section, and line anchors through the manager", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
     const oldSourceText = [
       "const first = 1;",
       "const second = 2;",
@@ -424,7 +424,7 @@ describe("WorkspaceNoteStoreManager", () => {
       "const fourth = 4;",
     ].join("\n");
 
-    await manager.saveSourceFile(
+    await notes.cache.saveSourceFile(
       root,
       outputDirectory,
       relativeFilePath,
@@ -432,7 +432,7 @@ describe("WorkspaceNoteStoreManager", () => {
       createdAt,
     );
 
-    await manager.confirmFileSource(
+    await notes.confirmation.confirmFileSource(
       root,
       outputDirectory,
       relativeFilePath,
@@ -440,7 +440,7 @@ describe("WorkspaceNoteStoreManager", () => {
       "typescriptreact",
       later,
     );
-    await manager.confirmSectionRange(
+    await notes.confirmation.confirmSectionRange(
       root,
       outputDirectory,
       relativeFilePath,
@@ -452,7 +452,7 @@ describe("WorkspaceNoteStoreManager", () => {
       nextSourceText,
       later,
     );
-    await manager.confirmLineNumber(
+    await notes.confirmation.confirmLineNumber(
       root,
       outputDirectory,
       relativeFilePath,
@@ -465,8 +465,8 @@ describe("WorkspaceNoteStoreManager", () => {
     const persisted = await repository.getSourceFile(root, outputDirectory, relativeFilePath);
     const indexRaw = await readFile(getWorkspaceNoteIndexPath(root, outputDirectory), "utf-8");
 
-    console.log("Manager confirmation persisted source file:", JSON.stringify(persisted, null, 2));
-    console.log("Manager confirmation persisted index:", indexRaw.trim());
+    console.log("Store confirmation persisted source file:", JSON.stringify(persisted, null, 2));
+    console.log("Store confirmation persisted index:", indexRaw.trim());
 
     expect(persisted?.source).toEqual({
       sourceHash: createSourceHash(nextSourceText),
@@ -515,8 +515,8 @@ describe("WorkspaceNoteStoreManager", () => {
 
   it("returns indexEntryMissing when checking an untracked source file", async () => {
     const root = await createTempWorkspaceRoot();
-    const manager = new WorkspaceNoteStoreManager();
-    const result = await manager.checkSourceFileNotes(root, outputDirectory, relativeFilePath, "const value = 1;");
+    const notes = new WorkspaceNoteStore();
+    const result = await notes.detection.checkSourceFileNotes(root, outputDirectory, relativeFilePath, "const value = 1;");
 
     expect(result).toEqual({
       kind: "indexEntryMissing",
@@ -527,7 +527,7 @@ describe("WorkspaceNoteStoreManager", () => {
   it("returns noteFileMissingOrInvalid when the index entry points to a missing note file", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
 
     await repository.saveIndex(root, outputDirectory, {
       schemaVersion: 1,
@@ -543,7 +543,7 @@ describe("WorkspaceNoteStoreManager", () => {
       },
     });
 
-    const result = await manager.checkSourceFileNotes(root, outputDirectory, relativeFilePath, "const value = 1;");
+    const result = await notes.detection.checkSourceFileNotes(root, outputDirectory, relativeFilePath, "const value = 1;");
 
     expect(result).toEqual({
       kind: "noteFileMissingOrInvalid",
@@ -554,26 +554,26 @@ describe("WorkspaceNoteStoreManager", () => {
   it("renames and deletes source file index entries without deleting the note file", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
     const newRelativeFilePath = "src/renamed.ts";
     const noteFile = createWorkspaceNoteFileName(relativeFilePath, randomId);
 
-    await manager.saveSourceFile(root, outputDirectory, relativeFilePath, createStoredSourceFile(), createdAt);
-    await manager.getSourceFile(root, outputDirectory, relativeFilePath);
+    await notes.cache.saveSourceFile(root, outputDirectory, relativeFilePath, createStoredSourceFile(), createdAt);
+    await notes.cache.getSourceFile(root, outputDirectory, relativeFilePath);
 
-    const renamedIndex = await manager.renameSourceFileEntry(
+    const renamedIndex = await notes.sourceIndex.renameSourceFileEntry(
       root,
       outputDirectory,
       relativeFilePath,
       newRelativeFilePath,
       now,
     );
-    const oldSourceFile = await manager.getSourceFile(root, outputDirectory, relativeFilePath);
-    const renamedSourceFile = await manager.getSourceFile(root, outputDirectory, newRelativeFilePath);
+    const oldSourceFile = await notes.cache.getSourceFile(root, outputDirectory, relativeFilePath);
+    const renamedSourceFile = await notes.cache.getSourceFile(root, outputDirectory, newRelativeFilePath);
     const renamedIndexRaw = await readFile(getWorkspaceNoteIndexPath(root, outputDirectory), "utf-8");
 
-    console.log("Manager index after source file rename:", JSON.stringify(renamedIndex, null, 2));
-    console.log("Manager source file after source file rename:", JSON.stringify(renamedSourceFile, null, 2));
+    console.log("Store index after source file rename:", JSON.stringify(renamedIndex, null, 2));
+    console.log("Store source file after source file rename:", JSON.stringify(renamedSourceFile, null, 2));
 
     expect(oldSourceFile).toBeUndefined();
     expect(renamedSourceFile).toEqual(createStoredSourceFile());
@@ -590,15 +590,15 @@ describe("WorkspaceNoteStoreManager", () => {
     });
     expect(JSON.parse(renamedIndexRaw).files[relativeFilePath]).toBeUndefined();
 
-    const deletedIndex = await manager.deleteSourceFileEntry(root, outputDirectory, newRelativeFilePath, later);
+    const deletedIndex = await notes.sourceIndex.deleteSourceFileEntry(root, outputDirectory, newRelativeFilePath, later);
     const deletedIndexRaw = await readFile(getWorkspaceNoteIndexPath(root, outputDirectory), "utf-8");
     const noteRawAfterDelete = await readFile(
       getWorkspaceNoteFilePath(root, outputDirectory, noteFile),
       "utf-8",
     );
 
-    console.log("Manager index after source file index delete:", JSON.stringify(deletedIndex, null, 2));
-    console.log("Manager note file after source file index delete:", noteRawAfterDelete.trim());
+    console.log("Store index after source file index delete:", JSON.stringify(deletedIndex, null, 2));
+    console.log("Store note file after source file index delete:", noteRawAfterDelete.trim());
 
     expect(JSON.parse(deletedIndexRaw) as unknown).toMatchObject({
       updatedAt: later,
@@ -610,20 +610,20 @@ describe("WorkspaceNoteStoreManager", () => {
   it("persists fine-grained note updates through the manager", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);
-    const manager = new WorkspaceNoteStoreManager(repository);
+    const notes = new WorkspaceNoteStore(repository);
     const sectionId = "section:1:intro:1-2";
     const lineId = "line:2";
 
-    await manager.saveSourceFile(root, outputDirectory, relativeFilePath, createStoredSourceFile(), createdAt);
-    await manager.upsertFileNote(root, outputDirectory, relativeFilePath, createFileNoteInput("Initial file note."), now);
-    await manager.upsertSectionNote(
+    await notes.cache.saveSourceFile(root, outputDirectory, relativeFilePath, createStoredSourceFile(), createdAt);
+    await notes.crud.upsertFileNote(root, outputDirectory, relativeFilePath, createFileNoteInput("Initial file note."), now);
+    await notes.crud.upsertSectionNote(
       root,
       outputDirectory,
       relativeFilePath,
       createSectionNoteInput(sectionId, "Intro", 1, 2),
       now,
     );
-    await manager.upsertLineNote(
+    await notes.crud.upsertLineNote(
       root,
       outputDirectory,
       relativeFilePath,
@@ -631,24 +631,24 @@ describe("WorkspaceNoteStoreManager", () => {
       now,
     );
 
-    await manager.updateSourceHash(root, outputDirectory, relativeFilePath, "sha256:next-source", later);
-    await manager.updateProgrammingLanguage(root, outputDirectory, relativeFilePath, "typescriptreact", later);
-    await manager.updateFileUserNote(root, outputDirectory, relativeFilePath, "Updated file note.", later);
-    await manager.updateFileAiExplanation(
+    await notes.update.updateSourceHash(root, outputDirectory, relativeFilePath, "sha256:next-source", later);
+    await notes.update.updateProgrammingLanguage(root, outputDirectory, relativeFilePath, "typescriptreact", later);
+    await notes.update.updateFileUserNote(root, outputDirectory, relativeFilePath, "Updated file note.", later);
+    await notes.update.updateFileAiExplanation(
       root,
       outputDirectory,
       relativeFilePath,
       { summary: "File summary.", detail: "File detail." },
       later,
     );
-    await manager.updateFileNoteStatus(
+    await notes.update.updateFileNoteStatus(
       root,
       outputDirectory,
       relativeFilePath,
       { content: "stale", anchor: "confirmed" },
       later,
     );
-    await manager.updateSectionRange(
+    await notes.update.updateSectionRange(
       root,
       outputDirectory,
       relativeFilePath,
@@ -657,11 +657,11 @@ describe("WorkspaceNoteStoreManager", () => {
       10,
       later,
     );
-    await manager.updateSectionAnchorHash(root, outputDirectory, relativeFilePath, sectionId, "sha256:section-next", later);
-    await manager.updateSectionTitle(root, outputDirectory, relativeFilePath, sectionId, "Intro updated", later);
-    await manager.updateSectionKind(root, outputDirectory, relativeFilePath, sectionId, "setup", later);
-    await manager.updateSectionUserNote(root, outputDirectory, relativeFilePath, sectionId, "Updated section note.", later);
-    await manager.updateSectionAiExplanation(
+    await notes.update.updateSectionAnchorHash(root, outputDirectory, relativeFilePath, sectionId, "sha256:section-next", later);
+    await notes.update.updateSectionTitle(root, outputDirectory, relativeFilePath, sectionId, "Intro updated", later);
+    await notes.update.updateSectionKind(root, outputDirectory, relativeFilePath, sectionId, "setup", later);
+    await notes.update.updateSectionUserNote(root, outputDirectory, relativeFilePath, sectionId, "Updated section note.", later);
+    await notes.update.updateSectionAiExplanation(
       root,
       outputDirectory,
       relativeFilePath,
@@ -669,7 +669,7 @@ describe("WorkspaceNoteStoreManager", () => {
       { summary: "Section summary.", detail: "Section detail." },
       later,
     );
-    await manager.updateSectionNoteStatus(
+    await notes.update.updateSectionNoteStatus(
       root,
       outputDirectory,
       relativeFilePath,
@@ -677,10 +677,10 @@ describe("WorkspaceNoteStoreManager", () => {
       { content: "current", anchor: "needsConfirmation" },
       later,
     );
-    await manager.updateLineNumber(root, outputDirectory, relativeFilePath, lineId, 6, 10, later);
-    await manager.updateLineAnchorText(root, outputDirectory, relativeFilePath, lineId, "const moved = 2;", later);
-    await manager.updateLineUserNote(root, outputDirectory, relativeFilePath, lineId, "Updated line note.", later);
-    await manager.updateLineAiExplanation(
+    await notes.update.updateLineNumber(root, outputDirectory, relativeFilePath, lineId, 6, 10, later);
+    await notes.update.updateLineAnchorText(root, outputDirectory, relativeFilePath, lineId, "const moved = 2;", later);
+    await notes.update.updateLineUserNote(root, outputDirectory, relativeFilePath, lineId, "Updated line note.", later);
+    await notes.update.updateLineAiExplanation(
       root,
       outputDirectory,
       relativeFilePath,
@@ -688,7 +688,7 @@ describe("WorkspaceNoteStoreManager", () => {
       { summary: "Line summary.", detail: "Line detail." },
       later,
     );
-    await manager.updateLineNoteStatus(
+    await notes.update.updateLineNoteStatus(
       root,
       outputDirectory,
       relativeFilePath,
@@ -700,8 +700,8 @@ describe("WorkspaceNoteStoreManager", () => {
     const persisted = await repository.getSourceFile(root, outputDirectory, relativeFilePath);
     const indexRaw = await readFile(getWorkspaceNoteIndexPath(root, outputDirectory), "utf-8");
 
-    console.log("Manager fine-grained update index:", indexRaw.trim());
-    console.log("Manager fine-grained update source file:", JSON.stringify(persisted, null, 2));
+    console.log("Store fine-grained update index:", indexRaw.trim());
+    console.log("Store fine-grained update source file:", JSON.stringify(persisted, null, 2));
 
     expect(persisted).toMatchObject({
       source: {
@@ -774,7 +774,7 @@ describe("WorkspaceNoteStoreManager", () => {
 });
 
 /**
- * Creates a temporary workspace root for manager tests.
+ * Creates a temporary workspace root for notes tests.
  *
  * @returns Temporary workspace root path.
  *

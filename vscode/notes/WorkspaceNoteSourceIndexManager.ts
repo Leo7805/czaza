@@ -6,6 +6,7 @@ import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
 import {
   deleteSourceFileEntry,
   renameSourceFileEntry,
+  type WorkspaceNoteSourceIndexDependencies,
 } from "./workspaceNoteStoreSourceIndex";
 import { WorkspaceNoteStoreCache } from "./WorkspaceNoteStoreCache";
 
@@ -75,7 +76,7 @@ export class WorkspaceNoteSourceIndexManager {
     return deleteSourceFileEntry(this.getDependencies(), workspaceRoot, outputDirectory, relativeFilePath, now);
   }
 
-  private getDependencies() {
+  private getDependencies(): WorkspaceNoteSourceIndexDependencies {
     return {
       repository: this.cache.repository,
       indexCache: this.cache.indexCache,
