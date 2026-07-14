@@ -1,25 +1,76 @@
+/**
+ * Stores legacy explanation results for the current VS Code extension session.
+ */
+
 import * as vscode from "vscode";
 import type { CodeExplanation } from "@shared/types/codeExplanation";
 import type { LineUnit } from "@shared/types/lineUnit";
 import type { SemanticUnit } from "@shared/types/semanticUnit";
 
+/**
+ * In-memory explanation state for one source file.
+ *
+ * @example
+ * const state: FileExplanationState = {
+ *   semanticUnits: [],
+ *   lineUnitsByLine: new Map(),
+ * };
+ */
 export type FileExplanationState = {
   fileStructure?: CodeExplanation;
   semanticUnits: SemanticUnit[];
   lineUnitsByLine: Map<number, LineUnit>;
 };
 
+/**
+ * Keeps legacy file, semantic, and line explanation data in memory.
+ *
+ * This store does not write files by itself. Persistence is handled by
+ * {@link ExplanationCache}, which can load cached JSON into this store and
+ * save this store's current state back to disk.
+ *
+ * @example
+ * const store = new ExplanationStore();
+ * const state = store.ensure(document.uri);
+ */
 export class ExplanationStore {
   private readonly stateByUri = new Map<string, FileExplanationState>();
 
+  /**
+   * Reads the explanation state for one URI.
+   *
+   * @param uri - VS Code resource URI.
+   * @returns Existing explanation state, or undefined when the URI has not been analyzed.
+   *
+   * @example
+   * const state = store.get(document.uri);
+   */
   get(uri: vscode.Uri): FileExplanationState | undefined {
     return this.stateByUri.get(getUriKey(uri));
   }
 
-  setState(uri: vscode.Uri, state: FileExplanationState) {
+  /**
+   * Replaces the explanation state for one URI.
+   *
+   * @param uri - VS Code resource URI.
+   * @param state - Complete explanation state to store.
+   *
+   * @example
+   * store.setState(document.uri, { semanticUnits: [], lineUnitsByLine: new Map() });
+   */
+  setState(uri: vscode.Uri, state: FileExplanationState): void {
     this.stateByUri.set(getUriKey(uri), state);
   }
 
+  /**
+   * Reads or creates the explanation state for one URI.
+   *
+   * @param uri - VS Code resource URI.
+   * @returns Existing or newly created explanation state.
+   *
+   * @example
+   * const state = store.ensure(document.uri);
+   */
   ensure(uri: vscode.Uri): FileExplanationState {
     const key = getUriKey(uri);
     const existing = this.stateByUri.get(key);
@@ -37,7 +88,16 @@ export class ExplanationStore {
     return next;
   }
 
-  setFileStructure(uri: vscode.Uri, explanation: CodeExplanation) {
+  /**
+   * Stores a file-level structure explanation while preserving existing user notes.
+   *
+   * @param uri - VS Code resource URI.
+   * @param explanation - New AI-generated file structure explanation.
+   *
+   * @example
+   * store.setFileStructure(document.uri, explanation);
+   */
+  setFileStructure(uri: vscode.Uri, explanation: CodeExplanation): void {
     const state = this.ensure(uri);
     const previousById = new Map(
       (state.fileStructure?.structureUnits ?? []).map((unit) => [
@@ -66,7 +126,16 @@ export class ExplanationStore {
     };
   }
 
-  setSemanticUnits(uri: vscode.Uri, semanticUnits: SemanticUnit[]) {
+  /**
+   * Stores semantic explanations for one URI.
+   *
+   * @param uri - VS Code resource URI.
+   * @param semanticUnits - AI-generated semantic explanation units.
+   *
+   * @example
+   * store.setSemanticUnits(document.uri, semanticUnits);
+   */
+  setSemanticUnits(uri: vscode.Uri, semanticUnits: SemanticUnit[]): void {
     const state = this.ensure(uri);
     state.semanticUnits = semanticUnits;
 
@@ -78,7 +147,16 @@ export class ExplanationStore {
     }
   }
 
-  addLineUnits(uri: vscode.Uri, lineUnits: LineUnit[]) {
+  /**
+   * Adds or replaces line explanations while preserving existing line user notes.
+   *
+   * @param uri - VS Code resource URI.
+   * @param lineUnits - AI-generated line explanation units.
+   *
+   * @example
+   * store.addLineUnits(document.uri, lineUnits);
+   */
+  addLineUnits(uri: vscode.Uri, lineUnits: LineUnit[]): void {
     const state = this.ensure(uri);
 
     for (const lineUnit of lineUnits) {
@@ -93,6 +171,17 @@ export class ExplanationStore {
     }
   }
 
+  /**
+   * Replaces user notes on one structure explanation.
+   *
+   * @param uri - VS Code resource URI.
+   * @param structureId - Structure unit id.
+   * @param userNotes - User-authored notes to store.
+   * @returns True when the structure unit exists and was updated.
+   *
+   * @example
+   * const updated = store.setStructureUserNotes(document.uri, "function:main", ["Important"]);
+   */
   setStructureUserNotes(uri: vscode.Uri, structureId: string, userNotes: string[]): boolean {
     const structureUnits = this.get(uri)?.fileStructure?.structureUnits;
     const structureUnit = structureUnits?.find((unit) => unit.id === structureId);
@@ -108,6 +197,18 @@ export class ExplanationStore {
     return true;
   }
 
+  /**
+   * Replaces user notes on one line explanation, creating a placeholder when needed.
+   *
+   * @param uri - VS Code resource URI.
+   * @param lineNumber - One-based source line number.
+   * @param userNotes - User-authored notes to store.
+   * @param code - Source text for the line when no explanation exists yet.
+   * @returns True when the line note was stored.
+   *
+   * @example
+   * store.setLineUserNotes(document.uri, 12, ["Check this branch"], "return value;");
+   */
   setLineUserNotes(
     uri: vscode.Uri,
     lineNumber: number,

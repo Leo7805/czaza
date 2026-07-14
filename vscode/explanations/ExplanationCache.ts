@@ -1,3 +1,7 @@
+/**
+ * Persists legacy explanation results between VS Code extension sessions.
+ */
+
 import path from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import * as vscode from "vscode";
@@ -22,7 +26,29 @@ type ExplanationCacheFile = {
   files: Record<string, CachedFileExplanation>;
 };
 
+/**
+ * Loads and saves legacy explanation state from `.czaza/explanations-cache.json`.
+ *
+ * This cache is separate from the newer workspace note store. It exists to keep
+ * the legacy explanation panel usable across VS Code reloads by serializing the
+ * in-memory {@link ExplanationStore}.
+ *
+ * @example
+ * const cache = new ExplanationCache();
+ * await cache.loadForUri(document.uri, store);
+ */
 export class ExplanationCache {
+  /**
+   * Loads cached explanation state for one URI into an explanation store.
+   *
+   * Non-file resources and files outside a VS Code workspace are ignored.
+   *
+   * @param uri - VS Code resource URI to load.
+   * @param store - In-memory explanation store that receives the cached state.
+   *
+   * @example
+   * await cache.loadForUri(document.uri, store);
+   */
   async loadForUri(uri: vscode.Uri, store: ExplanationStore): Promise<void> {
     const workspace = vscode.workspace.getWorkspaceFolder(uri);
 
@@ -41,6 +67,18 @@ export class ExplanationCache {
     store.setState(uri, fromCachedFileExplanation(cached));
   }
 
+  /**
+   * Saves one URI's current explanation state from memory to disk.
+   *
+   * Non-file resources, files outside a VS Code workspace, and URIs without
+   * in-memory state are ignored.
+   *
+   * @param uri - VS Code resource URI to save.
+   * @param store - In-memory explanation store that provides the current state.
+   *
+   * @example
+   * await cache.saveForUri(document.uri, store);
+   */
   async saveForUri(uri: vscode.Uri, store: ExplanationStore): Promise<void> {
     const workspace = vscode.workspace.getWorkspaceFolder(uri);
     const state = store.get(uri);

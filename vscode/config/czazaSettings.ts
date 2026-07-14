@@ -1,3 +1,7 @@
+/**
+ * Reads non-sensitive CZaza settings from VS Code configuration.
+ */
+
 import * as vscode from "vscode";
 
 import {
@@ -16,12 +20,16 @@ import {
 const DEFAULT_AI_PROVIDER: AiProvider = "deepseek";
 const DEFAULT_RESPONSE_LANGUAGE: AiResponseLanguage = "en";
 const DEFAULT_OUTPUT_DIRECTORY = ".czaza";
+const DEFAULT_ROOT_DIRECTORY = "";
 
 /**
  * Validated, non-sensitive CZaza settings used by the extension.
  *
  * The API key is intentionally excluded because it will be stored
  * separately in VS Code SecretStorage.
+ *
+ * @example
+ * const settings = getCzazaSettings(vscode.window.activeTextEditor?.document.uri);
  */
 export type CzazaSettings = {
   ai: {
@@ -29,6 +37,7 @@ export type CzazaSettings = {
     model: AiModel;
     responseLanguage: AiResponseLanguage;
   };
+  rootDirectory: string;
   outputDirectory: string;
 };
 
@@ -37,6 +46,10 @@ export type CzazaSettings = {
  *
  * @param resource Optional file or workspace folder used to resolve
  * resource-scoped settings such as the output directory.
+ * @returns Validated non-sensitive CZaza settings.
+ *
+ * @example
+ * const settings = getCzazaSettings(document.uri);
  */
 export function getCzazaSettings(resource?: vscode.Uri): CzazaSettings {
   const config = vscode.workspace.getConfiguration("czaza", resource);
@@ -72,12 +85,16 @@ export function getCzazaSettings(resource?: vscode.Uri): CzazaSettings {
 
   const outputDirectory = configuredOutputDirectory || DEFAULT_OUTPUT_DIRECTORY;
 
+  // Empty root directory means the active VS Code workspace folder is used.
+  const rootDirectory = config.get<string>("rootDirectory", DEFAULT_ROOT_DIRECTORY).trim();
+
   return {
     ai: {
       provider,
       model,
       responseLanguage,
     },
+    rootDirectory,
     outputDirectory,
   };
 }

@@ -1,0 +1,611 @@
+/*
+ * Styles for the React-based CZaza notes webview.
+ */
+
+:root {
+  color-scheme: light dark;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+  --notes-empty-accent: var(--vscode-descriptionForeground);
+  --notes-file-accent: #8b7cf6;
+  --notes-section-accent: #4ea1ff;
+  --notes-line-accent: #f5a524;
+  --notes-child-accent: #3ecf8e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--vscode-sideBar-background);
+}
+
+button,
+select,
+input,
+textarea {
+  font: inherit;
+}
+
+.notes-shell {
+  min-width: 0;
+  padding: 10px;
+}
+
+.notes-panel {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-sideBar-background) 86%,
+    var(--vscode-editor-background)
+  );
+}
+
+.notes-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.resource-header {
+  min-width: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-sideBarTitle-foreground, var(--vscode-foreground));
+  background: color-mix(in srgb, var(--vscode-sideBar-background) 78%, #000000);
+}
+
+.resource-header__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.resource-header__title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tooltip {
+  display: inline-flex;
+  position: relative;
+  min-width: 0;
+  outline: none;
+}
+
+.resource-header__title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--vscode-sideBarTitle-foreground, var(--vscode-foreground));
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tooltip__content {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  top: calc(100% + 8px);
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 72%, transparent);
+  border-radius: 6px;
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+  background: color-mix(
+    in srgb,
+    var(--vscode-editorHoverWidget-background, var(--vscode-editor-background)) 88%,
+    transparent
+  );
+  box-shadow: 0 8px 24px color-mix(in srgb, #000000 36%, transparent);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 16px;
+  opacity: 0;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  white-space: normal;
+  transform: translateY(-2px);
+  transition:
+    opacity 90ms ease,
+    transform 90ms ease;
+}
+
+.tooltip__content::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-left: 1px solid color-mix(in srgb, var(--vscode-panel-border) 72%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--vscode-panel-border) 72%, transparent);
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+.tooltip:hover .tooltip__content,
+.tooltip:focus-within .tooltip__content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.resource-header__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 24%, transparent);
+  border-radius: 6px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 80%, transparent);
+  cursor: pointer;
+}
+
+.resource-header__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.resource-header__timer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 22%, transparent);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.resource-header__action:hover {
+  color: var(--vscode-foreground);
+  border-color: color-mix(in srgb, var(--notes-file-accent) 48%, transparent);
+  background: color-mix(in srgb, var(--notes-file-accent) 12%, var(--vscode-editor-background));
+}
+
+.resource-header__action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.resource-header__action-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.resource-header__kind,
+.child-list__kind,
+.notes-card__badge {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 22%, transparent);
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 7%, transparent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-transform: uppercase;
+}
+
+.child-list__path {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notes-card {
+  --card-accent: var(--notes-empty-accent);
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 38%, var(--vscode-panel-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--card-accent) 8%, var(--vscode-editor-background));
+}
+
+.notes-card--file {
+  --card-accent: var(--notes-file-accent);
+}
+
+.notes-card--section {
+  --card-accent: var(--notes-section-accent);
+}
+
+.notes-card--line {
+  --card-accent: var(--notes-line-accent);
+}
+
+.notes-card--child {
+  --card-accent: var(--notes-child-accent);
+}
+
+.notes-card--empty {
+  --card-accent: var(--notes-empty-accent);
+  border-color: color-mix(in srgb, var(--vscode-descriptionForeground) 24%, var(--vscode-panel-border));
+  background: color-mix(in srgb, var(--vscode-descriptionForeground) 5%, var(--vscode-editor-background));
+}
+
+.notes-card--user:not(.notes-card--empty) {
+  border-color: color-mix(in srgb, var(--card-accent) 64%, var(--vscode-panel-border));
+  background: color-mix(in srgb, var(--card-accent) 11%, var(--vscode-editor-background));
+}
+
+.notes-card--ai:not(.notes-card--empty) {
+  border-color: color-mix(in srgb, var(--card-accent) 36%, var(--vscode-panel-border));
+  background: color-mix(in srgb, var(--card-accent) 7%, var(--vscode-editor-background));
+}
+
+.notes-card__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 9px;
+}
+
+.notes-card__title {
+  margin: 0;
+  color: color-mix(in srgb, var(--card-accent) 80%, var(--vscode-foreground));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 16px;
+  text-transform: uppercase;
+}
+
+.notes-card__title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.section-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.section-context__title {
+  min-width: 0;
+  max-width: min(180px, 32vw);
+  overflow: hidden;
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-location-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 38%, var(--vscode-panel-border));
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--card-accent) 76%, var(--vscode-foreground));
+  background: color-mix(in srgb, var(--card-accent) 9%, var(--vscode-editor-background));
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.section-selector {
+  min-width: 0;
+  max-width: min(220px, 48vw);
+  height: 22px;
+  padding: 0 22px 0 7px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 38%, var(--vscode-panel-border));
+  border-radius: 999px;
+  color: var(--vscode-dropdown-foreground, var(--vscode-foreground));
+  background: var(--vscode-dropdown-background, var(--vscode-editor-background));
+  font-size: 11px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-selector:focus {
+  border-color: var(--vscode-focusBorder);
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.notes-content,
+.ai-note-content p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.notes-content {
+  margin: 0;
+  color: var(--vscode-foreground);
+  line-height: 1.5;
+}
+
+.user-note-view {
+  position: relative;
+  min-height: 28px;
+  padding-right: 30px;
+  padding-bottom: 4px;
+}
+
+.user-note-edit-button {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--vscode-icon-foreground);
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+  transition:
+    opacity 80ms ease-in-out,
+    background-color 80ms ease-in-out;
+}
+
+.user-note-view:hover .user-note-edit-button,
+.user-note-edit-button:focus-visible {
+  opacity: 1;
+}
+
+.user-note-edit-button:hover,
+.user-note-edit-button:focus-visible {
+  background: var(--vscode-toolbar-hoverBackground);
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.user-note-edit-button svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+
+.user-note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-note-editor__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  padding: 7px 8px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  color: var(--vscode-input-foreground, var(--vscode-foreground));
+  background: var(--vscode-input-background, var(--vscode-editor-background));
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.user-note-editor__input:focus {
+  border-color: var(--vscode-focusBorder);
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.user-note-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-note-editor__save,
+.user-note-editor__cancel {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.user-note-editor__save {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+.user-note-editor__save:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.user-note-editor__cancel {
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  background: var(--vscode-button-secondaryBackground, transparent);
+}
+
+.user-note-editor__cancel:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
+}
+
+.ai-note-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-note-content__summary,
+.ai-note-content__detail {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ai-note-content__summary {
+  color: var(--vscode-foreground);
+  font-weight: 600;
+}
+
+.ai-note-content__detail {
+  color: var(--vscode-descriptionForeground);
+}
+
+.ai-note-content__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.45;
+}
+
+.notes-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid color-mix(in srgb, var(--vscode-descriptionForeground) 22%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 74%, transparent);
+}
+
+.notes-tab {
+  min-width: 34px;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 22px;
+  cursor: pointer;
+}
+
+.notes-tab--active {
+  color: var(--vscode-button-foreground);
+  background: color-mix(in srgb, var(--card-accent) 88%, var(--vscode-button-background));
+}
+
+.notes-preview,
+.notes-muted,
+.child-list__preview {
+  margin: 0;
+  color: var(--vscode-foreground);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.notes-muted {
+  color: var(--vscode-descriptionForeground);
+}
+
+.child-list {
+  display: grid;
+  grid-template-columns: fit-content(40%) minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.child-list__item {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  column-gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 70%, transparent);
+  border-radius: 6px;
+  background: color-mix(
+    in srgb,
+    var(--vscode-editor-background) 88%,
+    var(--vscode-sideBar-background)
+  );
+}
+
+.child-list__item > .tooltip {
+  width: 100%;
+}
+
+.child-list__name,
+.child-list__preview {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.child-list__name {
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 18px;
+}
+
+.child-list__preview {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.notes-empty {
+  display: grid;
+  min-height: 96px;
+  place-items: center;
+  padding: 16px;
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: 8px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+}
+
+.notes-empty p {
+  margin: 0;
+}

@@ -3,95 +3,60 @@
  */
 
 import * as vscode from "vscode";
-import { ExplanationCache } from "./explanations/ExplanationCache";
-import { ExplanationStore } from "./explanations/ExplanationStore";
-import { registerExplanationCommands } from "./explanations/registerExplanationCommands";
-import { CzazaViewProvider } from "./webview/CzazaViewProvider";
-import { registerCopyForAICommands } from "./copyForAI/registerCopyForAICommands";
-import { getCzazaSettings } from "./config/czazaSettings";
-import { registerApiKeyManagementCommand } from "./commands/apiKeyManagementCommand";
+import { registerCzazaRootValidation } from "./config/registerCzazaRootValidation";
+import { registerCzazaCommands } from "./commands/registerCzazaCommands";
+import { registerNotesPreviewEvents } from "./events";
+import { generateFileNotesForResource } from "./services/generateFileNotesService";
+import { saveUserNoteService } from "./services/saveUserNoteService";
+import { WorkspaceNoteStore } from "./notes";
+import { NotesViewProvider } from "./notesUi/NotesViewProvider";
+import { registerNotesUi } from "./notesUi/registerNotesUi";
 
 /**
  * Activates the CZaza VS Code extension.
  */
 export function activate(context: vscode.ExtensionContext) {
   // ---------------------------------------------------------------------------
-  // Create shared services
+  // 1. Create shared runtime objects.
   // ---------------------------------------------------------------------------
 
-  /** Stores AI explanations for the current workspace. */
-  const explanations = new ExplanationStore();
+  // Main note store for the new file/section/line note architecture.
+  // Creating it only wires managers to one shared cache; it does not scan the
+  // workspace, read all note files, or run AI analysis during activation.
+  const notes = new WorkspaceNoteStore();
 
-  /** In-memory cache to avoid repeated AI requests. */
-  const explanationCache = new ExplanationCache();
-
-  /** Webview provider for the CZaza side panel. */
-  const provider = new CzazaViewProvider(
+  // React-based notes panel provider for the new notes architecture.
+  const notesProvider = new NotesViewProvider(
     context.extensionUri,
-    context.workspaceState,
-    explanations,
-    explanationCache,
+    notes,
+    (uri) => generateFileNotesForResource(context, notes, uri),
+    (uri, target, userNote) => saveUserNoteService({ uri, notes, target, userNote }),
   );
+  context.subscriptions.push(notesProvider);
 
   // ---------------------------------------------------------------------------
-  // Register commands
+  // 2. Register command palette and context-menu commands.
   // ---------------------------------------------------------------------------
 
-  /** Register "Copy for AI" related commands. */
-  registerCopyForAICommands(context);
-
-  /** Register AI explanation commands (Explain File, etc.). */
-  registerExplanationCommands(context, explanations, explanationCache, async (uri) => {
-    await provider.showResourceDescription(uri);
-  });
-
-  /** Register API key management command */
-  registerApiKeyManagementCommand(context);
-
-  /** Show the current CZaza configuration. */
-  const showCurrentSettingsCommand = vscode.commands.registerCommand(
-    "czaza.showCurrentSettings",
-    () => {
-      const settings = getCzazaSettings();
-
-      void vscode.window.showInformationMessage(
-        [
-          `Provider: ${settings.ai.provider}`,
-          `Model: ${settings.ai.model}`,
-          `Language: ${settings.ai.responseLanguage}`,
-          `Output: ${settings.outputDirectory}`,
-        ].join(" | "),
-      );
-    },
-  );
+  registerCzazaCommands({ context });
 
   // ---------------------------------------------------------------------------
-  // Register UI components
+  // 3. Register lifecycle checks that are not user commands.
   // ---------------------------------------------------------------------------
 
-  context.subscriptions.push(
-    /**
-     * Register the CZaza description side panel.
-     */
-    vscode.window.registerWebviewViewProvider("czaza.descriptionView", provider),
+  registerCzazaRootValidation(context);
 
-    /**
-     * Focus the description panel and display the selected resource.
-     */
-    vscode.commands.registerCommand("czaza.showDescription", async (uri?: vscode.Uri) => {
-      try {
-        // Best effort: focus the panel if it already exists.
-        await vscode.commands.executeCommand("czaza.descriptionView.focus");
-      } catch {
-        // Ignore if the panel has not been created yet.
-      }
+  // ---------------------------------------------------------------------------
+  // 4. Register visible VS Code UI surfaces.
+  // ---------------------------------------------------------------------------
 
-      await provider.showResourceDescription(uri);
-    }),
+  registerNotesUi(context, notesProvider);
 
-    /** Register the "Show Current Settings" command. */
-    showCurrentSettingsCommand,
-  );
+  // ---------------------------------------------------------------------------
+  // 5. Follow VS Code resource events that update visible notes.
+  // ---------------------------------------------------------------------------
+
+  registerNotesPreviewEvents(context, notesProvider);
 }
 
 /**
