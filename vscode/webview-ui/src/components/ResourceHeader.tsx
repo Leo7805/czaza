@@ -17,6 +17,7 @@ import { Tooltip } from "./Tooltip";
  * @param props.showAction - Whether to show the header action button.
  * @param props.actionLabel - Label for the AI action button.
  * @param props.isActionRunning - Whether AI generation is currently running.
+ * @param props.isAnyActionRunning - Whether any AI action is currently running.
  * @param props.onGenerateFileSection - Generates file and section notes.
  * @param props.onGenerateAll - Generates file, section, and line notes.
  * @returns React element for the resource header.
@@ -37,6 +38,7 @@ export function ResourceHeader({
   showAction = true,
   actionLabel = "Generate",
   isActionRunning = false,
+  isAnyActionRunning = false,
   onGenerateFileSection,
   onGenerateAll,
 }: {
@@ -46,16 +48,17 @@ export function ResourceHeader({
   showAction?: boolean;
   actionLabel?: "Generate" | "Regenerate";
   isActionRunning?: boolean;
+  isAnyActionRunning?: boolean;
   onGenerateFileSection?: () => void;
   onGenerateAll?: () => void;
 }) {
   const startedAtRef = useRef<number | undefined>(undefined);
   const [timer, setTimer] = useState({
-    visible: isActionRunning,
+    visible: isAnyActionRunning,
     seconds: 0,
   });
   useEffect(() => {
-    if (isActionRunning) {
+    if (isAnyActionRunning) {
       const startedAt = Date.now();
       startedAtRef.current = startedAt;
       setTimer({ visible: true, seconds: 0 });
@@ -87,7 +90,7 @@ export function ResourceHeader({
     }, 2000);
 
     return () => window.clearTimeout(timeoutId);
-  }, [isActionRunning]);
+  }, [isAnyActionRunning]);
 
   return (
     <header className="resource-header">
@@ -108,6 +111,7 @@ export function ResourceHeader({
             <AiGenerationMenu
               actionLabel={actionLabel}
               isRunning={isActionRunning}
+              isDisabled={isAnyActionRunning && !isActionRunning}
               onGenerateFileSection={onGenerateFileSection}
               onGenerateAll={onGenerateAll}
             />

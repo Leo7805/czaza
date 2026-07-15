@@ -5,6 +5,7 @@
 import * as vscode from "vscode";
 
 import type { AiClient } from "@shared/ai/aiClient";
+import { AI_REQUEST_DEFAULTS } from "@shared/config/aiRequestDefaults";
 import type { StoredSectionNote } from "@shared/models/store/section";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { explainFileSectionPrompt } from "@shared/prompts/explainFileSectionPrompt";
@@ -76,6 +77,8 @@ export async function generateFileNotesService(
       ? { programmingLanguage: input.programmingLanguage }
       : {}),
     responseLanguageInstruction: input.responseLanguageInstruction,
+    skipDependencyDirectives:
+      AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
   });
   const analysis = await explainFileSectionService(prompt, input.aiClient, {
     lineCount: sourceLines.length,

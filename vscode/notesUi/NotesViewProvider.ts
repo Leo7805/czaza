@@ -31,6 +31,20 @@ type NotesWebviewMessage =
       type: "generateAllNotes";
     }
   | {
+      /** Requests AI note generation for the active source line. */
+      type: "generateLineNote";
+
+      /** Whether to analyze only the active line or nearby candidates. */
+      lineScope: "currentLine" | "nearbyLines";
+    }
+  | {
+      /** Requests AI note regeneration for one selected section. */
+      type: "generateSectionNote";
+
+      /** Stable identifier of the selected section note. */
+      sectionId: string;
+    }
+  | {
       /** Saves one file, section, or line user note. */
       type: "saveUserNote";
 
@@ -48,6 +62,8 @@ type NotesWebviewMessage =
       sectionId: string;
     };
 
+type AiActionScope = "fileSection" | "all" | "section" | "line";
+
 /**
  * VS Code provider for the new React notes webview.
  *
@@ -60,9 +76,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private currentResourceUri?: vscode.Uri;
   private currentPayload?: ResourceNotesResult;
   private selectedSectionId?: string;
+  private pendingEditTarget?: UserNoteTarget;
   private highlightedEditor?: vscode.TextEditor;
   private requestVersion = 0;
-  private readonly generatingResources = new Set<string>();
+  private readonly generatingResources = new Map<string, AiActionScope>();
   private readonly sectionDecorationType = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     backgroundColor: "rgba(78, 161, 255, 0.10)",
@@ -71,6 +88,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly notes: WorkspaceNoteStore;
   private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
   private readonly generateAllNotes?: (uri: vscode.Uri) => Promise<boolean>;
+  private readonly generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>;
+  private readonly generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>;
+  private readonly generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>;
   private readonly saveUserNote: (
     uri: vscode.Uri,
     target: UserNoteTarget,
@@ -85,6 +105,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @param generateFileNotes - Callback that generates and persists notes for one file.
    * @param saveUserNote - Callback that saves one file, section, or line user note.
    * @param generateAllNotes - Callback that generates and persists all three note levels.
+   * @param generateLineNote - Callback that generates and persists the active line note.
+   * @param generateLineBatchNotes - Callback that generates nearby line notes in one request.
+   * @param generateSectionNote - Callback that regenerates one selected section note.
    *
    * @example
    * const provider = new NotesViewProvider(context.extensionUri, notes, generateFileNotes, saveUserNote);
@@ -99,12 +122,18 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       userNote: string,
     ) => Promise<void>,
     generateAllNotes?: (uri: vscode.Uri) => Promise<boolean>,
+    generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
+    generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>,
+    generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
   ) {
     this.extensionUri = extensionUri;
     this.notes = notes;
     this.generateFileNotes = generateFileNotes;
     this.saveUserNote = saveUserNote;
     this.generateAllNotes = generateAllNotes;
+    this.generateLineNote = generateLineNote;
+    this.generateSectionNote = generateSectionNote;
+    this.generateLineBatchNotes = generateLineBatchNotes;
   }
 
   /**
@@ -133,6 +162,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
       if (message.type === "ready") {
         this.selectedSectionId = selectCurrentSectionId(this.currentPayload, undefined);
+        if (this.pendingEditTarget?.level === "section") {
+          this.selectedSectionId = this.pendingEditTarget.sectionId;
+        }
         void this.postCurrentResourceNotes();
         this.updateSectionHighlight();
         return;
@@ -145,6 +177,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
       if (message.type === "generateAllNotes") {
         void this.runNotesGeneration("all");
+        return;
+      }
+
+      if (message.type === "generateLineNote") {
+        void this.runLineNoteGeneration(message.lineScope);
+        return;
+      }
+
+      if (message.type === "generateSectionNote") {
+        void this.runSectionNoteGeneration(message.sectionId);
         return;
       }
 
@@ -188,6 +230,29 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+  }
+
+  /**
+   * Opens one file, section, or line note directly in the webview User editor.
+   *
+   * @param uri - Source document that owns the note.
+   * @param target - Existing or newly created note target.
+   * @returns Promise that resolves after the target payload is posted when the
+   * webview is available.
+   *
+   * @example
+   * await provider.openUserNoteEditor(document.uri, { level: "line", line: 12 });
+   */
+  async openUserNoteEditor(uri: vscode.Uri, target: UserNoteTarget): Promise<void> {
+    await this.loadResourceNotes(uri, false, getActiveLine(uri));
+    this.pendingEditTarget = target;
+
+    if (target.level === "section" && this.currentPayload?.kind === "file") {
+      this.selectedSectionId = target.sectionId;
+    }
+
+    await this.postCurrentResourceNotes();
+    this.updateSectionHighlight();
   }
 
   /**
@@ -253,7 +318,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   private async postCurrentResourceNotes(
-    revealAiNotes?: "fileSection" | "all",
+    revealAiNotes?: "fileSection" | "all" | "section" | "line",
   ): Promise<void> {
     if (!this.view) {
       return;
@@ -277,10 +342,20 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           ? {
               ...this.currentPayload,
               isAiActionRunning: this.generatingResources.has(this.currentResourceUri.toString()),
+              ...(this.generatingResources.has(this.currentResourceUri.toString())
+                ? {
+                    aiActionRunningScope: this.generatingResources.get(
+                      this.currentResourceUri.toString(),
+                    ),
+                  }
+                : {}),
               ...(revealAiNotes ? { revealAiNotes } : {}),
+              ...(this.pendingEditTarget ? { editTarget: this.pendingEditTarget } : {}),
             }
           : this.currentPayload,
     });
+
+    this.pendingEditTarget = undefined;
   }
 
   private async runNotesGeneration(scope: "fileSection" | "all"): Promise<void> {
@@ -290,8 +365,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
-    const generateNotes =
-      scope === "all" ? this.generateAllNotes : this.generateFileNotes;
+    const generateNotes = scope === "all" ? this.generateAllNotes : this.generateFileNotes;
 
     if (!generateNotes) {
       return;
@@ -315,13 +389,95 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
-    this.generatingResources.add(resourceKey);
+    this.generatingResources.set(resourceKey, scope);
     await this.postCurrentResourceNotes();
     let revealAiNotes: "fileSection" | "all" | undefined;
 
     try {
       const saved = await generateNotes(uri);
       revealAiNotes = saved ? scope : undefined;
+
+      if (saved && this.currentResourceUri?.toString() === resourceKey) {
+        await this.loadResourceNotes(uri, false, getActiveLine(uri));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      void vscode.window.showErrorMessage(`Failed to generate CZaza notes: ${message}`);
+    } finally {
+      this.generatingResources.delete(resourceKey);
+
+      if (this.currentResourceUri?.toString() === resourceKey) {
+        await this.postCurrentResourceNotes(revealAiNotes);
+      }
+    }
+  }
+
+  private async runSectionNoteGeneration(sectionId: string): Promise<void> {
+    const uri = this.currentResourceUri;
+
+    if (
+      !uri ||
+      this.currentPayload?.kind !== "file" ||
+      !this.generateSectionNote ||
+      !this.currentPayload.sectionNotes.some((section) => section.id === sectionId)
+    ) {
+      return;
+    }
+
+    const resourceKey = uri.toString();
+
+    if (this.generatingResources.has(resourceKey)) {
+      return;
+    }
+
+    this.generatingResources.set(resourceKey, "section");
+    await this.postCurrentResourceNotes();
+    let revealAiNotes: "section" | undefined;
+
+    try {
+      const saved = await this.generateSectionNote(uri, sectionId);
+      revealAiNotes = saved ? "section" : undefined;
+
+      if (saved && this.currentResourceUri?.toString() === resourceKey) {
+        await this.loadResourceNotes(uri, false, getActiveLine(uri));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      void vscode.window.showErrorMessage(`Failed to generate CZaza notes: ${message}`);
+    } finally {
+      this.generatingResources.delete(resourceKey);
+
+      if (this.currentResourceUri?.toString() === resourceKey) {
+        await this.postCurrentResourceNotes(revealAiNotes);
+      }
+    }
+  }
+
+  private async runLineNoteGeneration(
+    scope: "currentLine" | "nearbyLines",
+  ): Promise<void> {
+    const uri = this.currentResourceUri;
+    const lineNumber = this.currentPayload?.kind === "file" ? this.currentPayload.activeLine : undefined;
+    const generateLineNotes =
+      scope === "nearbyLines" ? this.generateLineBatchNotes : this.generateLineNote;
+
+    if (!uri || !lineNumber || !generateLineNotes) {
+      return;
+    }
+
+    const resourceKey = uri.toString();
+
+    if (this.generatingResources.has(resourceKey)) {
+      return;
+    }
+
+    this.generatingResources.set(resourceKey, "line");
+    await this.postCurrentResourceNotes();
+    let revealAiNotes: "line" | undefined;
+
+    try {
+      const saved = await generateLineNotes(uri, lineNumber);
+      revealAiNotes = saved ? "line" : undefined;
 
       if (saved && this.currentResourceUri?.toString() === resourceKey) {
         await this.loadResourceNotes(uri, false, getActiveLine(uri));
@@ -435,6 +591,7 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
   const candidate = message as {
     type?: unknown;
     sectionId?: unknown;
+    lineScope?: unknown;
     target?: unknown;
     userNote?: unknown;
   };
@@ -443,6 +600,9 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     candidate.type === "ready" ||
     candidate.type === "generateFileNotes" ||
     candidate.type === "generateAllNotes" ||
+    (candidate.type === "generateLineNote" &&
+      (candidate.lineScope === "currentLine" || candidate.lineScope === "nearbyLines")) ||
+    (candidate.type === "generateSectionNote" && typeof candidate.sectionId === "string") ||
     (candidate.type === "saveUserNote" &&
       isUserNoteTarget(candidate.target) &&
       typeof candidate.userNote === "string") ||

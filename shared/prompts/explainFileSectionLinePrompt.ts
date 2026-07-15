@@ -8,6 +8,7 @@ import {
   COMMON_CODE_REFERENCE_RULES,
   COMMON_JSON_OUTPUT_RULES,
 } from "./commonPrompt";
+import { formatSourceCodeForStructuredAnalysisPrompt } from "./sourcePromptFormatter";
 
 /**
  * Input required to build a coordinated file, section, and line analysis prompt.
@@ -27,6 +28,9 @@ export type ExplainFileSectionLinePromptInput = {
 
   /** Filtered one-based source line numbers that must receive line analysis. */
   lineNumbers: readonly number[];
+
+  /** Whether dependency directives should be omitted from the numbered source block. */
+  skipDependencyDirectives?: boolean;
 };
 
 /**
@@ -127,7 +131,7 @@ ${COMMON_AI_NOTES_RULES}
 Source code:
 Line numbers are prefixes for reference only and are not part of the source code.
 \`\`\`
-${formatSourceCodeWithLineNumbers(input.sourceCode)}
+${formatSourceCodeForStructuredAnalysisPrompt(input)}
 \`\`\`
 `;
 }
@@ -141,12 +145,4 @@ function formatLineResponseShape(lineNumbers: readonly number[]): string {
   }
 
   return `[\n    {\n      "lineNumber": ${exampleLineNumber},\n      "summary": "",\n      "detail": "",\n      "aiNotes": []\n    }\n  ]`;
-}
-
-/** Formats complete source code with stable one-based line-number prefixes. */
-function formatSourceCodeWithLineNumbers(sourceCode: string): string {
-  return sourceCode
-    .split(/\r?\n/)
-    .map((line, index) => `${index + 1}: ${line}`)
-    .join("\n");
 }

@@ -150,7 +150,7 @@ describe("saveUserNoteService()", () => {
     });
   });
 
-  it("creates and then removes a user-only line note", async () => {
+  it("creates and then clears a user-only line note without removing the node", async () => {
     const notes = createNoteStore();
     const uri = createUri(path.join(mocks.rootDirectory, mocks.relativePath));
 
@@ -186,7 +186,45 @@ describe("saveUserNoteService()", () => {
       mocks.outputDirectory,
       mocks.relativePath,
     );
-    expect(stored.lineNotes).toEqual([]);
+    expect(stored.lineNotes).toHaveLength(1);
+    expect(stored.lineNotes[0]).toMatchObject({
+      id: "line:2",
+      line: 2,
+      anchorText: "return first;",
+      createdBy: "user",
+    });
+    expect(stored.lineNotes[0]?.userNote).toBeUndefined();
+  });
+
+  it("clears a user-only file note without removing the node", async () => {
+    const notes = createNoteStore();
+    const uri = createUri(path.join(mocks.rootDirectory, mocks.relativePath));
+
+    await saveUserNoteService({
+      uri,
+      notes,
+      target: { level: "file" },
+      userNote: "Keep the file node.",
+    });
+
+    await saveUserNoteService({
+      uri,
+      notes,
+      target: { level: "file" },
+      userNote: "   ",
+    });
+
+    const stored = await notes.cache.getRequiredSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+    );
+    expect(stored.fileNote).toMatchObject({
+      id: "file",
+      createdBy: "user",
+      status: { content: "current", anchor: "confirmed" },
+    });
+    expect(stored.fileNote?.userNote).toBeUndefined();
   });
 
   it("initializes and saves a complete directory file note without opening a document", async () => {

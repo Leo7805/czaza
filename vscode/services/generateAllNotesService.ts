@@ -5,6 +5,7 @@
 import * as vscode from "vscode";
 
 import type { AiClient } from "@shared/ai/aiClient";
+import { AI_REQUEST_DEFAULTS } from "@shared/config/aiRequestDefaults";
 import type { StoredLineNote } from "@shared/models/store/line";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { explainFileSectionLinePrompt } from "@shared/prompts/explainFileSectionLinePrompt";
@@ -107,6 +108,8 @@ export async function generateAllNotesService(
     ...(input.programmingLanguage
       ? { programmingLanguage: input.programmingLanguage }
       : {}),
+    skipDependencyDirectives:
+      AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
   });
   const requestedLineNumbers = candidates.map((candidate) => candidate.lineNumber);
   const prompt = explainFileSectionLinePrompt({
@@ -117,6 +120,8 @@ export async function generateAllNotesService(
       : {}),
     responseLanguageInstruction: input.responseLanguageInstruction,
     lineNumbers: requestedLineNumbers,
+    skipDependencyDirectives:
+      AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
   });
   const assessment = assessAllNotesRequest({
     prompt,

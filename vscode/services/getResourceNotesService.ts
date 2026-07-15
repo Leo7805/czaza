@@ -14,6 +14,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { UserNoteTarget } from "./saveUserNoteService";
 
 /**
  * Single-line note preview for one resource.
@@ -148,6 +149,9 @@ export type ResourceNotesResult =
 
       /** First line note attached to the active line. */
       lineNote?: ResourceLineNoteContent;
+
+      /** Optional target that the webview should open in User Note edit mode. */
+      editTarget?: UserNoteTarget;
     }
   | {
       /** Directory resource notes and first-level child previews. */

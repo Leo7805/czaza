@@ -27,6 +27,7 @@ describe("FileNotesView", () => {
         {
           id: "section:first",
           title: "Outer section",
+          kind: "container",
           startLine: 1,
           endLine: 30,
           userNote: "First section content.\nSecond section line.",
@@ -57,6 +58,10 @@ describe("FileNotesView", () => {
     expect(markup).not.toContain("Second section content.");
     expect(markup).toContain("Outer section · L1-30");
     expect(markup).toContain("Inner section · L10-20");
+    expect(markup).toContain(">container</span>");
+    expect(markup).not.toContain("Kind:");
+    expect(markup).not.toContain("Lines:");
+    expect(markup).toContain("tooltip tooltip--section");
     expect(markup).toContain("Line 12");
     expect(markup).toContain("Current line content.");
     expect(markup).toContain("Line note detail.");
@@ -74,6 +79,7 @@ describe("FileNotesView", () => {
         {
           id: "section:single-line",
           title: "Single-line section",
+          kind: "statement",
           startLine: 12,
           endLine: 12,
           aiExplanation: {
@@ -88,8 +94,12 @@ describe("FileNotesView", () => {
 
     expect(markup).toContain('class="source-location-badge"');
     expect(markup).toContain("Single-line section · L12");
+    expect(markup).toContain(">statement</span>");
+    expect(markup).not.toContain("Kind:");
+    expect(markup).not.toContain("Lines:");
     expect(markup).toContain("Line 12");
     expect(markup).toContain("No line note selected.");
+    expect(markup).toContain('notes-card notes-card--line notes-card--user notes-card--empty');
     expect(markup).not.toContain("L12-12");
   });
 
@@ -164,6 +174,55 @@ describe("FileNotesView", () => {
     expect(markup).not.toContain("Line user note.");
   });
 
+  it("shows the line Generate button in the AI tab", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      revealAiNotes: "line",
+      activeLine: 12,
+      sectionNotes: [],
+      lineNote: {
+        id: "line:12",
+        line: 12,
+        userNote: "Line user note.",
+      },
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup).toContain("ai-generation-menu__main");
+    expect(markup).toContain(">Generate</span>");
+    expect(markup).toContain('title="Choose AI note generation scope"');
+  });
+
+  it("shows the selected section Regenerate button in the AI tab", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "regenerate",
+      revealAiNotes: "section",
+      sectionNotes: [
+        {
+          id: "section:run:1-3",
+          title: "Run function",
+          startLine: 1,
+          endLine: 3,
+          aiExplanation: {
+            summary: "Runs the operation.",
+            detail: "This section contains the function body.",
+          },
+        },
+      ],
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup).toContain(">Regenerate</button>");
+  });
+
   it("shows the shared timer badge while file AI generation is running", () => {
     const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
       kind: "file",
@@ -179,6 +238,42 @@ describe("FileNotesView", () => {
     expect(markup).toContain('class="resource-header__timer"');
     expect(markup).toContain("0s");
     expect(markup).toContain("Generating...");
+  });
+
+  it("keeps other AI actions disabled without labeling them as running", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "regenerate",
+      revealAiNotes: "all",
+      aiActionRunningScope: "line",
+      activeLine: 12,
+      fileNote: {
+        aiExplanation: { summary: "File summary.", detail: "File detail." },
+      },
+      sectionNotes: [
+        {
+          id: "section:run:1-3",
+          title: "Run function",
+          startLine: 1,
+          endLine: 3,
+          aiExplanation: { summary: "Section summary.", detail: "Section detail." },
+        },
+      ],
+      lineNote: {
+        id: "line:12",
+        line: 12,
+        aiExplanation: { summary: "Line summary.", detail: "Line detail." },
+      },
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup).toContain(">Regenerating...</span>");
+    expect(markup.match(/>Regenerating\.\.\.<\/span>/g)).toHaveLength(1);
+    expect(markup).toContain('title="Regenerate AI notes"');
+    expect(markup).toContain('class="ai-note-content__action" type="button" disabled');
   });
 });
 

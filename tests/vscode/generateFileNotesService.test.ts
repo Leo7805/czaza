@@ -16,7 +16,7 @@ describe("generateFileNotesService()", () => {
   it("creates file and section notes from fake AI JSON", async () => {
     const complete = vi.fn().mockResolvedValue(JSON.stringify(createAiResponse()));
     const result = await generateFileNotesService({
-      sourceCode: "export function add(a: number, b: number) {\n  return a + b;\n}",
+      sourceCode: 'import value from "./value";\nexport function add(a: number, b: number) {\n  return a + b;\n}',
       relativePath: "src/add.ts",
       programmingLanguage: "typescript",
       responseLanguageInstruction: "Respond in English.",
@@ -26,6 +26,8 @@ describe("generateFileNotesService()", () => {
 
     expect(complete).toHaveBeenCalledOnce();
     expect(complete.mock.calls[0]?.[0]).toContain("src/add.ts");
+    expect(complete.mock.calls[0]?.[0]).not.toContain('1: import value from "./value";');
+    expect(complete.mock.calls[0]?.[0]).toContain("2: export function add");
     expect(result.fileNote?.aiExplanation?.summary).toBe("Adds two numbers.");
     expect(result.sectionNotes).toHaveLength(1);
     expect(result.sectionNotes[0]).toMatchObject({

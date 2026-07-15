@@ -10,8 +10,10 @@ import type {
   UserNoteTarget,
 } from "../types";
 import { getVsCodeApi } from "../vscodeApi";
+import { AiGenerationMenu, type GenerationScope } from "./AiGenerationMenu";
 import { NoteCard } from "./NoteCard";
 import { NotesPanel } from "./NotesPanel";
+import { Tooltip } from "./Tooltip";
 
 /**
  * Renders file-level note preview content.
@@ -29,22 +31,33 @@ export function FileNotesView({
   notes: Extract<ResourceNotesViewModel, { kind: "file" }>;
 }) {
   const firstSectionId = notes.sectionNotes[0]?.id;
-  const initialGeneratedTab = notes.revealAiNotes ? "ai" : "user";
-  const initialLineTab = notes.revealAiNotes === "all" ? "ai" : "user";
+  const revealsFileSection =
+    notes.revealAiNotes === "fileSection" || notes.revealAiNotes === "all";
+  const initialGeneratedTab = revealsFileSection ? "ai" : "user";
+  const initialSectionTab = revealsFileSection || notes.revealAiNotes === "section" ? "ai" : "user";
+  const initialLineTab = notes.revealAiNotes === "all" || notes.revealAiNotes === "line" ? "ai" : "user";
   const [fileTab, setFileTab] = useState<"user" | "ai">(initialGeneratedTab);
-  const [sectionTab, setSectionTab] = useState<"user" | "ai">(initialGeneratedTab);
+  const [sectionTab, setSectionTab] = useState<"user" | "ai">(initialSectionTab);
   const [lineTab, setLineTab] = useState<"user" | "ai">(initialLineTab);
+  const editTarget = notes.editTarget;
   const [sectionSelection, setSectionSelection] = useState({
     relativePath: notes.relativePath,
     sectionId: firstSectionId,
   });
   const requestedSectionId =
-    sectionSelection.relativePath === notes.relativePath
+    editTarget?.level === "section" && notes.sectionNotes.some((section) => section.id === editTarget.sectionId)
+      ? editTarget.sectionId
+      : sectionSelection.relativePath === notes.relativePath
       ? sectionSelection.sectionId
       : firstSectionId;
   const selectedSection =
     notes.sectionNotes.find((section) => section.id === requestedSectionId) ??
     notes.sectionNotes[0];
+  const shouldEditSection =
+    editTarget?.level === "section" && selectedSection?.id === editTarget.sectionId;
+  const shouldEditLine = editTarget?.level === "line" && notes.activeLine === editTarget.line;
+  const runningScope = notes.aiActionRunningScope ?? (notes.isAiActionRunning ? "fileSection" : undefined);
+  const isAnyAiActionRunning = Boolean(runningScope);
 
   useEffect(() => {
     setFileTab("user");
@@ -53,15 +66,19 @@ export function FileNotesView({
   }, [notes.relativePath]);
 
   useEffect(() => {
-    if (notes.revealAiNotes) {
+    if (revealsFileSection) {
       setFileTab("ai");
       setSectionTab("ai");
-
-      if (notes.revealAiNotes === "all") {
-        setLineTab("ai");
-      }
     }
-  }, [notes.revealAiNotes]);
+
+    if (notes.revealAiNotes === "section") {
+      setSectionTab("ai");
+    }
+
+    if (notes.revealAiNotes === "all" || notes.revealAiNotes === "line") {
+      setLineTab("ai");
+    }
+  }, [notes.revealAiNotes, revealsFileSection]);
 
   const selectSection = (sectionId: string): void => {
     setSectionSelection({ relativePath: notes.relativePath, sectionId });
@@ -76,6 +93,23 @@ export function FileNotesView({
     getVsCodeApi()?.postMessage({ type: "generateAllNotes" });
   };
 
+  const generateLineNote = (scope: GenerationScope): void => {
+    if (scope !== "currentLine" && scope !== "nearbyLines") {
+      return;
+    }
+
+    getVsCodeApi()?.postMessage({ type: "generateLineNote", lineScope: scope });
+  };
+
+  const generateSectionNote = (): void => {
+    if (selectedSection) {
+      getVsCodeApi()?.postMessage({
+        type: "generateSectionNote",
+        sectionId: selectedSection.id,
+      });
+    }
+  };
+
   const saveUserNote = (target: UserNoteTarget, userNote: string): void => {
     getVsCodeApi()?.postMessage({ type: "saveUserNote", target, userNote });
   };
@@ -86,7 +120,8 @@ export function FileNotesView({
       name={notes.name}
       relativePath={notes.relativePath}
       headerActionLabel={notes.aiAction === "regenerate" ? "Regenerate" : "Generate"}
-      isHeaderActionRunning={notes.isAiActionRunning}
+      isHeaderActionRunning={runningScope === "fileSection" || runningScope === "all"}
+      isAnyAiActionRunning={isAnyAiActionRunning}
       onGenerateFileSection={generateFileNotes}
       onGenerateAll={generateAllNotes}
     >
@@ -106,9 +141,14 @@ export function FileNotesView({
         variant="section"
         activeTab={sectionTab}
         onTabChange={setSectionTab}
+        aiActionLabel={selectedSection?.aiExplanation ? "Regenerate" : "Generate"}
+        isAiActionRunning={runningScope === "section"}
+        isAiActionDisabled={isAnyAiActionRunning && runningScope !== "section"}
+        onGenerateAi={selectedSection ? generateSectionNote : undefined}
         userNote={selectedSection?.userNote}
         aiExplanation={selectedSection?.aiExplanation}
         editKey={selectedSection ? `section:${selectedSection.id}` : undefined}
+        startInEditMode={shouldEditSection}
         onSaveUserNote={
           selectedSection
             ? (userNote) =>
@@ -131,9 +171,25 @@ export function FileNotesView({
         variant="line"
         activeTab={lineTab}
         onTabChange={setLineTab}
+        aiAction={
+          notes.activeLine ? (
+            <AiGenerationMenu
+              actionLabel={notes.lineNote?.aiExplanation ? "Regenerate" : "Generate"}
+              isRunning={runningScope === "line"}
+              isDisabled={isAnyAiActionRunning && runningScope !== "line"}
+              scopeOptions={[
+                { scope: "currentLine", label: "Current Line" },
+                { scope: "nearbyLines", label: "Nearby Lines" },
+              ]}
+              defaultScope="nearbyLines"
+              onGenerateScope={generateLineNote}
+            />
+          ) : undefined
+        }
         userNote={notes.lineNote?.userNote}
         aiExplanation={notes.lineNote?.aiExplanation}
         editKey={notes.activeLine ? `line:${notes.activeLine}` : undefined}
+        startInEditMode={shouldEditLine}
         onSaveUserNote={
           notes.activeLine
             ? (userNote) => saveUserNote({ level: "line", line: notes.activeLine! }, userNote)
@@ -141,7 +197,10 @@ export function FileNotesView({
         }
         headerAccessory={
           notes.activeLine ? (
-            <SourceLocationBadge label={`L${notes.activeLine}`} title={`Line ${notes.activeLine}`} />
+            <SourceLocationBadge
+              label={`L${notes.activeLine}`}
+              title={`Line ${notes.activeLine}`}
+            />
           ) : undefined
         }
         emptyText="No line note selected."
@@ -167,22 +226,31 @@ function SectionRangeControl({
 
   if (sections.length === 1) {
     const label = formatSectionRange(selectedSection);
+    const title = (
+      <span className="section-context__title">{getSectionDisplayTitle(selectedSection)}</span>
+    );
 
     return (
       <div className="section-context">
-        <span className="section-context__title" title={selectedSection.title}>
-          {selectedSection.title}
-        </span>
-        <SourceLocationBadge label={label} title={`${selectedSection.title} · ${label}`} />
+        {selectedSection.kind ? (
+          <Tooltip content={selectedSection.kind} variant="section">
+            {title}
+          </Tooltip>
+        ) : (
+          title
+        )}
+        <SourceLocationBadge
+          label={label}
+          title={`${getSectionDisplayTitle(selectedSection)} · ${label}`}
+        />
       </div>
     );
   }
 
-  return (
+  const selector = (
     <select
       className="section-selector"
       aria-label="Current section"
-      title="Select a section containing the active line"
       value={selectedSectionId}
       onChange={(event) => onChange(event.target.value)}
     >
@@ -193,10 +261,22 @@ function SectionRangeControl({
       ))}
     </select>
   );
+
+  return selectedSection.kind ? (
+    <Tooltip content={selectedSection.kind} variant="section">
+      {selector}
+    </Tooltip>
+  ) : (
+    selector
+  );
 }
 
 function formatSectionOption(section: ResourceSectionNoteContent): string {
-  return `${section.title} · ${formatSectionRange(section)}`;
+  return `${getSectionDisplayTitle(section)} · ${formatSectionRange(section)}`;
+}
+
+function getSectionDisplayTitle(section: ResourceSectionNoteContent): string {
+  return section.title.trim() || `Section ${formatSectionRange(section)}`;
 }
 
 function formatSectionRange(section: ResourceSectionNoteContent): string {

@@ -38,7 +38,7 @@ textarea {
 
 .notes-panel {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--vscode-panel-border);
   border-radius: 8px;
   background: color-mix(
@@ -140,6 +140,23 @@ textarea {
   transform: rotate(45deg);
 }
 
+.tooltip--section .tooltip__content {
+  max-width: min(160px, calc(100vw - 32px));
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--notes-section-accent) 46%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--notes-section-accent) 12%,
+    var(--vscode-editorHoverWidget-background, var(--vscode-editor-background))
+  );
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tooltip--section .tooltip__content::before {
+  border-color: color-mix(in srgb, var(--notes-section-accent) 46%, transparent);
+}
+
 .tooltip:hover .tooltip__content,
 .tooltip:focus-within .tooltip__content {
   opacity: 1;
@@ -162,8 +179,20 @@ textarea {
 }
 
 .ai-generation-menu {
+  display: inline-flex;
   position: relative;
   min-width: 0;
+}
+
+.ai-generation-menu__main {
+  border-radius: 6px 0 0 6px;
+}
+
+.ai-generation-menu__arrow {
+  width: 28px;
+  padding: 0;
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
 }
 
 .ai-generation-menu__chevron {
@@ -189,7 +218,15 @@ textarea {
   box-shadow: 0 8px 24px color-mix(in srgb, #000000 38%, transparent);
 }
 
+.ai-generation-menu__popup--above {
+  top: auto;
+  bottom: calc(100% + 5px);
+}
+
 .ai-generation-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
   padding: 6px 8px;
   border: 0;
@@ -199,6 +236,13 @@ textarea {
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
+}
+
+.ai-generation-menu__check {
+  display: inline-flex;
+  width: 14px;
+  justify-content: center;
+  color: var(--vscode-charts-green, var(--vscode-testing-iconPassed));
 }
 
 .ai-generation-menu__item:hover,
@@ -517,10 +561,79 @@ textarea {
   background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
 }
 
+.user-note-context-menu {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  min-width: 150px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
+  border-radius: 5px;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  background: var(--vscode-menu-background, var(--vscode-editor-background));
+  box-shadow: 0 8px 24px color-mix(in srgb, #000000 40%, transparent);
+}
+
+.user-note-context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.user-note-context-menu__item:hover,
+.user-note-context-menu__item:focus-visible {
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  outline: none;
+}
+
+.user-note-context-menu__item:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.user-note-context-menu__item--copy .user-note-context-menu__icon {
+  color: var(--vscode-charts-blue, #4ea1ff);
+}
+
+.user-note-context-menu__item--edit .user-note-context-menu__icon {
+  color: var(--vscode-charts-green, #3ecf8e);
+}
+
+.user-note-context-menu__item--clear .user-note-context-menu__icon {
+  color: var(--vscode-errorForeground, #f14c4c);
+}
+
+.user-note-context-menu__item--relocate .user-note-context-menu__icon {
+  color: var(--vscode-charts-purple, #b180d7);
+}
+
+.user-note-context-menu__icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
 .ai-note-content {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.ai-note-content > .ai-generation-menu {
+  align-self: flex-end;
+  margin-top: 4px;
 }
 
 .ai-note-content__summary,
@@ -546,6 +659,27 @@ textarea {
   padding-left: 18px;
   color: var(--vscode-descriptionForeground);
   line-height: 1.45;
+}
+
+.ai-note-content__action {
+  align-self: flex-end;
+  margin-top: 4px;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 70%, var(--vscode-panel-border));
+  border-radius: 5px;
+  color: color-mix(in srgb, var(--card-accent) 82%, var(--vscode-foreground));
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ai-note-content__action:hover {
+  background: color-mix(in srgb, var(--card-accent) 12%, transparent);
+}
+
+.ai-note-content__action:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 
 .notes-tabs {

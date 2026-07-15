@@ -49,6 +49,59 @@ export const AI_REQUEST_DEFAULTS = {
     outputSafetyMultiplier: 1.2,
   },
 
+  /** Request sizing policy for one explicitly selected source line. */
+  singleLine: {
+    /** Number of source lines included before and after the target line. */
+    surroundingLineRadius: 20,
+
+    /** Maximum output tokens sent for one line explanation request. */
+    maxOutputTokens: 4_000,
+  },
+
+  /** Request sizing policy for nearby line-batch analysis. */
+  lineBatch: {
+    /** Number of source lines included before and after the active line. */
+    surroundingLineRadius: 20,
+
+    /** Maximum output tokens sent for one nearby-line batch request. */
+    maxOutputTokens: 8_000,
+  },
+
+  /** Request sizing policy for one explicitly selected section. */
+  section: {
+    /** Maximum output tokens sent for one section explanation request. */
+    maxOutputTokens: 4_000,
+  },
+
+  /** Local source-line selection policy shared by batch and single-line analysis. */
+  lineAnalysis: {
+    /** Dependency declarations that should be removed before line-level AI requests. */
+    skipDependencyDirectives: {
+      /** Whether configured dependency declarations are skipped by default. */
+      enabled: true,
+
+      /** VS Code language ids grouped by the syntax rule used to detect dependencies. */
+      languageIds: {
+        /** Languages that use C preprocessor include directives. */
+        cInclude: ["c", "cpp"],
+
+        /** Languages that use C# namespace using directives. */
+        csharpUsing: ["csharp"],
+
+        /** Languages that use Python import and from-import statements. */
+        pythonImport: ["python"],
+
+        /** Languages that use ECMAScript static import declarations. */
+        ecmaScriptImport: [
+          "javascript",
+          "javascriptreact",
+          "typescript",
+          "typescriptreact",
+        ],
+      },
+    },
+  },
+
   /** Published model limits used to validate request size before execution. */
   modelCapabilities: {
     /** Shared capabilities for the supported DeepSeek V4 variants. */

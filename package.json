@@ -147,6 +147,16 @@
         "command": "czaza.manageApiKeys",
         "title": "Manage API Keys",
         "category": "CZaza"
+      },
+      {
+        "command": "czaza.addLineNote",
+        "title": "Add Line Note",
+        "category": "CZaza"
+      },
+      {
+        "command": "czaza.addSectionNote",
+        "title": "Add Section Note",
+        "category": "CZaza"
       }
     ],
     "menus": {
@@ -177,6 +187,18 @@
           "command": "czaza.copyForAI.copyFileDiff",
           "when": "resourceScheme == file",
           "group": "1_cutcopypaste@201"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "czaza.addLineNote",
+          "when": "editorTextFocus && czaza.canAddLineNote",
+          "group": "navigation@10"
+        },
+        {
+          "command": "czaza.addSectionNote",
+          "when": "editorTextFocus && czaza.canAddSectionNote",
+          "group": "navigation@11"
         }
       ]
     },

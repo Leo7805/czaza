@@ -39,6 +39,9 @@ export const COMMON_ANALYSIS_STYLE_RULES = `
 - Explain behavior, responsibility, and important context.
 - Do not suggest edits, rewrites, refactors, or style changes unless an aiNote must call out a real risk.
 - Keep explanations concise but specific.
+- The response language instruction above is mandatory for all natural-language explanation text.
+- Write summary, detail, and aiNotes in the requested response language.
+- Do not switch explanation language because the source code or surrounding context uses another language.
 `;
 
 /**

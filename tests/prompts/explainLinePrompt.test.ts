@@ -39,6 +39,8 @@ describe("explainLinePrompt()", () => {
     expect(prompt).toContain('"detail": ""');
     expect(prompt).toContain('"aiNotes": []');
     expect(prompt).toContain("Explain only the target line.");
+    expect(prompt).toContain("The response language instruction above is mandatory");
+    expect(prompt).toContain("Write summary, detail, and aiNotes in the requested response language.");
     expect(prompt).toContain("Do not return the line number or source code in the JSON.");
     expect(prompt).toContain("Return only valid JSON.");
     expect(prompt).toContain("Line numbers are prefixes for reference only and are not part of the source code.");

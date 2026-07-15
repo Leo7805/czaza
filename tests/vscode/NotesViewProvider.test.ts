@@ -223,6 +223,98 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("runs line note generation for the active line and reveals the line AI tab", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const generateLineNote = vi.fn().mockResolvedValue(true);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      undefined,
+      generateLineNote,
+    );
+    const view = createWebviewView();
+
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      activeLine: 12,
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 12);
+    mocks.messageListeners[0]?.({ type: "generateLineNote", lineScope: "currentLine" });
+
+    await vi.waitFor(() => expect(generateLineNote).toHaveBeenCalledOnce());
+    expect(generateLineNote).toHaveBeenCalledWith(uri, 12);
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+    expect(mocks.postMessage).toHaveBeenLastCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({
+        kind: "file",
+        isAiActionRunning: false,
+        revealAiNotes: "line",
+      }),
+    });
+
+    provider.dispose();
+  });
+
+  it("runs selected section generation and reveals only the section AI tab", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const generateSectionNote = vi.fn().mockResolvedValue(true);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      undefined,
+      undefined,
+      generateSectionNote,
+    );
+    const view = createWebviewView();
+
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "regenerate",
+      sectionNotes: [
+        {
+          id: "section:run:1-3",
+          title: "Run function",
+          startLine: 1,
+          endLine: 3,
+        },
+      ],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "generateSectionNote",
+      sectionId: "section:run:1-3",
+    });
+
+    await vi.waitFor(() => expect(generateSectionNote).toHaveBeenCalledOnce());
+    expect(generateSectionNote).toHaveBeenCalledWith(uri, "section:run:1-3");
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+    expect(mocks.postMessage).toHaveBeenLastCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({
+        kind: "file",
+        isAiActionRunning: false,
+        revealAiNotes: "section",
+      }),
+    });
+
+    provider.dispose();
+  });
+
   it("does not start All Notes generation when confirmation is cancelled", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const generateAllNotes = vi.fn().mockResolvedValue(true);

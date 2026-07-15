@@ -96,7 +96,7 @@ describe.skipIf(!shouldRunRealAiTest)(
             Boolean(section.aiExplanation?.detail.trim()),
         ),
       ).toBe(true);
-      expect(result.lineNotes.map((line) => line.line)).toEqual([1, 3, 4, 5, 8]);
+      expect(result.lineNotes.map((line) => line.line)).toEqual([3, 4, 5, 8]);
       expect(
         result.lineNotes.every(
           (line) =>

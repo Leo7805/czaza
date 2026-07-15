@@ -16,6 +16,7 @@ import { ResourceHeader } from "./ResourceHeader";
  * @param props.showHeaderAction - Whether to show the header action button.
  * @param props.headerActionLabel - Label shown by the header action.
  * @param props.isHeaderActionRunning - Whether the header action is currently running.
+ * @param props.isAnyAiActionRunning - Whether any AI action for the resource is running.
  * @param props.onGenerateFileSection - Generates file and section notes.
  * @param props.onGenerateAll - Generates file, section, and line notes.
  * @param props.children - Notes cards rendered inside the panel body.
@@ -33,6 +34,7 @@ export function NotesPanel({
   showHeaderAction = true,
   headerActionLabel = "Generate",
   isHeaderActionRunning = false,
+  isAnyAiActionRunning = false,
   onGenerateFileSection,
   onGenerateAll,
   children,
@@ -43,6 +45,7 @@ export function NotesPanel({
   showHeaderAction?: boolean;
   headerActionLabel?: "Generate" | "Regenerate";
   isHeaderActionRunning?: boolean;
+  isAnyAiActionRunning?: boolean;
   onGenerateFileSection?: () => void;
   onGenerateAll?: () => void;
   children: ReactNode;
@@ -56,6 +59,7 @@ export function NotesPanel({
         showAction={showHeaderAction}
         actionLabel={headerActionLabel}
         isActionRunning={isHeaderActionRunning}
+        isAnyActionRunning={isAnyAiActionRunning}
         onGenerateFileSection={onGenerateFileSection}
         onGenerateAll={onGenerateAll}
       />

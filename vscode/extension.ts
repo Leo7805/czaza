@@ -8,6 +8,9 @@ import { registerCzazaCommands } from "./commands/registerCzazaCommands";
 import { registerNotesPreviewEvents } from "./events";
 import { generateAllNotesForResource } from "./services/generateAllNotesService";
 import { generateFileNotesForResource } from "./services/generateFileNotesService";
+import { generateLineNoteForResource } from "./services/generateLineNoteService";
+import { generateLineBatchNotesForResource } from "./services/generateLineBatchNoteService";
+import { generateSectionNoteForResource } from "./services/generateSectionNoteService";
 import { saveUserNoteService } from "./services/saveUserNoteService";
 import { WorkspaceNoteStore } from "./notes";
 import { NotesViewProvider } from "./notesUi/NotesViewProvider";
@@ -33,6 +36,9 @@ export function activate(context: vscode.ExtensionContext) {
     (uri) => generateFileNotesForResource(context, notes, uri),
     (uri, target, userNote) => saveUserNoteService({ uri, notes, target, userNote }),
     (uri) => generateAllNotesForResource(context, notes, uri),
+    (uri, lineNumber) => generateLineNoteForResource(context, notes, uri, lineNumber),
+    (uri, sectionId) => generateSectionNoteForResource(context, notes, uri, sectionId),
+    (uri, lineNumber) => generateLineBatchNotesForResource(context, notes, uri, lineNumber),
   );
   context.subscriptions.push(notesProvider);
 
@@ -40,7 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
   // 2. Register command palette and context-menu commands.
   // ---------------------------------------------------------------------------
 
-  registerCzazaCommands({ context });
+  registerCzazaCommands({ context, notes, notesProvider });
 
   // ---------------------------------------------------------------------------
   // 3. Register lifecycle checks that are not user commands.

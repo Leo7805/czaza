@@ -29,6 +29,14 @@ export function App() {
   useEffect(() => {
     vscode?.postMessage({ type: "ready" });
 
+    // VS Code can add its own WebView context menu before React's bubbling
+    // handler runs, so prevent the default event during capture as well.
+    const preventDefaultContextMenu = (event: MouseEvent): void => {
+      event.preventDefault();
+    };
+
+    document.addEventListener("contextmenu", preventDefaultContextMenu, true);
+
     const handleMessage = (event: MessageEvent) => {
       const message = event.data as ExtensionToWebviewMessage;
 
@@ -39,11 +47,18 @@ export function App() {
 
     window.addEventListener("message", handleMessage);
 
-    return () => window.removeEventListener("message", handleMessage);
+    return () => {
+      document.removeEventListener("contextmenu", preventDefaultContextMenu, true);
+      window.removeEventListener("message", handleMessage);
+    };
   }, [vscode]);
 
   return (
-    <main className="notes-shell">
+    <main
+      className="notes-shell"
+      data-vscode-context={JSON.stringify({ preventDefaultContextMenuItems: true })}
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <ResourceNotesView notes={notes} />
     </main>
   );

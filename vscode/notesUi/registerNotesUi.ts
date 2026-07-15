@@ -6,7 +6,7 @@ import * as vscode from "vscode";
 
 import { NotesViewProvider } from "./NotesViewProvider";
 
-const NOTES_VIEW_ID = "czaza.notesView";
+export const NOTES_VIEW_ID = "czaza.notesView";
 const SHOW_NOTES_COMMAND = "czaza.showNotes";
 
 /**

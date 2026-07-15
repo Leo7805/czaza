@@ -7,6 +7,7 @@ import * as vscode from "vscode";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { createCurrentConfirmedStatus } from "@shared/models/domain/common";
 import { createStoredSourceFile } from "@shared/services/domainToStoreService";
+import { createAvailableLineNoteId } from "@shared/services/notes/lineNoteIdentityService";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import {
   getCzazaRelativePath,
@@ -162,16 +163,6 @@ async function saveFileUserNote(
     return;
   }
 
-  if (existing && !userNote && !existing.aiExplanation) {
-    await notes.crud.deleteFileNote(
-      location.workspaceRoot,
-      location.outputDirectory,
-      location.relativePath,
-      location.now,
-    );
-    return;
-  }
-
   const next = existing
     ? replaceUserNote(existing, userNote)
     : {
@@ -230,21 +221,13 @@ async function saveLineUserNote(
     return;
   }
 
-  if (existing && !userNote && !existing.aiExplanation) {
-    await notes.crud.deleteLineNote(
-      location.workspaceRoot,
-      location.outputDirectory,
-      location.relativePath,
-      existing.id,
-      location.now,
-    );
-    return;
-  }
-
   const next = existing
     ? replaceUserNote(existing, userNote)
     : {
-        id: createAvailableLineNoteId(sourceFile, line),
+        id: createAvailableLineNoteId(
+          line,
+          sourceFile.lineNotes.map((note) => note.id),
+        ),
         line,
         anchorText: document.lineAt(line - 1).text,
         userNote,
@@ -273,23 +256,6 @@ function replaceUserNote<TNote extends { userNote?: string }>(
   }
 
   return next;
-}
-
-function createAvailableLineNoteId(sourceFile: StoredSourceFile, line: number): string {
-  const usedIds = new Set(sourceFile.lineNotes.map((note) => note.id));
-  const baseId = `line:${line}`;
-
-  if (!usedIds.has(baseId)) {
-    return baseId;
-  }
-
-  let suffix = 1;
-
-  while (usedIds.has(`${baseId}:user:${suffix}`)) {
-    suffix += 1;
-  }
-
-  return `${baseId}:user:${suffix}`;
 }
 
 function normalizeUserNote(value: string): string | undefined {

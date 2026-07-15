@@ -2,6 +2,12 @@
  * Selects source lines that are meaningful candidates for batch AI line notes.
  */
 
+import {
+  createDependencyDirectiveScanState,
+  shouldSkipDependencyDirectiveLine,
+  type DependencyDirectiveScanState,
+} from "@shared/services/dependencyDirectiveFilterService";
+
 /**
  * One source line selected for batch AI analysis.
  */
@@ -22,20 +28,22 @@ export type SelectLineAnalysisCandidatesInput = {
 
   /** VS Code TextDocument.languageId value, when available. */
   programmingLanguage?: string;
+
+  /** Whether dependency directives are skipped for this selection. Defaults to `false`. */
+  skipDependencyDirectives?: boolean;
 };
 
 type ScanState = {
   inBlockComment: boolean;
-  inImportContinuation: boolean;
-  importParenthesisDepth: number;
+  dependencyDirectives: DependencyDirectiveScanState;
 };
 
 /**
  * Selects meaningful source lines before a batch line-analysis AI request.
  *
- * Generic rules remove blank, comment-only, and delimiter-only lines. Optional
- * language rules remove dependency imports for C/C++, C#, and Python without
- * restricting other VS Code language identifiers.
+ * Generic rules remove blank, comment-only, and delimiter-only lines. Callers
+ * that perform structured combination analysis may also enable configured
+ * dependency directive filtering.
  *
  * @param input - Complete source text and optional VS Code language identifier.
  * @returns Candidate lines with their original one-based line numbers.
@@ -44,6 +52,7 @@ type ScanState = {
  * const lines = selectLineAnalysisCandidates({
  *   sourceText: "#include <stdio.h>\nint value = 1;\n}",
  *   programmingLanguage: "c",
+ *   skipDependencyDirectives: true,
  * });
  * // [{ lineNumber: 2, text: "int value = 1;" }]
  */
@@ -51,10 +60,10 @@ export function selectLineAnalysisCandidates(
   input: SelectLineAnalysisCandidatesInput,
 ): LineAnalysisCandidate[] {
   const programmingLanguage = input.programmingLanguage?.toLowerCase();
+  const skipDependencyDirectives = input.skipDependencyDirectives ?? false;
   const state: ScanState = {
     inBlockComment: false,
-    inImportContinuation: false,
-    importParenthesisDepth: 0,
+    dependencyDirectives: createDependencyDirectiveScanState(),
   };
 
   return input.sourceText.split(/\r?\n/).flatMap((text, index) => {
@@ -64,7 +73,14 @@ export function selectLineAnalysisCandidates(
       return [];
     }
 
-    if (shouldSkipLanguageSpecificLine(trimmed, programmingLanguage, state)) {
+    if (
+      skipDependencyDirectives &&
+      shouldSkipDependencyDirectiveLine(
+        trimmed,
+        programmingLanguage,
+        state.dependencyDirectives,
+      )
+    ) {
       return [];
     }
 
@@ -142,68 +158,4 @@ function isDelimiterOnlyLine(text: string): boolean {
   const delimiters = "{}[]();,";
 
   return [...text].every((character) => delimiters.includes(character));
-}
-
-/**
- * Applies only the import rule associated with the active VS Code language id.
- */
-function shouldSkipLanguageSpecificLine(
-  text: string,
-  programmingLanguage: string | undefined,
-  state: ScanState,
-): boolean {
-  if (state.inImportContinuation) {
-    updateImportContinuation(text, state);
-    return true;
-  }
-
-  if ((programmingLanguage === "c" || programmingLanguage === "cpp") && isCInclude(text)) {
-    updateImportContinuation(text, state);
-    return true;
-  }
-
-  if (programmingLanguage === "csharp" && isCSharpUsingDirective(text)) {
-    return true;
-  }
-
-  if (programmingLanguage === "python" && isPythonImport(text)) {
-    updateImportContinuation(text, state);
-    return true;
-  }
-
-  return false;
-}
-
-/** Detects a C or C++ include directive. */
-function isCInclude(text: string): boolean {
-  return /^#\s*include\b/.test(text);
-}
-
-/** Detects a C# namespace import without matching a using statement or declaration. */
-function isCSharpUsingDirective(text: string): boolean {
-  return /^(?:global\s+)?using\s+(?:static\s+)?(?:[A-Za-z_]\w*\s*=\s*)?[A-Za-z_]\w*(?:(?:\.|::)[A-Za-z_]\w*)*\s*;\s*(?:\/\/.*)?$/.test(
-    text,
-  );
-}
-
-/** Detects the first line of a Python import statement. */
-function isPythonImport(text: string): boolean {
-  return /^(?:import\s+\S|from\s+\S+\s+import\b)/.test(text);
-}
-
-/** Updates parenthesis and backslash continuation state for a skipped import. */
-function updateImportContinuation(text: string, state: ScanState): void {
-  const openingParentheses = countCharacter(text, "(");
-  const closingParentheses = countCharacter(text, ")");
-
-  state.importParenthesisDepth = Math.max(
-    0,
-    state.importParenthesisDepth + openingParentheses - closingParentheses,
-  );
-  state.inImportContinuation = state.importParenthesisDepth > 0 || /\\\s*$/.test(text);
-}
-
-/** Counts occurrences of one character in source text. */
-function countCharacter(text: string, target: string): number {
-  return [...text].filter((character) => character === target).length;
 }

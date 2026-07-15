@@ -36,11 +36,11 @@ describe("explainFileSectionLinePrompt()", () => {
     expect(prompt).toContain("Keep code identifiers");
     expect(prompt).toContain("Focus on what the code does and why it exists.");
     expect(prompt).toContain("aiNotes must contain useful extra context only when needed.");
-    expect(prompt).toContain("1: import { save } from './save';");
+    expect(prompt).not.toContain("1: import { save } from './save';");
     expect(prompt).toContain("2: export function run() {");
     expect(prompt).toContain("3:   return save();");
     expect(prompt).toContain("4: }");
-    expect(countOccurrences(prompt, "import { save } from './save';")).toBe(1);
+    expect(countOccurrences(prompt, "import { save } from './save';")).toBe(0);
   });
 
   it("requires an empty line result when local filtering selects no lines", () => {

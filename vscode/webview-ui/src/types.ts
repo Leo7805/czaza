@@ -61,6 +61,9 @@ export type ResourceAiExplanation = {
   aiNotes?: string[];
 };
 
+/** AI generation scope currently running for one resource. */
+export type ResourceAiActionScope = "fileSection" | "all" | "section" | "line";
+
 /**
  * File, section, or line target accepted by the shared user-note editor.
  *
@@ -150,7 +153,11 @@ export type ResourceNotesViewModel =
       aiAction: "generate" | "regenerate";
       activeLine?: number;
       isAiActionRunning?: boolean;
-      revealAiNotes?: "fileSection" | "all";
+      /** Whether this resource is currently generating AI notes. */
+      aiActionRunningScope?: ResourceAiActionScope;
+      revealAiNotes?: "fileSection" | "all" | "section" | "line";
+      /** Optional target that should open directly in User Note edit mode. */
+      editTarget?: UserNoteTarget;
       sectionNotes: ResourceSectionNoteContent[];
       lineNote?: ResourceLineNoteContent;
     }
@@ -198,6 +205,20 @@ export type WebviewToExtensionMessage =
   | {
       /** Requests coordinated file, section, and line AI note generation. */
       type: "generateAllNotes";
+    }
+  | {
+      /** Requests AI note generation for the active source line. */
+      type: "generateLineNote";
+
+      /** Whether to analyze only the active line or nearby candidates. */
+      lineScope: "currentLine" | "nearbyLines";
+    }
+  | {
+      /** Requests AI note regeneration for one selected section. */
+      type: "generateSectionNote";
+
+      /** Stable identifier of the selected section note. */
+      sectionId: string;
     }
   | {
       /** Saves one complete file, section, or line user note. */

@@ -43,4 +43,16 @@ describe("explainFileSectionPrompt()", () => {
 
     expect(prompt).toContain("- VS Code language id: unknown");
   });
+
+  it("omits configured dependency directives from structured source context", () => {
+    const prompt = explainFileSectionPrompt({
+      sourceCode: 'import value from "./value";\nexport const result = value;',
+      filePath: "src/value.ts",
+      programmingLanguage: "typescript",
+      responseLanguageInstruction: "Respond in English.",
+    });
+
+    expect(prompt).not.toContain('1: import value from "./value";');
+    expect(prompt).toContain("2: export const result = value;");
+  });
 });

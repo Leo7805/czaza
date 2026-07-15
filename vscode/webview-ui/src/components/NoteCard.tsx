@@ -2,9 +2,24 @@
  * Shared card component for notes sections.
  */
 
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 
 import type { ResourceAiExplanation } from "../types";
+import {
+  UserNoteContextMenu,
+  type UserNoteContextMenuPosition,
+} from "./UserNoteContextMenu";
+
+type NoteContextMenuState = {
+  position: UserNoteContextMenuPosition;
+  mode: "user" | "ai";
+};
 
 /**
  * Visual note card variants used by the notes panel.
@@ -27,6 +42,12 @@ export type NoteCardVariant = "file" | "section" | "line" | "child";
  * @param props.onSaveUserNote - Optional callback that enables User Note editing.
  * @param props.emptyText - Text shown when the active tab has no content.
  * @param props.headerAccessory - Optional control rendered beside the card title.
+ * @param props.aiActionLabel - Label for the optional AI generation button.
+ * @param props.isAiActionRunning - Whether the AI action is currently running.
+ * @param props.isAiActionDisabled - Whether another AI action is running.
+ * @param props.onGenerateAi - Optional callback for the AI generation button.
+ * @param props.aiAction - Optional custom AI action control.
+ * @param props.startInEditMode - Whether the User Note editor opens immediately.
  * @param props.children - Optional custom body rendered below the card header.
  * @returns React element for one notes card.
  *
@@ -52,6 +73,12 @@ export function NoteCard({
   onSaveUserNote,
   emptyText,
   headerAccessory,
+  aiActionLabel,
+  isAiActionRunning = false,
+  isAiActionDisabled = false,
+  onGenerateAi,
+  aiAction,
+  startInEditMode = false,
   children,
 }: {
   title: string;
@@ -66,14 +93,23 @@ export function NoteCard({
   onSaveUserNote?: (userNote: string) => void;
   emptyText: string;
   headerAccessory?: ReactNode;
+  aiActionLabel?: "Generate" | "Regenerate";
+  isAiActionRunning?: boolean;
+  isAiActionDisabled?: boolean;
+  onGenerateAi?: () => void;
+  aiAction?: ReactNode;
+  startInEditMode?: boolean;
   children?: ReactNode;
 }) {
   const [internalActiveTab, setInternalActiveTab] = useState<"user" | "ai">(defaultTab);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [contextMenuState, setContextMenuState] = useState<NoteContextMenuState | null>(null);
   const selectedTab = activeTab ?? internalActiveTab;
   const selectTab = onTabChange ?? setInternalActiveTab;
-  const hasActiveContent = selectedTab === "user" ? Boolean(userNote) : Boolean(aiExplanation);
+  const hasUserContent = Boolean(userNote?.trim());
+  const hasAiContent = Boolean(formatAiNoteForClipboard(aiExplanation).trim());
+  const hasActiveContent = selectedTab === "user" ? hasUserContent : hasAiContent;
   const isEmpty = !hasActiveContent && !children;
   const cardClass = [
     "notes-card",
@@ -85,9 +121,31 @@ export function NoteCard({
     .join(" ");
 
   useEffect(() => {
-    setIsEditing(false);
-    setDraft("");
-  }, [editKey, selectedTab]);
+    setIsEditing(startInEditMode && selectedTab === "user");
+    setDraft(startInEditMode && selectedTab === "user" ? userNote ?? "" : "");
+    setContextMenuState(null);
+  }, [editKey, selectedTab, startInEditMode, userNote]);
+
+  useEffect(() => {
+    if (!contextMenuState) {
+      return;
+    }
+
+    const closeMenu = (): void => setContextMenuState(null);
+    const closeOnEscape = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    };
+
+    window.addEventListener("mousedown", closeMenu);
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      window.removeEventListener("mousedown", closeMenu);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [contextMenuState]);
 
   const startEditing = (): void => {
     setDraft(userNote ?? "");
@@ -104,6 +162,42 @@ export function NoteCard({
     setIsEditing(false);
   };
 
+  const copyUserNote = (): void => {
+    setContextMenuState(null);
+    void navigator.clipboard?.writeText(userNote ?? "");
+  };
+
+  const copyAiNote = (): void => {
+    setContextMenuState(null);
+    void navigator.clipboard?.writeText(formatAiNoteForClipboard(aiExplanation));
+  };
+
+  const clearUserNote = (): void => {
+    setContextMenuState(null);
+    onSaveUserNote?.("");
+  };
+
+  const editUserNote = (): void => {
+    setContextMenuState(null);
+    startEditing();
+  };
+
+  const handleCardContextMenu = (event: MouseEvent<HTMLElement>): void => {
+    const isUserNote = selectedTab === "user";
+
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest("button, select, input, textarea, a")) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenuState({
+      position: { x: event.clientX, y: event.clientY },
+      mode: isUserNote ? "user" : "ai",
+    });
+  };
+
   const handleEditorKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -118,7 +212,7 @@ export function NoteCard({
   };
 
   return (
-    <section className={cardClass}>
+    <section className={cardClass} onContextMenu={handleCardContextMenu}>
       <div className="notes-card__head">
         <div className="notes-card__title-group">
           <h2 className="notes-card__title">{title}</h2>
@@ -141,9 +235,30 @@ export function NoteCard({
             onEditorKeyDown={handleEditorKeyDown}
           />
         ) : (
-          <AiExplanationContent explanation={aiExplanation} emptyText={emptyText} />
+          <AiExplanationContent
+            explanation={aiExplanation}
+            emptyText={emptyText}
+            actionLabel={aiActionLabel}
+            isActionRunning={isAiActionRunning}
+            isActionDisabled={isAiActionDisabled}
+            onGenerate={onGenerateAi}
+            action={aiAction}
+          />
         )
       )}
+      {contextMenuState ? (
+        <UserNoteContextMenu
+          position={contextMenuState.position}
+          hasContent={contextMenuState.mode === "user" ? hasUserContent : hasAiContent}
+          onCopy={contextMenuState.mode === "user" ? copyUserNote : copyAiNote}
+          showEdit={contextMenuState.mode === "user"}
+          editDisabled={!onSaveUserNote || !editKey}
+          onEdit={contextMenuState.mode === "user" ? editUserNote : undefined}
+          showClear={contextMenuState.mode === "user"}
+          clearDisabled={!onSaveUserNote || !editKey}
+          onClear={contextMenuState.mode === "user" ? clearUserNote : undefined}
+        />
+      ) : null}
     </section>
   );
 }
@@ -221,29 +336,65 @@ function UserNoteContent({
 function AiExplanationContent({
   explanation,
   emptyText,
+  actionLabel,
+  isActionRunning,
+  isActionDisabled,
+  onGenerate,
+  action,
 }: {
   explanation?: ResourceAiExplanation;
   emptyText: string;
+  actionLabel?: "Generate" | "Regenerate";
+  isActionRunning: boolean;
+  isActionDisabled: boolean;
+  onGenerate?: () => void;
+  action?: ReactNode;
 }) {
-  if (!explanation) {
-    return <p className="notes-muted">{emptyText}</p>;
-  }
-
   return (
     <div className="ai-note-content">
-      <p className="ai-note-content__summary">{explanation.summary}</p>
-      {explanation.detail ? (
-        <p className="ai-note-content__detail">{explanation.detail}</p>
-      ) : null}
-      {explanation.aiNotes && explanation.aiNotes.length > 0 ? (
-        <ul className="ai-note-content__notes">
-          {explanation.aiNotes.map((note, index) => (
-            <li key={`${index}:${note}`}>{note}</li>
-          ))}
-        </ul>
-      ) : null}
+      {explanation ? (
+        <>
+          <p className="ai-note-content__summary">{explanation.summary}</p>
+          {explanation.detail ? (
+            <p className="ai-note-content__detail">{explanation.detail}</p>
+          ) : null}
+          {explanation.aiNotes && explanation.aiNotes.length > 0 ? (
+            <ul className="ai-note-content__notes">
+              {explanation.aiNotes.map((note, index) => (
+                <li key={`${index}:${note}`}>{note}</li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      ) : (
+        <p className="notes-muted">{emptyText}</p>
+      )}
+      {action ?? (actionLabel && onGenerate ? (
+        <button
+          className="ai-note-content__action"
+          type="button"
+          disabled={isActionRunning || isActionDisabled}
+          onClick={onGenerate}
+        >
+          {isActionRunning
+            ? actionLabel === "Generate"
+              ? "Generating..."
+              : "Regenerating..."
+            : actionLabel}
+        </button>
+      ) : null)}
     </div>
   );
+}
+
+function formatAiNoteForClipboard(explanation?: ResourceAiExplanation): string {
+  if (!explanation) {
+    return "";
+  }
+
+  return [explanation.summary, explanation.detail, ...(explanation.aiNotes ?? [])]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function TabControl({

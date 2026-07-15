@@ -8,6 +8,7 @@ import {
   COMMON_CODE_REFERENCE_RULES,
   COMMON_JSON_OUTPUT_RULES,
 } from "./commonPrompt";
+import { formatSourceCodeForStructuredAnalysisPrompt } from "./sourcePromptFormatter";
 
 /**
  * Input required to build a combined file and section analysis prompt.
@@ -24,6 +25,9 @@ export type ExplainFileSectionPromptInput = {
 
   /** Instruction resolved from the user's VS Code AI response language setting. */
   responseLanguageInstruction: string;
+
+  /** Whether dependency directives should be omitted from the numbered source block. */
+  skipDependencyDirectives?: boolean;
 };
 
 /**
@@ -96,23 +100,7 @@ ${COMMON_AI_NOTES_RULES}
 Source code:
 Line numbers are prefixes for reference only and are not part of the source code.
 \`\`\`
-${formatSourceCodeWithLineNumbers(input.sourceCode)}
+${formatSourceCodeForStructuredAnalysisPrompt(input)}
 \`\`\`
 `;
-}
-
-/**
- * Formats source code with one-based line number prefixes for section range selection.
- *
- * @param sourceCode - Complete source code to format.
- * @returns Source code where each line is prefixed with its one-based line number.
- *
- * @example
- * const formatted = formatSourceCodeWithLineNumbers("const value = 1;");
- */
-function formatSourceCodeWithLineNumbers(sourceCode: string): string {
-  return sourceCode
-    .split(/\r?\n/)
-    .map((line, index) => `${index + 1}: ${line}`)
-    .join("\n");
 }

@@ -3,6 +3,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { AI_REQUEST_DEFAULTS } from "@shared/config/aiRequestDefaults";
 import { createDeepSeekClient } from "@shared/providers/deepseek";
 import { explainFileSectionLinePrompt } from "@shared/prompts/explainFileSectionLinePrompt";
 import { assessAllNotesRequest } from "@shared/services/allNotesRequestLimitService";
@@ -43,6 +44,8 @@ describe.skipIf(!shouldRunRealAiTest)(
       const candidates = selectLineAnalysisCandidates({
         sourceText: sourceCode,
         programmingLanguage,
+        skipDependencyDirectives:
+          AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
       });
       const requestedLineNumbers = candidates.map((candidate) => candidate.lineNumber);
       const prompt = explainFileSectionLinePrompt({
@@ -51,6 +54,8 @@ describe.skipIf(!shouldRunRealAiTest)(
         programmingLanguage,
         responseLanguageInstruction: "Respond in Simplified Chinese.",
         lineNumbers: requestedLineNumbers,
+        skipDependencyDirectives:
+          AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
       });
       const modelDefinition = AI_CATALOG.deepseek.models.find(
         (model) => model.id === deepSeekModel,

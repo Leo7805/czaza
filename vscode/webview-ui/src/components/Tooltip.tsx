@@ -1,3 +1,7 @@
+/**
+ * Provides a reusable VS Code-style tooltip for compact webview content.
+ */
+
 import type { ReactNode } from "react";
 
 /**
@@ -5,6 +9,7 @@ import type { ReactNode } from "react";
  *
  * @param props - Component props.
  * @param props.content - Tooltip text shown on hover or keyboard focus.
+ * @param props.variant - Optional contextual color treatment.
  * @param props.children - Inline content that owns the tooltip.
  * @returns React element with hover tooltip behavior.
  *
@@ -15,13 +20,18 @@ import type { ReactNode } from "react";
  */
 export function Tooltip({
   content,
+  variant = "default",
   children,
 }: {
   content: string;
+  variant?: "default" | "section";
   children: ReactNode;
 }) {
   return (
-    <span className="tooltip" tabIndex={0}>
+    <span
+      className={variant === "section" ? "tooltip tooltip--section" : "tooltip"}
+      tabIndex={0}
+    >
       {children}
       <span className="tooltip__content" role="tooltip">
         {content}
