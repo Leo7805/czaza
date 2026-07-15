@@ -99,7 +99,7 @@ describe("FileNotesView", () => {
       name: "index.ts",
       relativePath: "src/index.ts",
       aiAction: "regenerate",
-      revealAiNotes: true,
+      revealAiNotes: "fileSection",
       fileNote: {
         userNote: "File user note.",
         aiExplanation: {
@@ -135,6 +135,33 @@ describe("FileNotesView", () => {
     expect(markup).not.toContain("File user note.");
     expect(markup).not.toContain("Section user note.");
     expect(markup).not.toContain("user-note-edit-button");
+  });
+
+  it("shows line AI notes after successful All Notes generation", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "regenerate",
+      revealAiNotes: "all",
+      activeLine: 12,
+      sectionNotes: [],
+      lineNote: {
+        id: "line:12",
+        line: 12,
+        userNote: "Line user note.",
+        aiExplanation: {
+          summary: "Generated line AI note.",
+          detail: "Generated line AI detail.",
+        },
+      },
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup).toContain("Generated line AI note.");
+    expect(markup).toContain("Generated line AI detail.");
+    expect(markup).not.toContain("Line user note.");
   });
 
   it("shows the shared timer badge while file AI generation is running", () => {

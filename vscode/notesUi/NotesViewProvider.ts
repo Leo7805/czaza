@@ -27,6 +27,10 @@ type NotesWebviewMessage =
       type: "generateFileNotes";
     }
   | {
+      /** Requests coordinated file, section, and line AI note generation. */
+      type: "generateAllNotes";
+    }
+  | {
       /** Saves one file, section, or line user note. */
       type: "saveUserNote";
 
@@ -66,6 +70,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
   private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
+  private readonly generateAllNotes?: (uri: vscode.Uri) => Promise<boolean>;
   private readonly saveUserNote: (
     uri: vscode.Uri,
     target: UserNoteTarget,
@@ -79,6 +84,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @param notes - Shared workspace note store.
    * @param generateFileNotes - Callback that generates and persists notes for one file.
    * @param saveUserNote - Callback that saves one file, section, or line user note.
+   * @param generateAllNotes - Callback that generates and persists all three note levels.
    *
    * @example
    * const provider = new NotesViewProvider(context.extensionUri, notes, generateFileNotes, saveUserNote);
@@ -92,11 +98,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       target: UserNoteTarget,
       userNote: string,
     ) => Promise<void>,
+    generateAllNotes?: (uri: vscode.Uri) => Promise<boolean>,
   ) {
     this.extensionUri = extensionUri;
     this.notes = notes;
     this.generateFileNotes = generateFileNotes;
     this.saveUserNote = saveUserNote;
+    this.generateAllNotes = generateAllNotes;
   }
 
   /**
@@ -131,7 +139,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       }
 
       if (message.type === "generateFileNotes") {
-        void this.runFileNotesGeneration();
+        void this.runNotesGeneration("fileSection");
+        return;
+      }
+
+      if (message.type === "generateAllNotes") {
+        void this.runNotesGeneration("all");
         return;
       }
 
@@ -239,7 +252,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.updateSectionHighlight();
   }
 
-  private async postCurrentResourceNotes(revealAiNotes = false): Promise<void> {
+  private async postCurrentResourceNotes(
+    revealAiNotes?: "fileSection" | "all",
+  ): Promise<void> {
     if (!this.view) {
       return;
     }
@@ -262,17 +277,36 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           ? {
               ...this.currentPayload,
               isAiActionRunning: this.generatingResources.has(this.currentResourceUri.toString()),
-              ...(revealAiNotes ? { revealAiNotes: true } : {}),
+              ...(revealAiNotes ? { revealAiNotes } : {}),
             }
           : this.currentPayload,
     });
   }
 
-  private async runFileNotesGeneration(): Promise<void> {
+  private async runNotesGeneration(scope: "fileSection" | "all"): Promise<void> {
     const uri = this.currentResourceUri;
 
     if (!uri || this.currentPayload?.kind !== "file") {
       return;
+    }
+
+    const generateNotes =
+      scope === "all" ? this.generateAllNotes : this.generateFileNotes;
+
+    if (!generateNotes) {
+      return;
+    }
+
+    if (scope === "all") {
+      const selectedAction = await vscode.window.showWarningMessage(
+        "All Notes generation may take longer and use more AI tokens.",
+        { modal: true },
+        "Generate All Notes",
+      );
+
+      if (selectedAction !== "Generate All Notes") {
+        return;
+      }
     }
 
     const resourceKey = uri.toString();
@@ -283,11 +317,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     this.generatingResources.add(resourceKey);
     await this.postCurrentResourceNotes();
-    let revealAiNotes = false;
+    let revealAiNotes: "fileSection" | "all" | undefined;
 
     try {
-      const saved = await this.generateFileNotes(uri);
-      revealAiNotes = saved;
+      const saved = await generateNotes(uri);
+      revealAiNotes = saved ? scope : undefined;
 
       if (saved && this.currentResourceUri?.toString() === resourceKey) {
         await this.loadResourceNotes(uri, false, getActiveLine(uri));
@@ -408,6 +442,7 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
   return (
     candidate.type === "ready" ||
     candidate.type === "generateFileNotes" ||
+    candidate.type === "generateAllNotes" ||
     (candidate.type === "saveUserNote" &&
       isUserNoteTarget(candidate.target) &&
       typeof candidate.userNote === "string") ||

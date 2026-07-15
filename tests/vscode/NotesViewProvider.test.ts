@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   postMessage: vi.fn().mockResolvedValue(true),
   setDecorations: vi.fn(),
   decorationDispose: vi.fn(),
+  showWarningMessage: vi.fn(),
   messageListeners: [] as Array<(message: unknown) => void>,
 }));
 
@@ -58,6 +59,7 @@ vi.mock("vscode", () => ({
     createTextEditorDecorationType: () => ({
       dispose: mocks.decorationDispose,
     }),
+    showWarningMessage: mocks.showWarningMessage,
   },
 }));
 
@@ -169,8 +171,89 @@ describe("NotesViewProvider", () => {
       payload: expect.objectContaining({
         kind: "file",
         isAiActionRunning: false,
-        revealAiNotes: true,
+        revealAiNotes: "fileSection",
       }),
+    });
+
+    provider.dispose();
+  });
+
+  it("confirms All Notes generation and reveals all three AI note levels", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const generateAllNotes = vi.fn().mockResolvedValue(true);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      generateAllNotes,
+    );
+    const view = createWebviewView();
+
+    mocks.showWarningMessage.mockResolvedValue("Generate All Notes");
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({ type: "generateAllNotes" });
+    await vi.waitFor(() => expect(generateAllNotes).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+
+    expect(mocks.showWarningMessage).toHaveBeenCalledWith(
+      "All Notes generation may take longer and use more AI tokens.",
+      { modal: true },
+      "Generate All Notes",
+    );
+    expect(generateAllNotes).toHaveBeenCalledWith(uri);
+    expect(mocks.postMessage).toHaveBeenLastCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({
+        kind: "file",
+        isAiActionRunning: false,
+        revealAiNotes: "all",
+      }),
+    });
+
+    provider.dispose();
+  });
+
+  it("does not start All Notes generation when confirmation is cancelled", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const generateAllNotes = vi.fn().mockResolvedValue(true);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      generateAllNotes,
+    );
+    const view = createWebviewView();
+
+    mocks.showWarningMessage.mockResolvedValue(undefined);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({ type: "generateAllNotes" });
+    await vi.waitFor(() => expect(mocks.showWarningMessage).toHaveBeenCalledOnce());
+
+    expect(generateAllNotes).not.toHaveBeenCalled();
+    expect(mocks.getResourceNotes).toHaveBeenCalledOnce();
+    expect(mocks.postMessage).not.toHaveBeenCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({ isAiActionRunning: true }),
     });
 
     provider.dispose();

@@ -30,8 +30,10 @@ export function FileNotesView({
 }) {
   const firstSectionId = notes.sectionNotes[0]?.id;
   const initialGeneratedTab = notes.revealAiNotes ? "ai" : "user";
+  const initialLineTab = notes.revealAiNotes === "all" ? "ai" : "user";
   const [fileTab, setFileTab] = useState<"user" | "ai">(initialGeneratedTab);
   const [sectionTab, setSectionTab] = useState<"user" | "ai">(initialGeneratedTab);
+  const [lineTab, setLineTab] = useState<"user" | "ai">(initialLineTab);
   const [sectionSelection, setSectionSelection] = useState({
     relativePath: notes.relativePath,
     sectionId: firstSectionId,
@@ -47,12 +49,17 @@ export function FileNotesView({
   useEffect(() => {
     setFileTab("user");
     setSectionTab("user");
+    setLineTab("user");
   }, [notes.relativePath]);
 
   useEffect(() => {
     if (notes.revealAiNotes) {
       setFileTab("ai");
       setSectionTab("ai");
+
+      if (notes.revealAiNotes === "all") {
+        setLineTab("ai");
+      }
     }
   }, [notes.revealAiNotes]);
 
@@ -63,6 +70,10 @@ export function FileNotesView({
 
   const generateFileNotes = (): void => {
     getVsCodeApi()?.postMessage({ type: "generateFileNotes" });
+  };
+
+  const generateAllNotes = (): void => {
+    getVsCodeApi()?.postMessage({ type: "generateAllNotes" });
   };
 
   const saveUserNote = (target: UserNoteTarget, userNote: string): void => {
@@ -76,7 +87,8 @@ export function FileNotesView({
       relativePath={notes.relativePath}
       headerActionLabel={notes.aiAction === "regenerate" ? "Regenerate" : "Generate"}
       isHeaderActionRunning={notes.isAiActionRunning}
-      onHeaderAction={generateFileNotes}
+      onGenerateFileSection={generateFileNotes}
+      onGenerateAll={generateAllNotes}
     >
       <NoteCard
         title="File Notes"
@@ -117,6 +129,8 @@ export function FileNotesView({
       <NoteCard
         title="Line Notes"
         variant="line"
+        activeTab={lineTab}
+        onTabChange={setLineTab}
         userNote={notes.lineNote?.userNote}
         aiExplanation={notes.lineNote?.aiExplanation}
         editKey={notes.activeLine ? `line:${notes.activeLine}` : undefined}

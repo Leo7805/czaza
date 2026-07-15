@@ -4,6 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { AiGenerationMenu } from "./AiGenerationMenu";
 import { Tooltip } from "./Tooltip";
 
 /**
@@ -16,7 +17,8 @@ import { Tooltip } from "./Tooltip";
  * @param props.showAction - Whether to show the header action button.
  * @param props.actionLabel - Label for the AI action button.
  * @param props.isActionRunning - Whether AI generation is currently running.
- * @param props.onAction - Callback invoked when the AI action is selected.
+ * @param props.onGenerateFileSection - Generates file and section notes.
+ * @param props.onGenerateAll - Generates file, section, and line notes.
  * @returns React element for the resource header.
  *
  * @example
@@ -35,7 +37,8 @@ export function ResourceHeader({
   showAction = true,
   actionLabel = "Generate",
   isActionRunning = false,
-  onAction,
+  onGenerateFileSection,
+  onGenerateAll,
 }: {
   kind: "file" | "directory";
   name: string;
@@ -43,19 +46,14 @@ export function ResourceHeader({
   showAction?: boolean;
   actionLabel?: "Generate" | "Regenerate";
   isActionRunning?: boolean;
-  onAction?: () => void;
+  onGenerateFileSection?: () => void;
+  onGenerateAll?: () => void;
 }) {
   const startedAtRef = useRef<number | undefined>(undefined);
   const [timer, setTimer] = useState({
     visible: isActionRunning,
     seconds: 0,
   });
-  const visibleActionLabel = isActionRunning
-    ? actionLabel === "Generate"
-      ? "Generating..."
-      : "Regenerating..."
-    : actionLabel;
-
   useEffect(() => {
     if (isActionRunning) {
       const startedAt = Date.now();
@@ -107,26 +105,12 @@ export function ResourceHeader({
                 {timer.seconds}s
               </span>
             ) : null}
-            <button
-              className="resource-header__action"
-              type="button"
-              title={`${actionLabel} AI notes`}
-              disabled={isActionRunning}
-              onClick={onAction}
-            >
-            <svg
-              className="resource-header__action-icon"
-              viewBox="0 0 16 16"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path
-                fill="currentColor"
-                d="M13.5 2.8v3.7H9.8l1.4-1.4A4.6 4.6 0 0 0 3.4 8.4H2.2a5.8 5.8 0 0 1 9.8-4.2l1.5-1.4Zm-1.1 4.8h1.2a5.8 5.8 0 0 1-9.8 4.2l-1.5 1.4V9.5H6l-1.4 1.4a4.6 4.6 0 0 0 7.8-3.3Z"
-              />
-            </svg>
-              <span>{visibleActionLabel}</span>
-            </button>
+            <AiGenerationMenu
+              actionLabel={actionLabel}
+              isRunning={isActionRunning}
+              onGenerateFileSection={onGenerateFileSection}
+              onGenerateAll={onGenerateAll}
+            />
           </div>
         ) : null}
       </div>

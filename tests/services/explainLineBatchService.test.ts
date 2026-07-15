@@ -147,6 +147,57 @@ describe("explainLineBatchService()", () => {
       "Invalid line batch analysis response: line 0 requires lineNumber, summary, and detail.",
     );
   });
+
+  it("throws when a requested line result is missing", async () => {
+    const prompts: string[] = [];
+    const aiClient = createFakeAiClient(
+      {
+        lines: [
+          {
+            lineNumber: 2,
+            summary: "Explains line two.",
+            detail: "Only one of the requested lines was returned.",
+          },
+        ],
+      },
+      prompts,
+    );
+
+    await expect(
+      explainLineBatchService("Analyze incomplete batch.", aiClient, {
+        requestedLineNumbers: [2, 3],
+      }),
+    ).rejects.toThrow(
+      "Invalid line batch analysis response: expected exactly one result for requested lineNumbers 2, 3.",
+    );
+  });
+
+  it("throws when a line number is returned more than once", async () => {
+    const prompts: string[] = [];
+    const aiClient = createFakeAiClient(
+      {
+        lines: [
+          {
+            lineNumber: 2,
+            summary: "First result.",
+            detail: "The first explanation for line two.",
+          },
+          {
+            lineNumber: 2,
+            summary: "Second result.",
+            detail: "The duplicate explanation for line two.",
+          },
+        ],
+      },
+      prompts,
+    );
+
+    await expect(
+      explainLineBatchService("Analyze duplicate batch.", aiClient, {
+        requestedLineNumbers: [2],
+      }),
+    ).rejects.toThrow("Invalid line batch analysis response: duplicate lineNumber 2.");
+  });
 });
 
 /**

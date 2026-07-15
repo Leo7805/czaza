@@ -150,7 +150,7 @@ export type ResourceNotesViewModel =
       aiAction: "generate" | "regenerate";
       activeLine?: number;
       isAiActionRunning?: boolean;
-      revealAiNotes?: boolean;
+      revealAiNotes?: "fileSection" | "all";
       sectionNotes: ResourceSectionNoteContent[];
       lineNote?: ResourceLineNoteContent;
     }
@@ -194,6 +194,10 @@ export type WebviewToExtensionMessage =
   | {
       /** Requests combined file and section AI note generation. */
       type: "generateFileNotes";
+    }
+  | {
+      /** Requests coordinated file, section, and line AI note generation. */
+      type: "generateAllNotes";
     }
   | {
       /** Saves one complete file, section, or line user note. */

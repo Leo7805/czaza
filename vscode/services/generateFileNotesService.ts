@@ -91,7 +91,11 @@ export async function generateFileNotesService(
     now: input.now,
   });
 
-  return mergeGeneratedNotes(generatedSourceFile, input.existingSourceFile, input.now);
+  return mergeGeneratedFileSectionNotes(
+    generatedSourceFile,
+    input.existingSourceFile,
+    input.now,
+  );
 }
 
 /**
@@ -162,7 +166,21 @@ function createAiClient(config: Awaited<ReturnType<typeof getAiRequestConfigOrSh
   throw new Error(`Unsupported AI provider: ${String(config.provider)}`);
 }
 
-function mergeGeneratedNotes(
+/**
+ * Merges regenerated file and section AI notes with previously stored user content.
+ *
+ * Existing line notes are retained because file-and-section generation does not
+ * produce replacements for them.
+ *
+ * @param generated - Newly generated file and section notes.
+ * @param existing - Previously stored notes for the same source file.
+ * @param now - ISO timestamp applied to matched regenerated notes.
+ * @returns Generated notes with existing user content and line notes preserved.
+ *
+ * @example
+ * const merged = mergeGeneratedFileSectionNotes(generated, existing, now);
+ */
+export function mergeGeneratedFileSectionNotes(
   generated: StoredSourceFile,
   existing: StoredSourceFile | undefined,
   now: string,

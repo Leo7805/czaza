@@ -161,6 +161,53 @@ textarea {
   cursor: pointer;
 }
 
+.ai-generation-menu {
+  position: relative;
+  min-width: 0;
+}
+
+.ai-generation-menu__chevron {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
+.ai-generation-menu__popup {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 5px);
+  right: 0;
+  display: flex;
+  width: max-content;
+  min-width: 172px;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
+  border-radius: 6px;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  background: var(--vscode-menu-background, var(--vscode-editor-background));
+  box-shadow: 0 8px 24px color-mix(in srgb, #000000 38%, transparent);
+}
+
+.ai-generation-menu__item {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 3px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ai-generation-menu__item:hover,
+.ai-generation-menu__item:focus-visible {
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  outline: none;
+}
+
 .resource-header__actions {
   display: inline-flex;
   align-items: center;

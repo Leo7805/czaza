@@ -1,25 +1,8 @@
 import { SYSTEM_PROMPT } from "@shared/prompts/systemPrompt";
 import type { AiClient } from "@shared/ai/aiClient";
+import { AI_REQUEST_DEFAULTS } from "@shared/config/aiRequestDefaults";
 
-/**
- * Default DeepSeek chat completions endpoint.
- */
-const DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions";
-
-/**
- * Default DeepSeek model used outside VS Code-configured runtime calls.
- */
-const DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-flash";
-
-/**
- * Default timeout for one DeepSeek HTTP request.
- */
-const DEEPSEEK_TIMEOUT_MS = 75_000;
-
-/**
- * Default sampling temperature for deterministic code explanations.
- */
-const DEEPSEEK_TEMPERATURE = 0.2;
+const DEEPSEEK_DEFAULTS = AI_REQUEST_DEFAULTS.deepSeek;
 
 /**
  * Content type used by the DeepSeek chat completions API.
@@ -27,14 +10,27 @@ const DEEPSEEK_TEMPERATURE = 0.2;
 const DEEPSEEK_CONTENT_TYPE = "application/json";
 
 /**
+ * Structured response mode used by every current CZaza AI request.
+ */
+const DEEPSEEK_RESPONSE_FORMAT = {
+  type: "json_object",
+} as const;
+
+/**
  * Defensive error message used when no API key reaches the provider layer.
  */
 const DEEPSEEK_MISSING_API_KEY_MESSAGE = "Missing DeepSeek API key.";
 
+/**
+ * Defensive error for the occasional empty response documented by DeepSeek JSON Mode.
+ */
+const DEEPSEEK_EMPTY_RESPONSE_MESSAGE = "DeepSeek returned an empty JSON response.";
+
 type DeepSeekChatResponse = {
   choices?: {
+    finish_reason?: string;
     message?: {
-      content?: string;
+      content?: string | null;
     };
   }[];
 };
@@ -57,6 +53,9 @@ export type DeepSeekOptions = {
 
   /** Sampling temperature sent to DeepSeek. */
   temperature?: number;
+
+  /** Maximum number of output tokens allowed for the request. */
+  maxTokens?: number;
 
   /** System prompt sent before the user prompt. */
   systemPrompt?: string;
@@ -100,10 +99,11 @@ export async function callDeepSeek(prompt: string, options: DeepSeekOptions = {}
     throw new Error(DEEPSEEK_MISSING_API_KEY_MESSAGE);
   }
 
-  const url = options.url ?? DEEPSEEK_CHAT_COMPLETIONS_URL;
-  const model = options.model ?? DEEPSEEK_DEFAULT_MODEL;
-  const timeoutMs = options.timeoutMs ?? DEEPSEEK_TIMEOUT_MS;
-  const temperature = options.temperature ?? DEEPSEEK_TEMPERATURE;
+  const url = options.url ?? DEEPSEEK_DEFAULTS.url;
+  const model = options.model ?? DEEPSEEK_DEFAULTS.defaultModel;
+  const timeoutMs = options.timeoutMs ?? DEEPSEEK_DEFAULTS.timeoutMs;
+  const temperature = options.temperature ?? DEEPSEEK_DEFAULTS.temperature;
+  const maxTokens = normalizeMaxTokens(options.maxTokens);
   const systemPrompt = options.systemPrompt ?? SYSTEM_PROMPT;
   const abortController = new AbortController();
   const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
@@ -128,6 +128,8 @@ export async function callDeepSeek(prompt: string, options: DeepSeekOptions = {}
         },
       ],
       temperature,
+      response_format: DEEPSEEK_RESPONSE_FORMAT,
+      ...(maxTokens === undefined ? {} : { max_tokens: maxTokens }),
     }),
   }).finally(() => {
     clearTimeout(timeoutId);
@@ -139,8 +141,39 @@ export async function callDeepSeek(prompt: string, options: DeepSeekOptions = {}
   }
 
   const data = (await response.json()) as DeepSeekChatResponse;
+  const choice = data.choices?.[0];
 
-  return data.choices?.[0]?.message?.content ?? "";
+  if (choice?.finish_reason === "length") {
+    throw new Error(
+      "DeepSeek response was truncated because it reached the output token limit.",
+    );
+  }
+
+  const content = choice?.message?.content;
+
+  if (typeof content !== "string" || content.trim().length === 0) {
+    throw new Error(DEEPSEEK_EMPTY_RESPONSE_MESSAGE);
+  }
+
+  return content;
+}
+
+/**
+ * Validates an optional DeepSeek output token cap.
+ *
+ * @param value - Configured max_tokens request value.
+ * @returns The validated value or undefined when no cap was provided.
+ */
+function normalizeMaxTokens(value: number | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(value) || value < 1) {
+    throw new RangeError("DeepSeek maxTokens must be a positive integer.");
+  }
+
+  return value;
 }
 
 /**

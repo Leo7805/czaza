@@ -33,6 +33,8 @@ describe("explainLineBatchPrompt()", () => {
     expect(prompt).toContain('"summary": ""');
     expect(prompt).toContain('"detail": ""');
     expect(prompt).toContain('"aiNotes": []');
+    expect(prompt).toContain("already been filtered as meaningful analysis candidates");
+    expect(prompt).toContain("Return exactly one lines item for every provided source line.");
     expect(prompt).toContain("Preserve each provided lineNumber exactly.");
     expect(prompt).toContain("Do not return source code in the JSON.");
     expect(prompt).toContain("Return only valid JSON.");

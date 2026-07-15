@@ -81,7 +81,8 @@ Required JSON shape:
 
 Line batch rules:
 - Explain only the provided source lines.
-- Return one lines item for each provided source line that has meaningful code.
+- The provided source lines have already been filtered as meaningful analysis candidates.
+- Return exactly one lines item for every provided source line.
 - Preserve each provided lineNumber exactly.
 - Do not return source code in the JSON.
 - summary must be concise and explain the line's immediate responsibility.

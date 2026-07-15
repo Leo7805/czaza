@@ -6,6 +6,7 @@ import * as vscode from "vscode";
 import { registerCzazaRootValidation } from "./config/registerCzazaRootValidation";
 import { registerCzazaCommands } from "./commands/registerCzazaCommands";
 import { registerNotesPreviewEvents } from "./events";
+import { generateAllNotesForResource } from "./services/generateAllNotesService";
 import { generateFileNotesForResource } from "./services/generateFileNotesService";
 import { saveUserNoteService } from "./services/saveUserNoteService";
 import { WorkspaceNoteStore } from "./notes";
@@ -31,6 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
     notes,
     (uri) => generateFileNotesForResource(context, notes, uri),
     (uri, target, userNote) => saveUserNoteService({ uri, notes, target, userNote }),
+    (uri) => generateAllNotesForResource(context, notes, uri),
   );
   context.subscriptions.push(notesProvider);
 

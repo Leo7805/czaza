@@ -6,6 +6,10 @@
  * should be added to this catalogue.
  */
 
+import { AI_REQUEST_DEFAULTS } from "@shared/config/aiRequestDefaults";
+
+const DEEPSEEK_V4_CAPABILITIES = AI_REQUEST_DEFAULTS.modelCapabilities.deepSeekV4;
+
 export const AI_CATALOG = {
   deepseek: {
     label: "DeepSeek",
@@ -13,10 +17,14 @@ export const AI_CATALOG = {
       {
         id: "deepseek-v4-flash",
         label: "DeepSeek V4 Flash",
+        contextWindowTokens: DEEPSEEK_V4_CAPABILITIES.contextWindowTokens,
+        maxOutputTokens: DEEPSEEK_V4_CAPABILITIES.maxOutputTokens,
       },
       {
         id: "deepseek-v4-pro",
         label: "DeepSeek V4 Pro",
+        contextWindowTokens: DEEPSEEK_V4_CAPABILITIES.contextWindowTokens,
+        maxOutputTokens: DEEPSEEK_V4_CAPABILITIES.maxOutputTokens,
       },
     ],
     defaultModel: "deepseek-v4-flash",
