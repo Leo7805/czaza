@@ -34,4 +34,33 @@ describe("NotesNavigatorView", () => {
     expect(getNavigatorBadge("sections", "src/index.ts", "czaza")).toBe("src/index.ts");
     expect(getNavigatorBadge("lines", undefined, "czaza")).toBe("No current file");
   });
+
+  it("renders different resource icons for files and directories", () => {
+    const notes: NavigatorNotesViewModel = {
+      kind: "resource",
+      projectRootName: "czaza",
+      currentFile: "src/index.ts",
+      files: [
+        {
+          name: "src",
+          relativePath: "src",
+          resourceKind: "directory",
+          preview: "Source folder notes",
+        },
+        {
+          name: "index.ts",
+          relativePath: "src/index.ts",
+          resourceKind: "file",
+          preview: "Entry file notes",
+        },
+      ],
+      sections: [],
+      lines: [],
+    };
+
+    const markup = renderToStaticMarkup(<NotesNavigatorView navigatorNotes={notes} />);
+
+    expect(markup).toContain("notes-navigator__resource-icon--directory");
+    expect(markup).toContain("notes-navigator__resource-icon--file");
+  });
 });

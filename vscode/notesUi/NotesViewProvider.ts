@@ -3,9 +3,11 @@
  */
 
 import { readFile } from "node:fs/promises";
+import * as path from "node:path";
 
 import * as vscode from "vscode";
 
+import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import {
   getNavigatorNotes,
@@ -57,6 +59,33 @@ type NotesWebviewMessage =
 
       /** Complete user-authored note content. */
       userNote: string;
+    }
+  | {
+      /** Opens or shows one resource selected from the Navigator Files list. */
+      type: "openNavigatorResource";
+
+      /** CZaza-root-relative resource path. */
+      relativePath: string;
+    }
+  | {
+      /** Reveals one section selected from the Navigator Sections list. */
+      type: "openNavigatorSection";
+
+      /** Stable identifier of the selected section note. */
+      sectionId: string;
+
+      /** One-based inclusive first line. */
+      startLine: number;
+
+      /** One-based inclusive last line. */
+      endLine: number;
+    }
+  | {
+      /** Reveals one line selected from the Navigator Lines list. */
+      type: "openNavigatorLine";
+
+      /** One-based source line number. */
+      line: number;
     }
   | {
       /** Indicates that the user selected a matched section in the webview. */
@@ -202,6 +231,21 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
       if (message.type === "saveUserNote") {
         void this.runUserNoteSave(message.target, message.userNote);
+        return;
+      }
+
+      if (message.type === "openNavigatorResource") {
+        void this.openNavigatorResource(message.relativePath);
+        return;
+      }
+
+      if (message.type === "openNavigatorSection") {
+        void this.openNavigatorSection(message.sectionId, message.startLine, message.endLine);
+        return;
+      }
+
+      if (message.type === "openNavigatorLine") {
+        void this.openNavigatorLine(message.line);
         return;
       }
 
@@ -403,6 +447,90 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       type: "navigatorNotes",
       payload: this.currentNavigatorPayload,
     });
+  }
+
+  private async openNavigatorResource(relativePath: string): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || !isSafeRelativePath(relativePath)) {
+      return;
+    }
+
+    try {
+      const { rootDirectory } = resolveCzazaRootDirectory(currentUri);
+      const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
+      const resourceKind = await getResourceKind(targetUri);
+
+      if (resourceKind === "directory") {
+        await vscode.commands.executeCommand("czaza.showNotesDetail");
+        await this.loadResourceNotes(targetUri, false);
+        return;
+      }
+
+      const document = await vscode.workspace.openTextDocument(targetUri);
+      await vscode.window.showTextDocument(document, { preview: false });
+      await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      void vscode.window.showErrorMessage(`Failed to open CZaza navigator resource: ${message}`);
+    }
+  }
+
+  private async openNavigatorSection(
+    sectionId: string,
+    startLine: number,
+    endLine: number,
+  ): Promise<void> {
+    const uri = this.currentResourceUri;
+
+    if (this.currentPayload?.kind !== "file" || !uri || !isValidLineRange(startLine, endLine)) {
+      return;
+    }
+
+    try {
+      const editor = await this.openCurrentResourceEditor(uri);
+      const targetLine = Math.min(Math.max(startLine - 1, 0), editor.document.lineCount - 1);
+      const position = new vscode.Position(targetLine, 0);
+      const range = new vscode.Range(position, position);
+
+      editor.selection = new vscode.Selection(position, position);
+      editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+      this.selectedSectionId = sectionId;
+      await this.loadResourceNotes(uri, false, startLine);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      void vscode.window.showErrorMessage(`Failed to reveal CZaza section: ${message}`);
+    }
+  }
+
+  private async openNavigatorLine(line: number): Promise<void> {
+    const uri = this.currentResourceUri;
+
+    if (this.currentPayload?.kind !== "file" || !uri || !isPositiveLine(line)) {
+      return;
+    }
+
+    try {
+      const editor = await this.openCurrentResourceEditor(uri);
+      const targetLine = Math.min(Math.max(line - 1, 0), editor.document.lineCount - 1);
+      const position = new vscode.Position(targetLine, 0);
+      const range = new vscode.Range(position, position);
+
+      editor.selection = new vscode.Selection(position, position);
+      editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+      await this.loadResourceNotes(uri, false, line);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      void vscode.window.showErrorMessage(`Failed to reveal CZaza line: ${message}`);
+    }
+  }
+
+  private async openCurrentResourceEditor(uri: vscode.Uri): Promise<vscode.TextEditor> {
+    return vscode.window.activeTextEditor?.document.uri.toString() === uri.toString()
+      ? vscode.window.activeTextEditor
+      : await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(uri), {
+          preview: false,
+        });
   }
 
   private async runNotesGeneration(scope: "fileSection" | "all"): Promise<void> {
@@ -638,7 +766,11 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
 
   const candidate = message as {
     type?: unknown;
+    relativePath?: unknown;
     sectionId?: unknown;
+    startLine?: unknown;
+    endLine?: unknown;
+    line?: unknown;
     lineScope?: unknown;
     target?: unknown;
     userNote?: unknown;
@@ -654,6 +786,15 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     (candidate.type === "saveUserNote" &&
       isUserNoteTarget(candidate.target) &&
       typeof candidate.userNote === "string") ||
+    (candidate.type === "openNavigatorResource" && typeof candidate.relativePath === "string") ||
+    (candidate.type === "openNavigatorSection" &&
+      typeof candidate.sectionId === "string" &&
+      Number.isInteger(candidate.startLine) &&
+      Number.isInteger(candidate.endLine) &&
+      isValidLineRange(Number(candidate.startLine), Number(candidate.endLine))) ||
+    (candidate.type === "openNavigatorLine" &&
+      Number.isInteger(candidate.line) &&
+      isPositiveLine(Number(candidate.line))) ||
     (candidate.type === "selectSection" && typeof candidate.sectionId === "string")
   );
 }
@@ -709,4 +850,27 @@ function getActiveLine(uri: vscode.Uri): number | undefined {
   }
 
   return editor.selection.active.line + 1;
+}
+
+async function getResourceKind(uri: vscode.Uri): Promise<"file" | "directory"> {
+  const stat = await vscode.workspace.fs.stat(uri);
+  return stat.type & vscode.FileType.Directory ? "directory" : "file";
+}
+
+function isSafeRelativePath(relativePath: string): boolean {
+  if (!relativePath || path.isAbsolute(relativePath)) {
+    return false;
+  }
+
+  const segments = relativePath.split("/");
+
+  return segments.every((segment) => segment && segment !== "." && segment !== "..");
+}
+
+function isValidLineRange(startLine: number, endLine: number): boolean {
+  return Number.isInteger(startLine) && Number.isInteger(endLine) && startLine > 0 && endLine >= startLine;
+}
+
+function isPositiveLine(line: number): boolean {
+  return Number.isInteger(line) && line > 0;
 }

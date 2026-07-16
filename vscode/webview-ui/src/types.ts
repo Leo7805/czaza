@@ -182,6 +182,7 @@ export type NavigatorNoteContent = ResourceNoteContent & {
 export type NavigatorFileItem = NavigatorNoteContent & {
   name: string;
   relativePath: string;
+  resourceKind: "file" | "directory";
 };
 
 /** Section note item rendered by the current-file Sections list. */
@@ -289,6 +290,33 @@ export type WebviewToExtensionMessage =
 
       /** Complete user-authored note content. */
       userNote: string;
+    }
+  | {
+      /** Opens or shows one resource selected from the Navigator Files list. */
+      type: "openNavigatorResource";
+
+      /** CZaza-root-relative resource path. */
+      relativePath: string;
+    }
+  | {
+      /** Reveals one section selected from the Navigator Sections list. */
+      type: "openNavigatorSection";
+
+      /** Stable identifier of the selected section note. */
+      sectionId: string;
+
+      /** One-based inclusive first line. */
+      startLine: number;
+
+      /** One-based inclusive last line. */
+      endLine: number;
+    }
+  | {
+      /** Reveals one line selected from the Navigator Lines list. */
+      type: "openNavigatorLine";
+
+      /** One-based source line number. */
+      line: number;
     }
   | {
       /** Indicates that the user selected a matched section. */

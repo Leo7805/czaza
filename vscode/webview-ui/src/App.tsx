@@ -76,7 +76,7 @@ export function App() {
 
   return (
     <main
-      className="notes-shell"
+      className={viewMode === "navigator" ? "notes-shell notes-shell--navigator" : "notes-shell"}
       data-vscode-context={JSON.stringify({ preventDefaultContextMenuItems: true })}
       onContextMenu={(event) => event.preventDefault()}
     >

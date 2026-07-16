@@ -29,6 +29,9 @@ export type NavigatorFileItem = NavigatorNoteContent & {
   /** Root-relative source path used as the stable navigation target. */
   relativePath: string;
 
+  /** Whether the note target is a file or directory. */
+  resourceKind: "file" | "directory";
+
   /** File name shown in the list. */
   name: string;
 };
@@ -153,6 +156,7 @@ async function getFileItems(
 
     items.push({
       relativePath,
+      resourceKind: await getNavigatorResourceKind(workspaceRoot, relativePath),
       name: path.basename(relativePath),
       ...content,
     });
@@ -226,6 +230,17 @@ function getFirstLine(value: string | undefined): string | undefined {
 async function getResourceKind(uri: vscode.Uri): Promise<"file" | "directory"> {
   const stat = await vscode.workspace.fs.stat(uri);
   return stat.type & vscode.FileType.Directory ? "directory" : "file";
+}
+
+async function getNavigatorResourceKind(
+  workspaceRoot: string,
+  relativePath: string,
+): Promise<"file" | "directory"> {
+  try {
+    return await getResourceKind(vscode.Uri.file(path.join(workspaceRoot, ...relativePath.split("/"))));
+  } catch {
+    return "file";
+  }
 }
 
 function isExpectedResourceError(error: unknown): boolean {

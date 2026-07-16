@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   postMessage: vi.fn().mockResolvedValue(true),
   setDecorations: vi.fn(),
   decorationDispose: vi.fn(),
+  openTextDocument: vi.fn(),
+  showTextDocument: vi.fn(),
+  revealRange: vi.fn(),
   showWarningMessage: vi.fn(),
   messageListeners: [] as Array<(message: unknown) => void>,
 }));
@@ -24,6 +27,16 @@ vi.mock("@vscode/services/getResourceNotesService", () => ({
 }));
 
 vi.mock("vscode", () => ({
+  Position: class MockPosition {
+    readonly line: number;
+    readonly character: number;
+
+    constructor(line: number, character: number) {
+      this.line = line;
+      this.character = character;
+    }
+  },
+
   Range: class MockRange {
     readonly startLine: number;
     readonly startCharacter: number;
@@ -31,16 +44,40 @@ vi.mock("vscode", () => ({
     readonly endCharacter: number;
 
     constructor(
-      startLine: number,
-      startCharacter: number,
-      endLine: number,
-      endCharacter: number,
+      startLineOrPosition: number | { line: number; character: number },
+      startCharacterOrPosition: number | { line: number; character: number },
+      endLine?: number,
+      endCharacter?: number,
     ) {
-      this.startLine = startLine;
-      this.startCharacter = startCharacter;
-      this.endLine = endLine;
-      this.endCharacter = endCharacter;
+      if (typeof startLineOrPosition === "number") {
+        this.startLine = startLineOrPosition;
+        this.startCharacter = startCharacterOrPosition as number;
+        this.endLine = endLine ?? startLineOrPosition;
+        this.endCharacter = endCharacter ?? (startCharacterOrPosition as number);
+        return;
+      }
+
+      const endPosition = startCharacterOrPosition as { line: number; character: number };
+      this.startLine = startLineOrPosition.line;
+      this.startCharacter = startLineOrPosition.character;
+      this.endLine = endPosition.line;
+      this.endCharacter = endPosition.character;
     }
+  },
+
+  Selection: class MockSelection {
+    readonly active: { line: number; character: number };
+
+    constructor(
+      _anchor: { line: number; character: number },
+      active: { line: number; character: number },
+    ) {
+      this.active = active;
+    }
+  },
+
+  TextEditorRevealType: {
+    InCenter: 2,
   },
 
   Uri: {
@@ -51,6 +88,10 @@ vi.mock("vscode", () => ({
     }),
   },
 
+  workspace: {
+    openTextDocument: mocks.openTextDocument,
+  },
+
   window: {
     get activeTextEditor() {
       return mocks.activeTextEditor;
@@ -59,6 +100,7 @@ vi.mock("vscode", () => ({
     createTextEditorDecorationType: () => ({
       dispose: mocks.decorationDispose,
     }),
+    showTextDocument: mocks.showTextDocument,
     showWarningMessage: mocks.showWarningMessage,
   },
 }));
@@ -129,6 +171,114 @@ describe("NotesViewProvider", () => {
       endLine: 14,
       endCharacter: 15,
     });
+
+    provider.dispose();
+  });
+
+  it("reveals a navigator section and refreshes notes for its first line", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    const editor = createEditor(uri);
+
+    mocks.activeTextEditor = editor;
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [
+        {
+          id: "section:first",
+          title: "Outer",
+          startLine: 10,
+          endLine: 20,
+        },
+        {
+          id: "section:second",
+          title: "Inner",
+          startLine: 12,
+          endLine: 15,
+        },
+      ],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 10);
+    mocks.messageListeners[0]?.({
+      type: "openNavigatorSection",
+      sectionId: "section:second",
+      startLine: 12,
+      endLine: 15,
+    });
+
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+    expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
+      uri,
+      notes: {},
+      activeLine: 12,
+    });
+    expect(editor.selection.active).toEqual({ line: 11, character: 0 });
+    expect(mocks.revealRange).toHaveBeenCalledWith(
+      expect.objectContaining({ startLine: 11, endLine: 11 }),
+      2,
+    );
+    await vi.waitFor(() =>
+      expect(getLastDecorationRange()).toEqual({
+        startLine: 11,
+        startCharacter: 0,
+        endLine: 14,
+        endCharacter: 15,
+      }),
+    );
+
+    provider.dispose();
+  });
+
+  it("reveals a navigator line and refreshes notes for that line", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    const editor = createEditor(uri);
+
+    mocks.activeTextEditor = editor;
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      activeLine: 24,
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 12);
+    mocks.messageListeners[0]?.({
+      type: "openNavigatorLine",
+      line: 24,
+    });
+
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+    expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
+      uri,
+      notes: {},
+      activeLine: 24,
+    });
+    expect(editor.selection.active).toEqual({ line: 23, character: 0 });
+    expect(mocks.revealRange).toHaveBeenCalledWith(
+      expect.objectContaining({ startLine: 23, endLine: 23 }),
+      2,
+    );
 
     provider.dispose();
   });
@@ -470,6 +620,7 @@ function createEditor(uri: vscodeTypes.Uri): vscodeTypes.TextEditor {
     selection: {
       active: { line: 11, character: 0 },
     },
+    revealRange: mocks.revealRange,
     setDecorations: mocks.setDecorations,
   } as unknown as vscodeTypes.TextEditor;
 }

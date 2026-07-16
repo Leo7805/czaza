@@ -13,6 +13,7 @@
   --notes-section-accent: #4ea1ff;
   --notes-line-accent: #f5a524;
   --notes-child-accent: #3ecf8e;
+  --notes-directory-accent: #d7a84f;
 }
 
 * {
@@ -36,16 +37,25 @@ textarea {
   padding: 10px;
 }
 
+.notes-shell--navigator {
+  padding: 0 10px 10px;
+}
+
 .notes-navigator {
   min-width: 0;
 }
 
 .notes-navigator__tabs {
   display: inline-flex;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   align-items: center;
   gap: 2px;
+  width: 100%;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--vscode-panel-border);
+  background: var(--vscode-sideBar-background);
 }
 
 .notes-navigator__tab {
@@ -156,6 +166,48 @@ textarea {
   border: 1px solid var(--vscode-panel-border);
   border-radius: 6px;
   background: color-mix(in srgb, var(--vscode-editor-background) 58%, transparent);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.notes-navigator__item:hover,
+.notes-navigator__item:focus-visible {
+  border-color: var(--vscode-focusBorder);
+  background: var(--vscode-list-hoverBackground);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.notes-navigator__item:active {
+  transform: translateY(0);
+}
+
+.notes-navigator__item--file {
+  grid-template-columns: 24px 16px minmax(0, 1fr) auto;
+  column-gap: 6px;
+}
+
+.notes-navigator__resource-icon {
+  width: 16px;
+  height: 16px;
+  align-self: center;
+  justify-self: center;
+  fill: color-mix(in srgb, currentColor 18%, transparent);
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.25;
+}
+
+.notes-navigator__resource-icon--file {
+  color: var(--notes-file-accent);
+}
+
+.notes-navigator__resource-icon--directory {
+  color: var(--notes-directory-accent);
 }
 
 .notes-navigator__index {
