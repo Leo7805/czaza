@@ -36,6 +36,59 @@ textarea {
   padding: 10px;
 }
 
+.notes-navigator {
+  min-width: 0;
+}
+
+.notes-navigator__tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.notes-navigator__tab {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.notes-navigator__tab:hover,
+.notes-navigator__tab:focus-visible {
+  color: var(--vscode-foreground);
+  outline: none;
+}
+
+.notes-navigator__tab--active {
+  border-bottom-color: var(--vscode-focusBorder);
+  color: var(--vscode-foreground);
+}
+
+.notes-navigator__content {
+  min-width: 0;
+  padding: 12px 2px;
+}
+
+.notes-navigator__title {
+  margin: 0 0 10px;
+  overflow-wrap: anywhere;
+  color: var(--vscode-foreground);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.notes-navigator__empty {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
 .notes-panel {
   min-width: 0;
   overflow: visible;

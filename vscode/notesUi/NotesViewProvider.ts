@@ -64,6 +64,9 @@ type NotesWebviewMessage =
 
 type AiActionScope = "fileSection" | "all" | "section" | "line";
 
+/** Mode selected by the VS Code notes View Toolbar. */
+export type NotesViewMode = "detail" | "navigator";
+
 /**
  * VS Code provider for the new React notes webview.
  *
@@ -73,6 +76,7 @@ type AiActionScope = "fileSection" | "all" | "section" | "line";
  */
 export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
+  private viewMode: NotesViewMode = "detail";
   private currentResourceUri?: vscode.Uri;
   private currentPayload?: ResourceNotesResult;
   private selectedSectionId?: string;
@@ -166,6 +170,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           this.selectedSectionId = this.pendingEditTarget.sectionId;
         }
         void this.postCurrentResourceNotes();
+        this.postViewMode(this.viewMode);
         this.updateSectionHighlight();
         return;
       }
@@ -205,6 +210,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         this.view = undefined;
       }
     });
+  }
+
+  /**
+   * Sends the current View Toolbar mode to the React webview.
+   *
+   * @param mode - Detail or Navigator mode selected by the extension command.
+   */
+  postViewMode(mode: NotesViewMode): void {
+    this.viewMode = mode;
+    void this.view?.webview.postMessage({ type: "notesViewMode", mode });
   }
 
   /**

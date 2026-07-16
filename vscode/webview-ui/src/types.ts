@@ -179,12 +179,26 @@ export type ResourceNotesViewModel =
  *   payload: { kind: "outsideRoot" },
  * };
  */
-export type ExtensionToWebviewMessage = {
-  /** Message discriminator. */
-  type: "resourceNotes";
+export type ExtensionToWebviewMessage =
+  | {
+      /** Message discriminator. */
+      type: "resourceNotes";
 
-  /** Notes payload to render. */
-  payload: ResourceNotesViewModel;
+      /** Notes payload to render. */
+      payload: ResourceNotesViewModel;
+    }
+  | NotesViewModeMessage;
+
+/** Mode selected by the VS Code notes View Toolbar. */
+export type NotesViewMode = "detail" | "navigator";
+
+/** Message that synchronizes the mode selected by the VS Code View Toolbar. */
+export type NotesViewModeMessage = {
+  /** Message discriminator. */
+  type: "notesViewMode";
+
+  /** Mode currently selected in the notes view. */
+  mode: NotesViewMode;
 };
 
 /**

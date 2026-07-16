@@ -5,7 +5,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { ResourceNotesView } from "./components/ResourceNotesView";
-import type { ExtensionToWebviewMessage, ResourceNotesViewModel } from "./types";
+import { NotesNavigatorView } from "./components/NotesNavigatorView";
+import type {
+  ExtensionToWebviewMessage,
+  NotesViewMode,
+  ResourceNotesViewModel,
+} from "./types";
 import { getVsCodeApi } from "./vscodeApi";
 import "./styles.css";
 
@@ -24,6 +29,7 @@ const initialNotes: ResourceNotesViewModel = {
  */
 export function App() {
   const [notes, setNotes] = useState<ResourceNotesViewModel>(initialNotes);
+  const [viewMode, setViewMode] = useState<NotesViewMode>("detail");
   const vscode = useMemo(() => getVsCodeApi(), []);
 
   useEffect(() => {
@@ -42,6 +48,11 @@ export function App() {
 
       if (message.type === "resourceNotes") {
         setNotes(message.payload);
+        return;
+      }
+
+      if (message.type === "notesViewMode") {
+        setViewMode(message.mode);
       }
     };
 
@@ -59,7 +70,11 @@ export function App() {
       data-vscode-context={JSON.stringify({ preventDefaultContextMenuItems: true })}
       onContextMenu={(event) => event.preventDefault()}
     >
-      <ResourceNotesView notes={notes} />
+      {viewMode === "detail" ? (
+        <ResourceNotesView notes={notes} />
+      ) : (
+        <NotesNavigatorView notes={notes} />
+      )}
     </main>
   );
 }
