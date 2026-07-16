@@ -75,7 +75,6 @@ textarea {
   padding: 12px 2px;
 }
 
-<<<<<<< HEAD
 .notes-navigator__heading {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -88,16 +87,11 @@ textarea {
 .notes-navigator__title {
   min-width: 0;
   margin: 0;
-=======
-.notes-navigator__title {
-  margin: 0 0 10px;
->>>>>>> 3f7b5c4acf9dcab7bc90f6cdc6cfcc381965368e
   overflow-wrap: anywhere;
   color: var(--vscode-foreground);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.4;
-<<<<<<< HEAD
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -136,8 +130,6 @@ textarea {
 .notes-navigator__heading--line .notes-navigator__title,
 .notes-navigator__heading--line .notes-navigator__badge {
   color: var(--notes-line-accent);
-=======
->>>>>>> 3f7b5c4acf9dcab7bc90f6cdc6cfcc381965368e
 }
 
 .notes-navigator__empty {
@@ -145,7 +137,6 @@ textarea {
   color: var(--vscode-descriptionForeground);
 }
 
-<<<<<<< HEAD
 .notes-navigator__list {
   display: flex;
   flex-direction: column;
@@ -203,9 +194,6 @@ textarea {
   font-size: 11px;
   white-space: nowrap;
 }
-
-=======
->>>>>>> 3f7b5c4acf9dcab7bc90f6cdc6cfcc381965368e
 .notes-panel {
   min-width: 0;
   overflow: visible;

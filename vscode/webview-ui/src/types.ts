@@ -228,14 +228,11 @@ export type ExtensionToWebviewMessage =
       /** Notes payload to render. */
       payload: ResourceNotesViewModel;
     }
-<<<<<<< HEAD
   | {
       /** Navigator list data for the current resource. */
       type: "navigatorNotes";
       payload: NavigatorNotesViewModel;
     }
-=======
->>>>>>> 3f7b5c4acf9dcab7bc90f6cdc6cfcc381965368e
   | NotesViewModeMessage;
 
 /** Mode selected by the VS Code notes View Toolbar. */

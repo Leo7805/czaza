@@ -9,10 +9,7 @@ import { NotesNavigatorView } from "./components/NotesNavigatorView";
 import type {
   ExtensionToWebviewMessage,
   NotesViewMode,
-<<<<<<< HEAD
   NavigatorNotesViewModel,
-=======
->>>>>>> 3f7b5c4acf9dcab7bc90f6cdc6cfcc381965368e
   ResourceNotesViewModel,
 } from "./types";
 import { getVsCodeApi } from "./vscodeApi";
@@ -36,11 +33,8 @@ const initialNavigatorNotes: NavigatorNotesViewModel = { kind: "empty" };
 export function App() {
   const [notes, setNotes] = useState<ResourceNotesViewModel>(initialNotes);
   const [viewMode, setViewMode] = useState<NotesViewMode>("detail");
-<<<<<<< HEAD
   const [navigatorNotes, setNavigatorNotes] =
     useState<NavigatorNotesViewModel>(initialNavigatorNotes);
-=======
->>>>>>> 3f7b5c4acf9dcab7bc90f6cdc6cfcc381965368e
   const vscode = useMemo(() => getVsCodeApi(), []);
 
   useEffect(() => {
@@ -62,14 +56,11 @@ export function App() {
         return;
       }
 
-<<<<<<< HEAD
       if (message.type === "navigatorNotes") {
         setNavigatorNotes(message.payload);
         return;
       }
 
-=======
->>>>>>> 3f7b5c4acf9dcab7bc90f6cdc6cfcc381965368e
       if (message.type === "notesViewMode") {
         setViewMode(message.mode);
       }
@@ -92,11 +83,7 @@ export function App() {
       {viewMode === "detail" ? (
         <ResourceNotesView notes={notes} />
       ) : (
-<<<<<<< HEAD
         <NotesNavigatorView navigatorNotes={navigatorNotes} />
-=======
-        <NotesNavigatorView notes={notes} />
->>>>>>> 3f7b5c4acf9dcab7bc90f6cdc6cfcc381965368e
       )}
     </main>
   );

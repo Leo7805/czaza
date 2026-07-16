@@ -174,6 +174,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           this.selectedSectionId = this.pendingEditTarget.sectionId;
         }
         void this.postCurrentResourceNotes();
+        void this.postCurrentNavigatorNotes();
+        this.postViewMode(this.viewMode);
         this.updateSectionHighlight();
         return;
       }
@@ -213,6 +215,19 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         this.view = undefined;
       }
     });
+  }
+
+  /**
+   * Sends the current View Toolbar mode to the React webview.
+   *
+   * @param mode - Detail or Navigator mode selected by the extension command.
+   */
+  postViewMode(mode: NotesViewMode): void {
+    this.viewMode = mode;
+    void this.view?.webview.postMessage({ type: "notesViewMode", mode });
+    if (mode === "navigator") {
+      void this.loadNavigatorNotes();
+    }
   }
 
   /**
