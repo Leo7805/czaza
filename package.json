@@ -129,6 +129,24 @@
         "title": "CZaza: Show Notes"
       },
       {
+        "command": "czaza.showNotesNavigator",
+        "title": "Show Notes Navigator",
+        "category": "CZaza",
+        "icon": {
+          "light": "media/notes-navigator-light.svg",
+          "dark": "media/notes-navigator-dark.svg"
+        }
+      },
+      {
+        "command": "czaza.showNotesDetail",
+        "title": "Show Notes Detail",
+        "category": "CZaza",
+        "icon": {
+          "light": "media/notes-detail-light.svg",
+          "dark": "media/notes-detail-dark.svg"
+        }
+      },
+      {
         "command": "czaza.copyForAI.copyFile",
         "title": "CZaza: Copy File ❤️",
         "icon": "$(diff)"
@@ -160,6 +178,18 @@
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "czaza.showNotesNavigator",
+          "when": "view == czaza.notesView && czaza.notesViewMode == detail",
+          "group": "navigation@1"
+        },
+        {
+          "command": "czaza.showNotesDetail",
+          "when": "view == czaza.notesView && czaza.notesViewMode == navigator",
+          "group": "navigation@1"
+        }
+      ],
       "explorer/context": [
         {
           "command": "czaza.copyForAI.copyFile",

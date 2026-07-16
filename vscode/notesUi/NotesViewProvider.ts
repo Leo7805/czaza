@@ -8,6 +8,10 @@ import * as vscode from "vscode";
 
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import {
+  getNavigatorNotes,
+  type NavigatorNotesResult,
+} from "@vscode/services/getNavigatorNotesService";
+import {
   getResourceNotes,
   type ResourceNotesResult,
   type ResourceSectionNoteContent,
@@ -64,6 +68,9 @@ type NotesWebviewMessage =
 
 type AiActionScope = "fileSection" | "all" | "section" | "line";
 
+/** Mode selected by the VS Code notes View Toolbar. */
+export type NotesViewMode = "detail" | "navigator";
+
 /**
  * VS Code provider for the new React notes webview.
  *
@@ -73,8 +80,10 @@ type AiActionScope = "fileSection" | "all" | "section" | "line";
  */
 export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
+  private viewMode: NotesViewMode = "detail";
   private currentResourceUri?: vscode.Uri;
   private currentPayload?: ResourceNotesResult;
+  private currentNavigatorPayload: NavigatorNotesResult = { kind: "empty" };
   private selectedSectionId?: string;
   private pendingEditTarget?: UserNoteTarget;
   private highlightedEditor?: vscode.TextEditor;
@@ -166,6 +175,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           this.selectedSectionId = this.pendingEditTarget.sectionId;
         }
         void this.postCurrentResourceNotes();
+        void this.postCurrentNavigatorNotes();
+        this.postViewMode(this.viewMode);
         this.updateSectionHighlight();
         return;
       }
@@ -208,6 +219,19 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   /**
+   * Sends the current View Toolbar mode to the React webview.
+   *
+   * @param mode - Detail or Navigator mode selected by the extension command.
+   */
+  postViewMode(mode: NotesViewMode): void {
+    this.viewMode = mode;
+    void this.view?.webview.postMessage({ type: "notesViewMode", mode });
+    if (mode === "navigator") {
+      void this.loadNavigatorNotes();
+    }
+  }
+
+  /**
    * Shows notes for one selected resource.
    *
    * @param uri - File or directory selected in VS Code.
@@ -223,6 +247,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.requestVersion += 1;
       this.currentResourceUri = undefined;
       this.currentPayload = undefined;
+      this.currentNavigatorPayload = { kind: "empty" };
       this.selectedSectionId = undefined;
       this.clearSectionHighlight();
       await this.postCurrentResourceNotes();
@@ -302,6 +327,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     if (ignoreOutsideRoot && payload.kind === "outsideRoot") {
+      this.currentNavigatorPayload = { kind: "outsideRoot" };
       this.clearSectionHighlight();
       return;
     }
@@ -313,6 +339,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       payload,
       resourceChanged ? undefined : this.selectedSectionId,
     );
+    if (this.viewMode === "navigator") {
+      await this.loadNavigatorNotes();
+    }
     await this.postCurrentResourceNotes();
     this.updateSectionHighlight();
   }
@@ -356,6 +385,25 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     });
 
     this.pendingEditTarget = undefined;
+  }
+
+  private async loadNavigatorNotes(): Promise<void> {
+    this.currentNavigatorPayload = await getNavigatorNotes({
+      uri: this.currentResourceUri,
+      notes: this.notes,
+    });
+    await this.postCurrentNavigatorNotes();
+  }
+
+  private async postCurrentNavigatorNotes(): Promise<void> {
+    if (!this.view) {
+      return;
+    }
+
+    await this.view.webview.postMessage({
+      type: "navigatorNotes",
+      payload: this.currentNavigatorPayload,
+    });
   }
 
   private async runNotesGeneration(scope: "fileSection" | "all"): Promise<void> {

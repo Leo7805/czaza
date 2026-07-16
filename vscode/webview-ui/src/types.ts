@@ -149,6 +149,7 @@ export type ResourceNotesViewModel =
       kind: "file";
       name: string;
       relativePath: string;
+      projectRootName?: string;
       fileNote?: ResourceNoteContent;
       aiAction: "generate" | "regenerate";
       activeLine?: number;
@@ -166,8 +167,48 @@ export type ResourceNotesViewModel =
       kind: "directory";
       name: string;
       relativePath: string;
+      projectRootName?: string;
       fileNote?: ResourceNoteContent;
       children: ResourceChildNotePreview[];
+    };
+
+/** Compact note content rendered by one Navigator list item. */
+export type NavigatorNoteContent = ResourceNoteContent & {
+  /** One-line preview shown in the list. */
+  preview: string;
+};
+
+/** File note item rendered by the project-wide Files list. */
+export type NavigatorFileItem = NavigatorNoteContent & {
+  name: string;
+  relativePath: string;
+};
+
+/** Section note item rendered by the current-file Sections list. */
+export type NavigatorSectionItem = NavigatorNoteContent & {
+  id: string;
+  title: string;
+  startLine: number;
+  endLine: number;
+};
+
+/** Line note item rendered by the current-file Lines list. */
+export type NavigatorLineItem = NavigatorNoteContent & {
+  id: string;
+  line: number;
+};
+
+/** Complete list data sent to Navigator Mode. */
+export type NavigatorNotesViewModel =
+  | { kind: "empty" }
+  | { kind: "outsideRoot" }
+  | {
+      kind: "resource";
+      projectRootName: string;
+      currentFile?: string;
+      files: NavigatorFileItem[];
+      sections: NavigatorSectionItem[];
+      lines: NavigatorLineItem[];
     };
 
 /**
@@ -179,12 +220,31 @@ export type ResourceNotesViewModel =
  *   payload: { kind: "outsideRoot" },
  * };
  */
-export type ExtensionToWebviewMessage = {
-  /** Message discriminator. */
-  type: "resourceNotes";
+export type ExtensionToWebviewMessage =
+  | {
+      /** Message discriminator. */
+      type: "resourceNotes";
 
-  /** Notes payload to render. */
-  payload: ResourceNotesViewModel;
+      /** Notes payload to render. */
+      payload: ResourceNotesViewModel;
+    }
+  | {
+      /** Navigator list data for the current resource. */
+      type: "navigatorNotes";
+      payload: NavigatorNotesViewModel;
+    }
+  | NotesViewModeMessage;
+
+/** Mode selected by the VS Code notes View Toolbar. */
+export type NotesViewMode = "detail" | "navigator";
+
+/** Message that synchronizes the mode selected by the VS Code View Toolbar. */
+export type NotesViewModeMessage = {
+  /** Message discriminator. */
+  type: "notesViewMode";
+
+  /** Mode currently selected in the notes view. */
+  mode: NotesViewMode;
 };
 
 /**

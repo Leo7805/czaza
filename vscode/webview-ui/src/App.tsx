@@ -5,7 +5,13 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { ResourceNotesView } from "./components/ResourceNotesView";
-import type { ExtensionToWebviewMessage, ResourceNotesViewModel } from "./types";
+import { NotesNavigatorView } from "./components/NotesNavigatorView";
+import type {
+  ExtensionToWebviewMessage,
+  NotesViewMode,
+  NavigatorNotesViewModel,
+  ResourceNotesViewModel,
+} from "./types";
 import { getVsCodeApi } from "./vscodeApi";
 import "./styles.css";
 
@@ -13,6 +19,8 @@ const initialNotes: ResourceNotesViewModel = {
   kind: "empty",
   message: "Select a file or directory to view CZaza notes.",
 };
+
+const initialNavigatorNotes: NavigatorNotesViewModel = { kind: "empty" };
 
 /**
  * Renders notes for the currently selected VS Code resource.
@@ -24,6 +32,9 @@ const initialNotes: ResourceNotesViewModel = {
  */
 export function App() {
   const [notes, setNotes] = useState<ResourceNotesViewModel>(initialNotes);
+  const [viewMode, setViewMode] = useState<NotesViewMode>("detail");
+  const [navigatorNotes, setNavigatorNotes] =
+    useState<NavigatorNotesViewModel>(initialNavigatorNotes);
   const vscode = useMemo(() => getVsCodeApi(), []);
 
   useEffect(() => {
@@ -42,6 +53,16 @@ export function App() {
 
       if (message.type === "resourceNotes") {
         setNotes(message.payload);
+        return;
+      }
+
+      if (message.type === "navigatorNotes") {
+        setNavigatorNotes(message.payload);
+        return;
+      }
+
+      if (message.type === "notesViewMode") {
+        setViewMode(message.mode);
       }
     };
 
@@ -59,7 +80,11 @@ export function App() {
       data-vscode-context={JSON.stringify({ preventDefaultContextMenuItems: true })}
       onContextMenu={(event) => event.preventDefault()}
     >
-      <ResourceNotesView notes={notes} />
+      {viewMode === "detail" ? (
+        <ResourceNotesView notes={notes} />
+      ) : (
+        <NotesNavigatorView navigatorNotes={navigatorNotes} />
+      )}
     </main>
   );
 }

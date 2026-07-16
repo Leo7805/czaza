@@ -114,6 +114,7 @@ describe("getResourceNotes()", () => {
       kind: "file",
       name: "index.ts",
       relativePath: "src/index.ts",
+      projectRootName: path.basename(workspaceRoot),
       fileNote: {
         userNote: "User note first line.\nSecond line preserved.",
         aiExplanation: {
@@ -150,6 +151,7 @@ describe("getResourceNotes()", () => {
       kind: "file",
       name: "empty.ts",
       relativePath: "src/empty.ts",
+      projectRootName: path.basename(workspaceRoot),
       aiAction: "generate",
       sectionNotes: [],
     });
@@ -220,6 +222,7 @@ describe("getResourceNotes()", () => {
       kind: "file",
       name: "overlap.ts",
       relativePath: "src/overlap.ts",
+      projectRootName: path.basename(workspaceRoot),
       aiAction: "regenerate",
       activeLine: 7,
       sectionNotes: [
@@ -304,6 +307,7 @@ describe("getResourceNotes()", () => {
       kind: "directory",
       name: "src",
       relativePath: "src",
+      projectRootName: path.basename(workspaceRoot),
       fileNote: {
         userNote: "Directory user note.\nSecond directory note line.",
       },
@@ -345,6 +349,7 @@ describe("getResourceNotes()", () => {
       kind: "directory",
       name: "src",
       relativePath: "src",
+      projectRootName: path.basename(workspaceRoot),
       children: [],
     });
   });

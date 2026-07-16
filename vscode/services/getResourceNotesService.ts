@@ -135,6 +135,9 @@ export type ResourceNotesResult =
       /** Normalized path relative to the configured CZaza root. */
       relativePath: string;
 
+      /** Name of the configured root used as the project scope label. */
+      projectRootName?: string;
+
       /** Complete user and AI file-note content, when present. */
       fileNote?: ResourceNoteContent;
 
@@ -162,6 +165,9 @@ export type ResourceNotesResult =
 
       /** Normalized path relative to the configured CZaza root. */
       relativePath: string;
+
+      /** Name of the configured root used as the project scope label. */
+      projectRootName?: string;
 
       /** Complete directory-level file note content, when present. */
       fileNote?: ResourceNoteContent;
@@ -228,6 +234,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
         kind: "directory",
         name: getResourceName(uri, relativePath),
         relativePath,
+        projectRootName: path.basename(resolvedRoot.rootDirectory),
         ...(fileNote ? { fileNote } : {}),
         children: await getDirectoryChildNotePreviews(uri, notes, resolvedRoot.rootDirectory, settings.outputDirectory),
       };
@@ -244,6 +251,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
       kind: "file",
       name: getResourceName(uri, relativePath),
       relativePath,
+      projectRootName: path.basename(resolvedRoot.rootDirectory),
       ...(fileNote ? { fileNote } : {}),
       aiAction: hasFileSectionAiExplanation(sourceFile) ? "regenerate" : "generate",
       ...(isPositiveLine(activeLine) ? { activeLine } : {}),
