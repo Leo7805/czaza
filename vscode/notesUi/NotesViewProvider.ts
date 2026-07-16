@@ -98,7 +98,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
   private readonly generateAllNotes?: (uri: vscode.Uri) => Promise<boolean>;
   private readonly generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>;
-  private readonly generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>;
+  private readonly generateLineBatchNotes?: (
+    uri: vscode.Uri,
+    lineNumber: number,
+  ) => Promise<boolean>;
   private readonly generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>;
   private readonly saveUserNote: (
     uri: vscode.Uri,
@@ -125,11 +128,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     extensionUri: vscode.Uri,
     notes: WorkspaceNoteStore,
     generateFileNotes: (uri: vscode.Uri) => Promise<boolean>,
-    saveUserNote: (
-      uri: vscode.Uri,
-      target: UserNoteTarget,
-      userNote: string,
-    ) => Promise<void>,
+    saveUserNote: (uri: vscode.Uri, target: UserNoteTarget, userNote: string) => Promise<void>,
     generateAllNotes?: (uri: vscode.Uri) => Promise<boolean>,
     generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
     generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>,
@@ -175,8 +174,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           this.selectedSectionId = this.pendingEditTarget.sectionId;
         }
         void this.postCurrentResourceNotes();
-        void this.postCurrentNavigatorNotes();
-        this.postViewMode(this.viewMode);
         this.updateSectionHighlight();
         return;
       }
@@ -216,19 +213,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         this.view = undefined;
       }
     });
-  }
-
-  /**
-   * Sends the current View Toolbar mode to the React webview.
-   *
-   * @param mode - Detail or Navigator mode selected by the extension command.
-   */
-  postViewMode(mode: NotesViewMode): void {
-    this.viewMode = mode;
-    void this.view?.webview.postMessage({ type: "notesViewMode", mode });
-    if (mode === "navigator") {
-      void this.loadNavigatorNotes();
-    }
   }
 
   /**
@@ -501,11 +485,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
-  private async runLineNoteGeneration(
-    scope: "currentLine" | "nearbyLines",
-  ): Promise<void> {
+  private async runLineNoteGeneration(scope: "currentLine" | "nearbyLines"): Promise<void> {
     const uri = this.currentResourceUri;
-    const lineNumber = this.currentPayload?.kind === "file" ? this.currentPayload.activeLine : undefined;
+    const lineNumber =
+      this.currentPayload?.kind === "file" ? this.currentPayload.activeLine : undefined;
     const generateLineNotes =
       scope === "nearbyLines" ? this.generateLineBatchNotes : this.generateLineNote;
 
@@ -623,11 +606,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     const indexUri = vscode.Uri.joinPath(webviewRoot, "index.html");
     const rawHtml = await readFile(indexUri.fsPath, "utf-8");
 
-    return rawHtml
-      .replace(/(src|href)="\.\/([^"]+)"/g, (_match, attribute: string, assetPath: string) => {
+    return rawHtml.replace(
+      /(src|href)="\.\/([^"]+)"/g,
+      (_match, attribute: string, assetPath: string) => {
         const assetUri = vscode.Uri.joinPath(webviewRoot, ...assetPath.split("/"));
         return `${attribute}="${webview.asWebviewUri(assetUri).toString()}"`;
-      });
+      },
+    );
   }
 }
 
