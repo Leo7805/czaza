@@ -122,6 +122,10 @@ describe("getResourceNotes()", () => {
           detail: "",
           aiNotes: [],
         },
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
       },
       aiAction: "regenerate",
       sectionNotes: [],
@@ -235,6 +239,10 @@ describe("getResourceNotes()", () => {
             summary: "Outer AI summary.",
             detail: "",
           },
+          status: {
+            content: "current",
+            anchor: "confirmed",
+          },
         },
         {
           id: "first-same-start",
@@ -244,6 +252,10 @@ describe("getResourceNotes()", () => {
           aiExplanation: {
             summary: "First same start AI summary.",
             detail: "",
+          },
+          status: {
+            content: "current",
+            anchor: "confirmed",
           },
         },
         {
@@ -255,12 +267,20 @@ describe("getResourceNotes()", () => {
             summary: "Second same start AI summary.",
             detail: "",
           },
+          status: {
+            content: "current",
+            anchor: "confirmed",
+          },
         },
       ],
       lineNote: {
         id: "line:first",
         line: 7,
         userNote: "First line note.",
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
       },
     });
   });
@@ -310,6 +330,10 @@ describe("getResourceNotes()", () => {
       projectRootName: path.basename(workspaceRoot),
       fileNote: {
         userNote: "Directory user note.\nSecond directory note line.",
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
       },
       children: [
         {

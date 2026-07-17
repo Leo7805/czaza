@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
  * @param props - Component props.
  * @param props.content - Tooltip text shown on hover or keyboard focus.
  * @param props.variant - Optional contextual color treatment.
+ * @param props.align - Horizontal alignment of the tooltip content.
  * @param props.children - Inline content that owns the tooltip.
  * @returns React element with hover tooltip behavior.
  *
@@ -21,17 +22,24 @@ import type { ReactNode } from "react";
 export function Tooltip({
   content,
   variant = "default",
+  align = "start",
   children,
 }: {
   content: string;
   variant?: "default" | "section";
+  align?: "start" | "end";
   children: ReactNode;
 }) {
+  const className = [
+    "tooltip",
+    variant === "section" ? "tooltip--section" : "",
+    align === "end" ? "tooltip--end" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <span
-      className={variant === "section" ? "tooltip tooltip--section" : "tooltip"}
-      tabIndex={0}
-    >
+    <span className={className} tabIndex={0}>
       {children}
       <span className="tooltip__content" role="tooltip">
         {content}

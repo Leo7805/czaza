@@ -4,6 +4,11 @@
 
 export { WorkspaceNoteStore } from "./WorkspaceNoteStore";
 export { WorkspaceNoteStoreRepository } from "./WorkspaceNoteStoreRepository";
+export {
+  WorkspaceNoteResourceManager,
+  type MarkSourceFileEntryDeletedResult,
+  type MoveSourceFileEntryResult,
+} from "./workspaceNoteStoreResources";
 export type {
   SourceFileNoteCheckResult,
   SourceFileNoteStatusApplyResult,

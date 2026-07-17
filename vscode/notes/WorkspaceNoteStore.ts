@@ -5,6 +5,7 @@
 import { WorkspaceNoteConfirmationManager } from "./WorkspaceNoteConfirmationManager";
 import { WorkspaceNoteCrudManager } from "./WorkspaceNoteCrudManager";
 import { WorkspaceNoteDetectionManager } from "./WorkspaceNoteDetectionManager";
+import { WorkspaceNoteResourceManager } from "./workspaceNoteStoreResources";
 import { WorkspaceNoteSourceIndexManager } from "./WorkspaceNoteSourceIndexManager";
 import { WorkspaceNoteStoreCache } from "./WorkspaceNoteStoreCache";
 import { WorkspaceNoteStoreRepository } from "./WorkspaceNoteStoreRepository";
@@ -37,6 +38,9 @@ export class WorkspaceNoteStore {
   /** Source-file index operations. */
   readonly sourceIndex: WorkspaceNoteSourceIndexManager;
 
+  /** Source resource lifecycle operations. */
+  readonly resources: WorkspaceNoteResourceManager;
+
   /** Fine-grained status, anchor, and content update operations. */
   readonly update: WorkspaceNoteUpdateManager;
 
@@ -53,6 +57,7 @@ export class WorkspaceNoteStore {
     this.confirmation = new WorkspaceNoteConfirmationManager(this.cache);
     this.crud = new WorkspaceNoteCrudManager(this.cache);
     this.detection = new WorkspaceNoteDetectionManager(this.cache);
+    this.resources = new WorkspaceNoteResourceManager(this.cache);
     this.sourceIndex = new WorkspaceNoteSourceIndexManager(this.cache);
     this.update = new WorkspaceNoteUpdateManager(this.cache);
   }

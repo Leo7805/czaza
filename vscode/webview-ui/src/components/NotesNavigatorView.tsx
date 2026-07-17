@@ -2,12 +2,23 @@
 
 import { useState } from "react";
 
-import type { NavigatorNotesViewModel } from "../types";
+import type { NavigatorFileItem, NavigatorNotesViewModel, NoteStatus } from "../types";
 import { getVsCodeApi } from "../vscodeApi";
+import {
+  NavigatorItemContextMenu,
+  type NavigatorItemContextMenuItem,
+  type NavigatorItemContextMenuPosition,
+} from "./NavigatorItemContextMenu";
+import { NoteStatusBadges } from "./NoteStatusBadges";
 import { Tooltip } from "./Tooltip";
 
 /** Navigator list categories. */
 export type NotesNavigatorTab = "files" | "sections" | "lines";
+
+type FileContextMenuState = {
+  position: NavigatorItemContextMenuPosition;
+  item: NavigatorFileItem;
+};
 
 /** Props for the Notes Navigator view. */
 export type NotesNavigatorViewProps = {
@@ -121,6 +132,8 @@ function NavigatorList({
   notes: NavigatorNotesViewModel;
   tab: NotesNavigatorTab;
 }) {
+  const [fileContextMenu, setFileContextMenu] = useState<FileContextMenuState | null>(null);
+
   if (notes.kind !== "resource") {
     return <p className="notes-navigator__empty">No notes loaded yet.</p>;
   }
@@ -156,90 +169,155 @@ function NavigatorList({
       line,
     });
   };
+  const clearNavigatorFileStaleStatus = (relativePath: string): void => {
+    getVsCodeApi()?.postMessage({
+      type: "clearNavigatorFileStaleStatus",
+      relativePath,
+    });
+  };
 
   return (
-    <ol className="notes-navigator__list">
-      {items.map((item, index) => {
-        if (tab === "files" && "relativePath" in item) {
-          return (
-            <li
-              className="notes-navigator__item notes-navigator__item--file"
-              key={item.relativePath}
-              role="button"
-              tabIndex={0}
-              onClick={() => openNavigatorResource(item.relativePath)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
+    <>
+      <ol className="notes-navigator__list">
+        {items.map((item, index) => {
+          if (tab === "files" && "relativePath" in item) {
+            return (
+              <li
+                className="notes-navigator__item notes-navigator__item--file"
+                key={item.relativePath}
+                role="button"
+                tabIndex={0}
+                onClick={() => openNavigatorResource(item.relativePath)}
+                onContextMenu={(event) => {
                   event.preventDefault();
-                  openNavigatorResource(item.relativePath);
-                }
-              }}
-            >
-              <span className="notes-navigator__index">{index + 1}</span>
-              <ResourceIcon resourceKind={item.resourceKind} />
-              <span className="notes-navigator__item-main">
-                <strong>{item.name}</strong>
-                <span>{item.preview}</span>
-              </span>
-            </li>
-          );
-        }
+                  event.stopPropagation();
+                  setFileContextMenu({
+                    item,
+                    position: { x: event.clientX, y: event.clientY },
+                  });
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openNavigatorResource(item.relativePath);
+                  }
+                }}
+              >
+                <span className="notes-navigator__index">{index + 1}</span>
+                <ResourceIcon resourceKind={item.resourceKind} />
+                <span className="notes-navigator__item-main">
+                  <strong>{item.name}</strong>
+                  <span>{item.preview}</span>
+                </span>
+                <span className="notes-navigator__item-meta">
+                  <NoteStatusBadges status={item.status} />
+                </span>
+              </li>
+            );
+          }
 
-        if (tab === "sections" && "startLine" in item) {
-          return (
-            <li
-              className="notes-navigator__item"
-              key={item.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => openNavigatorSection(item)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  openNavigatorSection(item);
-                }
-              }}
-            >
-              <span className="notes-navigator__index">{index + 1}</span>
-              <span className="notes-navigator__item-main">
-                <strong>{item.title || "Untitled section"}</strong>
-                <span>{item.preview}</span>
-              </span>
-              <span className="notes-navigator__item-location">
-                L{item.startLine}-{item.endLine}
-              </span>
-            </li>
-          );
-        }
+          if (tab === "sections" && "startLine" in item) {
+            return (
+              <li
+                className="notes-navigator__item"
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openNavigatorSection(item)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openNavigatorSection(item);
+                  }
+                }}
+              >
+                <span className="notes-navigator__index">{index + 1}</span>
+                <span className="notes-navigator__item-main">
+                  <strong>{item.title || "Untitled section"}</strong>
+                  <span>{item.preview}</span>
+                </span>
+                <span className="notes-navigator__item-meta">
+                  <span className="notes-navigator__item-location">
+                    L{item.startLine}-{item.endLine}
+                  </span>
+                  <NoteStatusBadges status={item.status} />
+                </span>
+              </li>
+            );
+          }
 
-        if ("line" in item) {
-          return (
-            <li
-              className="notes-navigator__item"
-              key={item.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => openNavigatorLine(item.line)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  openNavigatorLine(item.line);
-                }
-              }}
-            >
-              <span className="notes-navigator__index">{index + 1}</span>
-              <span className="notes-navigator__item-main">
-                <strong>Line {item.line}</strong>
-                <span>{item.preview}</span>
-              </span>
-            </li>
-          );
-        }
+          if ("line" in item) {
+            return (
+              <li
+                className="notes-navigator__item"
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openNavigatorLine(item.line)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openNavigatorLine(item.line);
+                  }
+                }}
+              >
+                <span className="notes-navigator__index">{index + 1}</span>
+                <span className="notes-navigator__item-main">
+                  <strong>Line {item.line}</strong>
+                  <span>{item.preview}</span>
+                </span>
+                <span className="notes-navigator__item-meta">
+                  <NoteStatusBadges status={item.status} />
+                </span>
+              </li>
+            );
+          }
 
-        return null;
-      })}
-    </ol>
+          return null;
+        })}
+      </ol>
+      {fileContextMenu ? (
+        <NavigatorItemContextMenu
+          items={getFileContextMenuItems(fileContextMenu.item.status, () =>
+            clearNavigatorFileStaleStatus(fileContextMenu.item.relativePath),
+          )}
+          position={fileContextMenu.position}
+          onClose={() => setFileContextMenu(null)}
+        />
+      ) : null}
+    </>
   );
+}
+
+function getFileContextMenuItems(
+  status: NoteStatus | undefined,
+  onClearStaleStatus: () => void,
+): NavigatorItemContextMenuItem[] {
+  return [
+    ...(status?.content === "stale"
+      ? [
+          {
+            id: "clearStale" as const,
+            label: "Clear Stale Status: Content Reviewed",
+            onSelect: onClearStaleStatus,
+          },
+        ]
+      : []),
+    ...(status?.anchor === "needsConfirmation"
+      ? [
+          {
+            id: "relocate" as const,
+            label: "Resolve Anchor: Relocate...",
+            disabled: true,
+          },
+        ]
+      : []),
+    {
+      id: "delete",
+      label: "Delete",
+      disabled: true,
+    },
+  ];
 }
 
 function ResourceIcon({ resourceKind }: { resourceKind: "file" | "directory" }) {

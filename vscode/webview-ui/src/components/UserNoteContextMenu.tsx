@@ -32,8 +32,20 @@ export type UserNoteContextMenuProps = {
   clearDisabled?: boolean;
   /** Clears the User Note while preserving its node. */
   onClear?: () => void;
-  /** Placeholder action for future note relocation support. */
-  onRelocate?: () => void;
+  /** Optional status actions shown above normal note actions. */
+  statusItems?: UserNoteContextMenuItem[];
+};
+
+/** Additional contextual action rendered in the menu. */
+export type UserNoteContextMenuItem = {
+  /** Stable action id used for icon and style selection. */
+  id: "clearStale" | "relocate";
+  /** Visible menu label. */
+  label: string;
+  /** Whether the action is unavailable. */
+  disabled?: boolean;
+  /** Runs the action. */
+  onSelect?: () => void;
 };
 
 /**
@@ -61,9 +73,10 @@ export function UserNoteContextMenu({
   showClear = true,
   clearDisabled = false,
   onClear,
-  onRelocate,
+  statusItems = [],
 }: UserNoteContextMenuProps) {
-  const style = getMenuPosition(position);
+  const hasStatusItems = statusItems.length > 0;
+  const style = getMenuPosition(position, statusItems.length);
 
   return (
     <div
@@ -76,6 +89,20 @@ export function UserNoteContextMenu({
         event.stopPropagation();
       }}
     >
+      {hasStatusItems ? (
+        <>
+          {statusItems.map((item) => (
+            <ContextMenuButton
+              disabled={item.disabled}
+              icon={item.id}
+              key={item.id}
+              label={item.label}
+              onClick={item.onSelect}
+            />
+          ))}
+          <div className="user-note-context-menu__separator" role="separator" />
+        </>
+      ) : null}
       <ContextMenuButton icon="copy" label="Copy Note" disabled={!hasContent} onClick={onCopy} />
       {showEdit ? (
         <ContextMenuButton
@@ -93,12 +120,6 @@ export function UserNoteContextMenu({
           onClick={onClear}
         />
       ) : null}
-      <ContextMenuButton
-        icon="relocate"
-        label="Relocate Note"
-        disabled={!onRelocate}
-        onClick={onRelocate}
-      />
     </div>
   );
 }
@@ -109,7 +130,7 @@ function ContextMenuButton({
   disabled = false,
   onClick,
 }: {
-  icon: "copy" | "edit" | "clear" | "relocate";
+  icon: UserNoteContextMenuItem["id"] | "copy" | "edit" | "clear";
   label: string;
   disabled?: boolean;
   onClick?: () => void;
@@ -128,7 +149,11 @@ function ContextMenuButton({
   );
 }
 
-function NoteActionIcon({ name }: { name: "copy" | "edit" | "clear" | "relocate" }) {
+function NoteActionIcon({
+  name,
+}: {
+  name: UserNoteContextMenuItem["id"] | "copy" | "edit" | "clear";
+}) {
   if (name === "copy") {
     return (
       <svg className="user-note-context-menu__icon" viewBox="0 0 16 16" aria-hidden="true">
@@ -141,6 +166,17 @@ function NoteActionIcon({ name }: { name: "copy" | "edit" | "clear" | "relocate"
     return (
       <svg className="user-note-context-menu__icon" viewBox="0 0 16 16" aria-hidden="true">
         <path fill="currentColor" d="M11.6 1.7a1.3 1.3 0 0 1 1.8 0l.9.9a1.3 1.3 0 0 1 0 1.8l-7.7 7.7-3.1.8.8-3.1 7.3-8.1ZM4.4 9.5l-.3 1.1 1.1-.3 6-6-.9-.9-5.9 6.1Z" />
+      </svg>
+    );
+  }
+
+  if (name === "clearStale") {
+    return (
+      <svg className="user-note-context-menu__icon" viewBox="0 0 16 16" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M8 2.25a5.75 5.75 0 0 1 5.6 4.45l1.15-.95v3.5h-3.5l1.25-1.05A4.55 4.55 0 0 0 4.65 5.6l-.85-.85A5.73 5.73 0 0 1 8 2.25Zm3.25 4.55-3.8 3.8-2.1-2.1.85-.85 1.25 1.25 2.95-2.95.85.85ZM2.4 9.3l-1.15.95v-3.5h3.5L3.5 7.8a4.55 4.55 0 0 0 7.85 2.6l.85.85A5.75 5.75 0 0 1 2.4 9.3Z"
+        />
       </svg>
     );
   }
@@ -160,9 +196,9 @@ function NoteActionIcon({ name }: { name: "copy" | "edit" | "clear" | "relocate"
   );
 }
 
-function getMenuPosition(position: UserNoteContextMenuPosition): CSSProperties {
-  const menuWidth = 150;
-  const menuHeight = 132;
+function getMenuPosition(position: UserNoteContextMenuPosition, statusItemCount: number): CSSProperties {
+  const menuWidth = 230;
+  const menuHeight = 104 + statusItemCount * 30 + (statusItemCount ? 7 : 0);
 
   return {
     left: Math.max(6, Math.min(position.x, window.innerWidth - menuWidth - 6)),

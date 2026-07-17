@@ -7,8 +7,10 @@ import * as path from "node:path";
 
 import * as vscode from "vscode";
 
+import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import { ensureFileNoteResourceAvailability } from "@vscode/services/ensureFileNoteResourceAvailabilityService";
 import {
   getNavigatorNotes,
   type NavigatorNotesResult,
@@ -18,6 +20,7 @@ import {
   type ResourceNotesResult,
   type ResourceSectionNoteContent,
 } from "@vscode/services/getResourceNotesService";
+import { clearNoteStaleStatusService } from "@vscode/services/clearNoteStaleStatusService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
 
 /**
@@ -50,19 +53,33 @@ type NotesWebviewMessage =
       /** Stable identifier of the selected section note. */
       sectionId: string;
     }
-  | {
-      /** Saves one file, section, or line user note. */
-      type: "saveUserNote";
+	  | {
+	      /** Saves one file, section, or line user note. */
+	      type: "saveUserNote";
 
       /** Note target captured when editing started. */
       target: UserNoteTarget;
 
-      /** Complete user-authored note content. */
-      userNote: string;
-    }
-  | {
-      /** Opens or shows one resource selected from the Navigator Files list. */
-      type: "openNavigatorResource";
+	      /** Complete user-authored note content. */
+	      userNote: string;
+	    }
+	  | {
+	      /** Marks one stale note as content-current after user review. */
+	      type: "clearNoteStaleStatus";
+
+	      /** Note target captured from the current note card. */
+	      target: UserNoteTarget;
+	    }
+	  | {
+	      /** Marks one Navigator file-note item as content-current after review. */
+	      type: "clearNavigatorFileStaleStatus";
+
+	      /** CZaza-root-relative source path for the file note. */
+	      relativePath: string;
+	    }
+	  | {
+	      /** Opens or shows one resource selected from the Navigator Files list. */
+	      type: "openNavigatorResource";
 
       /** CZaza-root-relative resource path. */
       relativePath: string;
@@ -229,10 +246,20 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         return;
       }
 
-      if (message.type === "saveUserNote") {
-        void this.runUserNoteSave(message.target, message.userNote);
-        return;
-      }
+	      if (message.type === "saveUserNote") {
+	        void this.runUserNoteSave(message.target, message.userNote);
+	        return;
+	      }
+
+	      if (message.type === "clearNoteStaleStatus") {
+	        void this.runClearNoteStaleStatus(message.target);
+	        return;
+	      }
+
+	      if (message.type === "clearNavigatorFileStaleStatus") {
+	        void this.runClearNavigatorFileStaleStatus(message.relativePath);
+	        return;
+	      }
 
       if (message.type === "openNavigatorResource") {
         void this.openNavigatorResource(message.relativePath);
@@ -343,6 +370,55 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   /**
+   * Reloads the currently tracked notes payload after the underlying store changes.
+   *
+   * @param fallbackUri - Optional resource URI used when the provider has not
+   * tracked a resource yet.
+   * @returns Promise that resolves after the visible payload is refreshed.
+   */
+  async refreshCurrentNotes(fallbackUri?: vscode.Uri): Promise<void> {
+    const targetUri = this.currentResourceUri ?? fallbackUri ?? vscode.window.activeTextEditor?.document.uri;
+
+    if (!targetUri) {
+      await this.postCurrentResourceNotes();
+      return;
+    }
+
+    await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+  }
+
+  /**
+   * Refreshes notes after a tracked source resource is renamed or moved.
+   *
+   * @param previousUri - Resource URI before the move.
+   * @param nextUri - Resource URI after the move.
+   * @returns Promise that resolves after the visible payload is refreshed.
+   */
+  async refreshAfterResourceMove(previousUri: vscode.Uri, nextUri: vscode.Uri): Promise<void> {
+    const targetUri =
+      this.currentResourceUri?.toString() === previousUri.toString()
+        ? nextUri
+        : this.currentResourceUri ?? nextUri;
+
+    await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+  }
+
+  /**
+   * Refreshes notes after a tracked source resource is deleted.
+   *
+   * @param deletedUri - Deleted source resource URI.
+   * @returns Promise that resolves after the visible payload is refreshed.
+   */
+  async refreshAfterResourceDelete(deletedUri: vscode.Uri): Promise<void> {
+    const targetUri =
+      this.currentResourceUri?.toString() === deletedUri.toString()
+        ? vscode.Uri.file(path.dirname(deletedUri.fsPath))
+        : this.currentResourceUri ?? vscode.Uri.file(path.dirname(deletedUri.fsPath));
+
+    await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+  }
+
+  /**
    * Releases the editor decoration owned by this provider.
    *
    * @example
@@ -449,6 +525,28 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     });
   }
 
+  private async postNotice(input: {
+    tone: "info" | "warning" | "error" | "success";
+    title: string;
+    message: string;
+    actionLabel?: string;
+  }): Promise<void> {
+    await this.view?.webview.postMessage({
+      type: "notice",
+      notice: {
+        tone: input.tone,
+        title: input.title,
+        message: input.message,
+        actions: [
+          {
+            label: input.actionLabel ?? "Close",
+            variant: "primary",
+          },
+        ],
+      },
+    });
+  }
+
   private async openNavigatorResource(relativePath: string): Promise<void> {
     const currentUri = this.currentResourceUri;
 
@@ -458,7 +556,26 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     try {
       const { rootDirectory } = resolveCzazaRootDirectory(currentUri);
+      const settings = getCzazaSettings(currentUri);
       const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
+      const availability = await ensureFileNoteResourceAvailability({
+        notes: this.notes,
+        workspaceRoot: rootDirectory,
+        outputDirectory: settings.outputDirectory,
+        relativePath,
+        now: new Date().toISOString(),
+      });
+
+      if (!availability.available) {
+        await this.loadNavigatorNotes();
+        await this.postNotice({
+          tone: "error",
+          title: "Note Target Not Found",
+          message: `${relativePath} could not be opened. It may have been renamed, moved, or deleted outside VS Code.`,
+        });
+        return;
+      }
+
       const resourceKind = await getResourceKind(targetUri);
 
       if (resourceKind === "directory") {
@@ -544,18 +661,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     if (!generateNotes) {
       return;
-    }
-
-    if (scope === "all") {
-      const selectedAction = await vscode.window.showWarningMessage(
-        "All Notes generation may take longer and use more AI tokens.",
-        { modal: true },
-        "Generate All Notes",
-      );
-
-      if (selectedAction !== "Generate All Notes") {
-        return;
-      }
     }
 
     const resourceKey = uri.toString();
@@ -668,7 +773,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
-  private async runUserNoteSave(target: UserNoteTarget, userNote: string): Promise<void> {
+	  private async runUserNoteSave(target: UserNoteTarget, userNote: string): Promise<void> {
     const uri = this.currentResourceUri;
 
     if (
@@ -689,6 +794,55 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error.";
       void vscode.window.showErrorMessage(`Failed to save CZaza user note: ${message}`);
+    }
+	  }
+
+  private async runClearNoteStaleStatus(target: UserNoteTarget): Promise<void> {
+	    const uri = this.currentResourceUri;
+
+	    if (
+	      !uri ||
+	      (this.currentPayload?.kind !== "file" && this.currentPayload?.kind !== "directory")
+	    ) {
+	      return;
+	    }
+
+	    const resourceKey = uri.toString();
+
+	    try {
+	      const changed = await clearNoteStaleStatusService({ uri, notes: this.notes, target });
+
+	      if (changed && this.currentResourceUri?.toString() === resourceKey) {
+	        await this.loadResourceNotes(uri, false, getActiveLine(uri));
+	      }
+	    } catch (error) {
+	      const message = error instanceof Error ? error.message : "Unknown error.";
+	      void vscode.window.showErrorMessage(`Failed to clear CZaza stale status: ${message}`);
+	    }
+  }
+
+  private async runClearNavigatorFileStaleStatus(relativePath: string): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || !isSafeRelativePath(relativePath)) {
+      return;
+    }
+
+    try {
+      const { rootDirectory } = resolveCzazaRootDirectory(currentUri);
+      const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
+      const changed = await clearNoteStaleStatusService({
+        uri: targetUri,
+        notes: this.notes,
+        target: { level: "file" },
+      });
+
+      if (changed) {
+        await this.loadNavigatorNotes();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      void vscode.window.showErrorMessage(`Failed to clear CZaza navigator stale status: ${message}`);
     }
   }
 
@@ -783,10 +937,12 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     (candidate.type === "generateLineNote" &&
       (candidate.lineScope === "currentLine" || candidate.lineScope === "nearbyLines")) ||
     (candidate.type === "generateSectionNote" && typeof candidate.sectionId === "string") ||
-    (candidate.type === "saveUserNote" &&
-      isUserNoteTarget(candidate.target) &&
-      typeof candidate.userNote === "string") ||
-    (candidate.type === "openNavigatorResource" && typeof candidate.relativePath === "string") ||
+	    (candidate.type === "saveUserNote" &&
+	      isUserNoteTarget(candidate.target) &&
+	      typeof candidate.userNote === "string") ||
+	    (candidate.type === "clearNoteStaleStatus" && isUserNoteTarget(candidate.target)) ||
+	    (candidate.type === "clearNavigatorFileStaleStatus" && typeof candidate.relativePath === "string") ||
+	    (candidate.type === "openNavigatorResource" && typeof candidate.relativePath === "string") ||
     (candidate.type === "openNavigatorSection" &&
       typeof candidate.sectionId === "string" &&
       Number.isInteger(candidate.startLine) &&

@@ -63,4 +63,34 @@ describe("NotesNavigatorView", () => {
     expect(markup).toContain("notes-navigator__resource-icon--directory");
     expect(markup).toContain("notes-navigator__resource-icon--file");
   });
+
+  it("renders note status badges at the end of navigator rows", () => {
+    const notes: NavigatorNotesViewModel = {
+      kind: "resource",
+      projectRootName: "czaza",
+      currentFile: "src/index.ts",
+      files: [
+        {
+          name: "index.ts",
+          relativePath: "src/index.ts",
+          resourceKind: "file",
+          preview: "Entry file notes",
+          status: {
+            content: "stale",
+            anchor: "orphaned",
+          },
+        },
+      ],
+      sections: [],
+      lines: [],
+    };
+
+    const markup = renderToStaticMarkup(<NotesNavigatorView navigatorNotes={notes} />);
+
+    expect(markup).toContain("notes-navigator__item-meta");
+    expect(markup).toContain("note-status-badge--stale");
+    expect(markup).toContain("note-status-badge--orphaned");
+    expect(markup).toContain("Stale");
+    expect(markup).toContain("Orphaned");
+  });
 });

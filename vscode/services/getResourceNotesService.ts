@@ -7,6 +7,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import type { AIExplanation } from "@shared/models/ai/common";
+import type { NoteStatus } from "@shared/models/domain/common";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import {
@@ -59,6 +60,9 @@ export type ResourceNoteContent = {
 
   /** Complete AI explanation content. */
   aiExplanation?: AIExplanation;
+
+  /** Current content and source-anchor status for this note. */
+  status?: NoteStatus;
 };
 
 /**
@@ -228,6 +232,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
       const fileNote = getNoteContent(
         sourceFile?.fileNote?.userNote,
         sourceFile?.fileNote?.aiExplanation,
+        sourceFile?.fileNote?.status,
       );
 
       return {
@@ -243,6 +248,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
     const fileNote = getNoteContent(
       sourceFile?.fileNote?.userNote,
       sourceFile?.fileNote?.aiExplanation,
+      sourceFile?.fileNote?.status,
     );
     const sectionNotes = getSectionNoteContents(sourceFile, activeLine);
     const lineNote = getLineNoteContent(sourceFile, activeLine);
@@ -346,7 +352,8 @@ function getSectionNoteContents(
       ...(note.kind ? { kind: note.kind } : {}),
       startLine: note.range.startLine,
       endLine: note.range.endLine,
-      ...(getNoteContent(note.userNote, note.aiExplanation) ?? {}),
+      status: note.status,
+      ...(getNoteContent(note.userNote, note.aiExplanation, note.status) ?? {}),
     }));
 }
 
@@ -367,13 +374,15 @@ function getLineNoteContent(
   return {
     id: note.id,
     line: note.line,
-    ...(getNoteContent(note.userNote, note.aiExplanation) ?? {}),
+    status: note.status,
+    ...(getNoteContent(note.userNote, note.aiExplanation, note.status) ?? {}),
   };
 }
 
 function getNoteContent(
   userNote: string | undefined,
   aiExplanation: AIExplanation | undefined,
+  status: NoteStatus | undefined,
 ): ResourceNoteContent | undefined {
   const hasUserNote = Boolean(userNote?.trim());
   const hasAiExplanation = Boolean(aiExplanation);
@@ -385,6 +394,7 @@ function getNoteContent(
   return {
     ...(hasUserNote ? { userNote } : {}),
     ...(hasAiExplanation ? { aiExplanation } : {}),
+    ...(status ? { status } : {}),
   };
 }
 

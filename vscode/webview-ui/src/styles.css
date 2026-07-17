@@ -246,6 +246,19 @@ textarea {
   font-size: 11px;
   white-space: nowrap;
 }
+
+.notes-navigator__item-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.notes-navigator__item-meta:empty {
+  display: none;
+}
+
 .notes-panel {
   min-width: 0;
   overflow: visible;
@@ -348,6 +361,16 @@ textarea {
   border-top: 1px solid color-mix(in srgb, var(--vscode-panel-border) 72%, transparent);
   background: inherit;
   transform: rotate(45deg);
+}
+
+.tooltip--end .tooltip__content {
+  right: 0;
+  left: auto;
+}
+
+.tooltip--end .tooltip__content::before {
+  right: 12px;
+  left: auto;
 }
 
 .tooltip--section .tooltip__content {
@@ -572,9 +595,9 @@ textarea {
 
 .notes-card__head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
-  align-items: start;
+  align-items: center;
   margin-bottom: 9px;
 }
 
@@ -629,6 +652,157 @@ textarea {
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
+}
+
+.note-status-badges {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
+.note-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in srgb, var(--status-accent) 54%, var(--vscode-panel-border));
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--status-accent) 82%, var(--vscode-foreground));
+  background: color-mix(in srgb, var(--status-accent) 12%, var(--vscode-editor-background));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status-accent) 10%, transparent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.note-status-badge--stale {
+  --status-accent: var(--notes-line-accent);
+}
+
+.note-status-badge--needsConfirmation {
+  --status-accent: var(--notes-section-accent);
+}
+
+.note-status-badge--orphaned {
+  --status-accent: var(--vscode-errorForeground, #f14c4c);
+}
+
+.notice-modal {
+  position: fixed;
+  z-index: 200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: color-mix(in srgb, #000000 36%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.notice-modal--info {
+  --notice-accent: var(--notes-section-accent);
+}
+
+.notice-modal--warning {
+  --notice-accent: var(--notes-line-accent);
+}
+
+.notice-modal--error {
+  --notice-accent: var(--vscode-errorForeground, #f14c4c);
+}
+
+.notice-modal--success {
+  --notice-accent: var(--notes-child-accent);
+}
+
+.notice-modal__dialog {
+  width: min(420px, 100%);
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--notice-accent) 42%, var(--vscode-panel-border));
+  border-radius: 8px;
+  color: var(--vscode-foreground);
+  background: color-mix(
+    in srgb,
+    var(--vscode-sideBar-background) 84%,
+    var(--vscode-editor-background)
+  );
+  box-shadow:
+    0 18px 44px color-mix(in srgb, #000000 42%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--notice-accent) 8%, transparent);
+}
+
+.notice-modal__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.notice-modal__icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--notice-accent);
+}
+
+.notice-modal__title {
+  margin: 0;
+  color: color-mix(in srgb, var(--notice-accent) 78%, var(--vscode-foreground));
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.notice-modal__message {
+  margin: 10px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.notice-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.notice-modal__action {
+  min-height: 28px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notice-modal__action--primary {
+  border-color: color-mix(in srgb, var(--notice-accent) 66%, var(--vscode-button-border, transparent));
+  color: var(--vscode-button-foreground);
+  background: color-mix(in srgb, var(--notice-accent) 72%, var(--vscode-button-background));
+}
+
+.notice-modal__action--primary:hover,
+.notice-modal__action--primary:focus-visible {
+  background: color-mix(in srgb, var(--notice-accent) 82%, var(--vscode-button-hoverBackground));
+  outline: none;
+}
+
+.notice-modal__action--secondary {
+  border-color: color-mix(in srgb, var(--vscode-descriptionForeground) 28%, transparent);
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+}
+
+.notice-modal__action--secondary:hover,
+.notice-modal__action--secondary:focus-visible {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
+  outline: none;
 }
 
 .section-selector {
@@ -775,7 +949,7 @@ textarea {
   position: fixed;
   z-index: 100;
   display: flex;
-  min-width: 150px;
+  min-width: 230px;
   flex-direction: column;
   gap: 2px;
   padding: 4px;
@@ -784,6 +958,12 @@ textarea {
   color: var(--vscode-menu-foreground, var(--vscode-foreground));
   background: var(--vscode-menu-background, var(--vscode-editor-background));
   box-shadow: 0 8px 24px color-mix(in srgb, #000000 40%, transparent);
+}
+
+.user-note-context-menu__separator {
+  height: 1px;
+  margin: 3px 4px;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-panel-border));
 }
 
 .user-note-context-menu__item {
@@ -825,11 +1005,75 @@ textarea {
   color: var(--vscode-errorForeground, #f14c4c);
 }
 
+.user-note-context-menu__item--clearStale .user-note-context-menu__icon {
+  color: var(--notes-line-accent);
+}
+
 .user-note-context-menu__item--relocate .user-note-context-menu__icon {
   color: var(--vscode-charts-purple, #b180d7);
 }
 
 .user-note-context-menu__icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.navigator-context-menu {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  min-width: 230px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
+  border-radius: 5px;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  background: var(--vscode-menu-background, var(--vscode-editor-background));
+  box-shadow: 0 8px 24px color-mix(in srgb, #000000 40%, transparent);
+}
+
+.navigator-context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.navigator-context-menu__item:hover,
+.navigator-context-menu__item:focus-visible {
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  outline: none;
+}
+
+.navigator-context-menu__item:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.navigator-context-menu__item--clearStale .navigator-context-menu__icon {
+  color: var(--notes-line-accent);
+}
+
+.navigator-context-menu__item--relocate .navigator-context-menu__icon {
+  color: var(--vscode-charts-purple, #b180d7);
+}
+
+.navigator-context-menu__item--delete .navigator-context-menu__icon {
+  color: var(--vscode-errorForeground, #f14c4c);
+}
+
+.navigator-context-menu__icon {
   width: 15px;
   height: 15px;
   flex: 0 0 auto;

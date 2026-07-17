@@ -10,9 +10,11 @@ import {
   type ReactNode,
 } from "react";
 
-import type { ResourceAiExplanation } from "../types";
+import type { NoteStatus, ResourceAiExplanation, UserNoteTarget } from "../types";
+import { NoteStatusBadges } from "./NoteStatusBadges";
 import {
   UserNoteContextMenu,
+  type UserNoteContextMenuItem,
   type UserNoteContextMenuPosition,
 } from "./UserNoteContextMenu";
 
@@ -34,6 +36,9 @@ export type NoteCardVariant = "file" | "section" | "line" | "child";
  * @param props.variant - Visual card variant.
  * @param props.userNote - Optional complete user note.
  * @param props.aiExplanation - Optional complete AI explanation.
+ * @param props.status - Optional content and source-anchor status.
+ * @param props.statusTarget - Optional note target used by status actions.
+ * @param props.onClearStaleStatus - Optional callback for marking stale content reviewed.
  * @param props.showTabs - Whether to show the User and AI tab toggle.
  * @param props.defaultTab - Initial active tab when tabs are shown.
  * @param props.activeTab - Optional externally controlled active tab.
@@ -65,6 +70,9 @@ export function NoteCard({
   variant,
   userNote,
   aiExplanation,
+  status,
+  statusTarget,
+  onClearStaleStatus,
   showTabs = true,
   defaultTab = "user",
   activeTab,
@@ -85,6 +93,9 @@ export function NoteCard({
   variant: NoteCardVariant;
   userNote?: string;
   aiExplanation?: ResourceAiExplanation;
+  status?: NoteStatus;
+  statusTarget?: UserNoteTarget;
+  onClearStaleStatus?: (target: UserNoteTarget) => void;
   showTabs?: boolean;
   defaultTab?: "user" | "ai";
   activeTab?: "user" | "ai";
@@ -182,6 +193,15 @@ export function NoteCard({
     startEditing();
   };
 
+  const clearStale = (): void => {
+    if (!statusTarget) {
+      return;
+    }
+
+    setContextMenuState(null);
+    onClearStaleStatus?.(statusTarget);
+  };
+
   const handleCardContextMenu = (event: MouseEvent<HTMLElement>): void => {
     const isUserNote = selectedTab === "user";
 
@@ -218,6 +238,7 @@ export function NoteCard({
           <h2 className="notes-card__title">{title}</h2>
           {headerAccessory}
         </div>
+        <NoteStatusBadges status={status} />
         {showTabs ? <TabControl activeTab={selectedTab} onChange={selectTab} /> : null}
       </div>
       {children ?? (
@@ -257,10 +278,42 @@ export function NoteCard({
           showClear={contextMenuState.mode === "user"}
           clearDisabled={!onSaveUserNote || !editKey}
           onClear={contextMenuState.mode === "user" ? clearUserNote : undefined}
+          statusItems={getStatusMenuItems(status, Boolean(statusTarget && onClearStaleStatus), clearStale)}
         />
       ) : null}
     </section>
   );
+}
+
+function getStatusMenuItems(
+  status: NoteStatus | undefined,
+  canClearStaleStatus: boolean,
+  onClearStaleStatus: () => void,
+): UserNoteContextMenuItem[] {
+  if (!status) {
+    return [];
+  }
+
+  const items: UserNoteContextMenuItem[] = [];
+
+  if (status.content === "stale") {
+    items.push({
+      id: "clearStale",
+      label: "Clear Stale Status: Content Reviewed",
+      disabled: !canClearStaleStatus,
+      onSelect: canClearStaleStatus ? onClearStaleStatus : undefined,
+    });
+  }
+
+  if (status.anchor === "needsConfirmation") {
+    items.push({
+      id: "relocate",
+      label: "Resolve Anchor: Relocate...",
+      disabled: true,
+    });
+  }
+
+  return items;
 }
 
 function UserNoteContent({

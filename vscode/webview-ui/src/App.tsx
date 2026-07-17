@@ -6,11 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ResourceNotesView } from "./components/ResourceNotesView";
 import { NotesNavigatorView } from "./components/NotesNavigatorView";
+import { NoticeModal } from "./components/NoticeModal";
 import type {
   ExtensionToWebviewMessage,
   NotesViewMode,
   NavigatorNotesViewModel,
   ResourceNotesViewModel,
+  WebviewNotice,
 } from "./types";
 import { getVsCodeApi } from "./vscodeApi";
 import "./styles.css";
@@ -35,6 +37,7 @@ export function App() {
   const [viewMode, setViewMode] = useState<NotesViewMode>("detail");
   const [navigatorNotes, setNavigatorNotes] =
     useState<NavigatorNotesViewModel>(initialNavigatorNotes);
+  const [notice, setNotice] = useState<WebviewNotice | undefined>();
   const vscode = useMemo(() => getVsCodeApi(), []);
 
   useEffect(() => {
@@ -63,6 +66,11 @@ export function App() {
 
       if (message.type === "notesViewMode") {
         setViewMode(message.mode);
+        return;
+      }
+
+      if (message.type === "notice") {
+        setNotice(message.notice);
       }
     };
 
@@ -85,6 +93,18 @@ export function App() {
       ) : (
         <NotesNavigatorView navigatorNotes={navigatorNotes} />
       )}
+      {notice ? (
+        <NoticeModal
+          tone={notice.tone}
+          title={notice.title}
+          message={notice.message}
+          actions={notice.actions.map((action) => ({
+            ...action,
+            onClick: () => setNotice(undefined),
+          }))}
+          onDismiss={() => setNotice(undefined)}
+        />
+      ) : null}
     </main>
   );
 }

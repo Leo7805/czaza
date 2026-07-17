@@ -3,6 +3,7 @@
 import * as path from "node:path";
 
 import type { AIExplanation } from "@shared/models/ai/common";
+import type { NoteStatus } from "@shared/models/domain/common";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import {
@@ -10,6 +11,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import { ensureFileNoteResourceAvailability } from "./ensureFileNoteResourceAvailabilityService";
 import * as vscode from "vscode";
 
 /** Compact note content used by one Navigator list item. */
@@ -22,6 +24,9 @@ export type NavigatorNoteContent = {
 
   /** One-line preview shown in the compact list. */
   preview: string;
+
+  /** Current content and source-anchor status for this note. */
+  status?: NoteStatus;
 };
 
 /** One file note shown in the project-wide Files list. */
@@ -143,11 +148,19 @@ async function getFileItems(
   const items: NavigatorFileItem[] = [];
 
   for (const relativePath of Object.keys(entries).sort((left, right) => left.localeCompare(right))) {
+    const availability = await ensureFileNoteResourceAvailability({
+      notes,
+      workspaceRoot,
+      outputDirectory,
+      relativePath,
+      now: new Date().toISOString(),
+    });
     const sourceFile = await notes.cache.getSourceFile(workspaceRoot, outputDirectory, relativePath);
     const content = getNoteContent(
       sourceFile?.fileNote?.userNote,
       sourceFile?.fileNote?.aiExplanation,
       relativePath,
+      sourceFile?.fileNote?.status,
     );
 
     if (!content) {
@@ -156,7 +169,9 @@ async function getFileItems(
 
     items.push({
       relativePath,
-      resourceKind: await getNavigatorResourceKind(workspaceRoot, relativePath),
+      resourceKind: availability.available
+        ? await getNavigatorResourceKind(workspaceRoot, relativePath)
+        : "file",
       name: path.basename(relativePath),
       ...content,
     });
@@ -177,8 +192,9 @@ function getSectionItems(sourceFile: StoredSourceFile | undefined): NavigatorSec
       title: note.title,
       startLine: note.range.startLine,
       endLine: note.range.endLine,
-      ...(getNoteContent(note.userNote, note.aiExplanation, note.title) ?? {
+      ...(getNoteContent(note.userNote, note.aiExplanation, note.title, note.status) ?? {
         preview: note.title || "Untitled section",
+        status: note.status,
       }),
     }));
 }
@@ -190,8 +206,9 @@ function getLineItems(sourceFile: StoredSourceFile | undefined): NavigatorLineIt
     .map(({ note }) => ({
       id: note.id,
       line: note.line,
-      ...(getNoteContent(note.userNote, note.aiExplanation, `Line ${note.line}`) ?? {
+      ...(getNoteContent(note.userNote, note.aiExplanation, `Line ${note.line}`, note.status) ?? {
         preview: `Line ${note.line}`,
+        status: note.status,
       }),
     }));
 }
@@ -200,6 +217,7 @@ function getNoteContent(
   userNote: string | undefined,
   aiExplanation: AIExplanation | undefined,
   fallback: string,
+  status: NoteStatus | undefined,
 ): NavigatorNoteContent | undefined {
   const preview = getFirstLine(userNote) ?? getAiPreview(aiExplanation) ?? fallback;
 
@@ -211,6 +229,7 @@ function getNoteContent(
     ...(userNote?.trim() ? { userNote } : {}),
     ...(aiExplanation ? { aiExplanation } : {}),
     preview,
+    ...(status ? { status } : {}),
   };
 }
 

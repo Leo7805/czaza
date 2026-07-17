@@ -12,6 +12,7 @@ import type {
 import { getVsCodeApi } from "../vscodeApi";
 import { AiGenerationMenu, type GenerationScope } from "./AiGenerationMenu";
 import { NoteCard } from "./NoteCard";
+import { NoticeModal } from "./NoticeModal";
 import { NotesPanel } from "./NotesPanel";
 import { Tooltip } from "./Tooltip";
 
@@ -39,6 +40,7 @@ export function FileNotesView({
   const [fileTab, setFileTab] = useState<"user" | "ai">(initialGeneratedTab);
   const [sectionTab, setSectionTab] = useState<"user" | "ai">(initialSectionTab);
   const [lineTab, setLineTab] = useState<"user" | "ai">(initialLineTab);
+  const [showAllNotesConfirm, setShowAllNotesConfirm] = useState(false);
   const editTarget = notes.editTarget;
   const [sectionSelection, setSectionSelection] = useState({
     relativePath: notes.relativePath,
@@ -90,6 +92,7 @@ export function FileNotesView({
   };
 
   const generateAllNotes = (): void => {
+    setShowAllNotesConfirm(false);
     getVsCodeApi()?.postMessage({ type: "generateAllNotes" });
   };
 
@@ -114,16 +117,20 @@ export function FileNotesView({
     getVsCodeApi()?.postMessage({ type: "saveUserNote", target, userNote });
   };
 
+  const clearStale = (target: UserNoteTarget): void => {
+    getVsCodeApi()?.postMessage({ type: "clearNoteStaleStatus", target });
+  };
+
   return (
-    <NotesPanel
-      kind="file"
+      <NotesPanel
+        kind="file"
       name={notes.name}
       relativePath={notes.relativePath}
       headerActionLabel={notes.aiAction === "regenerate" ? "Regenerate" : "Generate"}
       isHeaderActionRunning={runningScope === "fileSection" || runningScope === "all"}
       isAnyAiActionRunning={isAnyAiActionRunning}
       onGenerateFileSection={generateFileNotes}
-      onGenerateAll={generateAllNotes}
+      onGenerateAll={() => setShowAllNotesConfirm(true)}
     >
       <NoteCard
         title="File Notes"
@@ -132,6 +139,9 @@ export function FileNotesView({
         onTabChange={setFileTab}
         userNote={notes.fileNote?.userNote}
         aiExplanation={notes.fileNote?.aiExplanation}
+        status={notes.fileNote?.status}
+        statusTarget={{ level: "file" }}
+        onClearStaleStatus={clearStale}
         editKey={`file:${notes.relativePath}`}
         onSaveUserNote={(userNote) => saveUserNote({ level: "file" }, userNote)}
         emptyText="No file note yet."
@@ -147,6 +157,11 @@ export function FileNotesView({
         onGenerateAi={selectedSection ? generateSectionNote : undefined}
         userNote={selectedSection?.userNote}
         aiExplanation={selectedSection?.aiExplanation}
+        status={selectedSection?.status}
+        statusTarget={
+          selectedSection ? { level: "section", sectionId: selectedSection.id } : undefined
+        }
+        onClearStaleStatus={clearStale}
         editKey={selectedSection ? `section:${selectedSection.id}` : undefined}
         startInEditMode={shouldEditSection}
         onSaveUserNote={
@@ -188,6 +203,9 @@ export function FileNotesView({
         }
         userNote={notes.lineNote?.userNote}
         aiExplanation={notes.lineNote?.aiExplanation}
+        status={notes.lineNote?.status}
+        statusTarget={notes.activeLine ? { level: "line", line: notes.activeLine } : undefined}
+        onClearStaleStatus={clearStale}
         editKey={notes.activeLine ? `line:${notes.activeLine}` : undefined}
         startInEditMode={shouldEditLine}
         onSaveUserNote={
@@ -205,6 +223,26 @@ export function FileNotesView({
         }
         emptyText="No line note selected."
       />
+      {showAllNotesConfirm ? (
+        <NoticeModal
+          tone="warning"
+          title="Generate All Notes"
+          message="This may take longer and use more AI tokens."
+          actions={[
+            {
+              label: "Cancel",
+              variant: "secondary",
+              onClick: () => setShowAllNotesConfirm(false),
+            },
+            {
+              label: "Generate All Notes",
+              variant: "primary",
+              onClick: generateAllNotes,
+            },
+          ]}
+          onDismiss={() => setShowAllNotesConfirm(false)}
+        />
+      ) : null}
     </NotesPanel>
   );
 }

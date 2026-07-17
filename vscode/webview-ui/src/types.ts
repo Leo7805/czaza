@@ -45,6 +45,32 @@ export type ResourceNoteContent = {
 
   /** Complete AI explanation content. */
   aiExplanation?: ResourceAiExplanation;
+
+  /** Current content and source-anchor status for this note. */
+  status?: NoteStatus;
+};
+
+/** Indicates whether a note still describes the current source code. */
+export type NoteContentStatus = "current" | "stale";
+
+/** Indicates whether a note is still attached to the correct code target. */
+export type NoteAnchorStatus = "confirmed" | "needsConfirmation" | "orphaned";
+
+/** Shared status information displayed by note cards and lists. */
+export type NoteStatus = {
+  content: NoteContentStatus;
+  anchor: NoteAnchorStatus;
+};
+
+/** In-webview notice modal payload sent by the extension host. */
+export type WebviewNotice = {
+  tone: "info" | "warning" | "error" | "success";
+  title: string;
+  message: string;
+  actions: Array<{
+    label: string;
+    variant?: "primary" | "secondary";
+  }>;
 };
 
 /**
@@ -229,12 +255,17 @@ export type ExtensionToWebviewMessage =
       /** Notes payload to render. */
       payload: ResourceNotesViewModel;
     }
-  | {
-      /** Navigator list data for the current resource. */
-      type: "navigatorNotes";
-      payload: NavigatorNotesViewModel;
-    }
-  | NotesViewModeMessage;
+	  | {
+	      /** Navigator list data for the current resource. */
+	      type: "navigatorNotes";
+	      payload: NavigatorNotesViewModel;
+	    }
+	  | {
+	      /** Shows a CZaza-styled notice modal inside the webview. */
+	      type: "notice";
+	      notice: WebviewNotice;
+	    }
+	  | NotesViewModeMessage;
 
 /** Mode selected by the VS Code notes View Toolbar. */
 export type NotesViewMode = "detail" | "navigator";
@@ -281,19 +312,33 @@ export type WebviewToExtensionMessage =
       /** Stable identifier of the selected section note. */
       sectionId: string;
     }
-  | {
-      /** Saves one complete file, section, or line user note. */
-      type: "saveUserNote";
+	  | {
+	      /** Saves one complete file, section, or line user note. */
+	      type: "saveUserNote";
 
       /** Note target captured when editing started. */
       target: UserNoteTarget;
 
-      /** Complete user-authored note content. */
-      userNote: string;
-    }
-  | {
-      /** Opens or shows one resource selected from the Navigator Files list. */
-      type: "openNavigatorResource";
+	      /** Complete user-authored note content. */
+	      userNote: string;
+	    }
+	  | {
+	      /** Marks one stale note as content-current after user review. */
+	      type: "clearNoteStaleStatus";
+
+	      /** Note target whose content status should become current. */
+	      target: UserNoteTarget;
+	    }
+	  | {
+	      /** Marks a Navigator file-note item as content-current after review. */
+	      type: "clearNavigatorFileStaleStatus";
+
+	      /** CZaza-root-relative source path for the file note. */
+	      relativePath: string;
+	    }
+	  | {
+	      /** Opens or shows one resource selected from the Navigator Files list. */
+	      type: "openNavigatorResource";
 
       /** CZaza-root-relative resource path. */
       relativePath: string;

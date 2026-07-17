@@ -5,7 +5,11 @@
 import * as vscode from "vscode";
 import { registerCzazaRootValidation } from "./config/registerCzazaRootValidation";
 import { registerCzazaCommands } from "./commands/registerCzazaCommands";
-import { registerNotesPreviewEvents } from "./events";
+import {
+  registerNotesContentEvents,
+  registerNotesPreviewEvents,
+  registerNotesResourceEvents,
+} from "./events";
 import { generateAllNotesForResource } from "./services/generateAllNotesService";
 import { generateFileNotesForResource } from "./services/generateFileNotesService";
 import { generateLineNoteForResource } from "./services/generateLineNoteService";
@@ -65,6 +69,8 @@ export function activate(context: vscode.ExtensionContext) {
   // ---------------------------------------------------------------------------
 
   registerNotesPreviewEvents(context, notesProvider);
+  registerNotesContentEvents(context, notes, notesProvider);
+  registerNotesResourceEvents(context, notes, notesProvider);
 }
 
 /**

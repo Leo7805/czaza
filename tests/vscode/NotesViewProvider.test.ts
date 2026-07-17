@@ -7,7 +7,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   activeTextEditor: undefined as vscodeTypes.TextEditor | undefined,
+  workspaceFolders: [] as vscodeTypes.WorkspaceFolder[],
   getResourceNotes: vi.fn(),
+  getNavigatorNotes: vi.fn(),
+  clearNoteStaleStatusService: vi.fn(),
+  ensureFileNoteResourceAvailability: vi.fn(),
   postMessage: vi.fn().mockResolvedValue(true),
   setDecorations: vi.fn(),
   decorationDispose: vi.fn(),
@@ -24,6 +28,18 @@ vi.mock("node:fs/promises", () => ({
 
 vi.mock("@vscode/services/getResourceNotesService", () => ({
   getResourceNotes: mocks.getResourceNotes,
+}));
+
+vi.mock("@vscode/services/getNavigatorNotesService", () => ({
+  getNavigatorNotes: mocks.getNavigatorNotes,
+}));
+
+vi.mock("@vscode/services/ensureFileNoteResourceAvailabilityService", () => ({
+  ensureFileNoteResourceAvailability: mocks.ensureFileNoteResourceAvailability,
+}));
+
+vi.mock("@vscode/services/clearNoteStaleStatusService", () => ({
+  clearNoteStaleStatusService: mocks.clearNoteStaleStatusService,
 }));
 
 vi.mock("vscode", () => ({
@@ -81,6 +97,11 @@ vi.mock("vscode", () => ({
   },
 
   Uri: {
+    file: (fsPath: string) => ({
+      scheme: "file",
+      fsPath,
+      toString: () => `file://${fsPath}`,
+    }),
     joinPath: (base: vscodeTypes.Uri, ...parts: string[]) => ({
       scheme: "file",
       fsPath: [base.fsPath, ...parts].join("/"),
@@ -89,6 +110,19 @@ vi.mock("vscode", () => ({
   },
 
   workspace: {
+    get workspaceFolders() {
+      return mocks.workspaceFolders;
+    },
+    getConfiguration: () => ({
+      get: <T>(_key: string, defaultValue: T): T => defaultValue,
+    }),
+    getWorkspaceFolder: (uri: vscodeTypes.Uri) =>
+      mocks.workspaceFolders.find((folder) => {
+        const relativePath = uri.fsPath.startsWith(folder.uri.fsPath)
+          ? uri.fsPath.slice(folder.uri.fsPath.length)
+          : "../outside";
+        return !relativePath.startsWith("../");
+      }),
     openTextDocument: mocks.openTextDocument,
   },
 
@@ -110,6 +144,10 @@ import { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 describe("NotesViewProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.clearNoteStaleStatusService.mockReset();
+    mocks.ensureFileNoteResourceAvailability.mockReset();
+    mocks.getNavigatorNotes.mockReset();
+    mocks.workspaceFolders.length = 0;
     mocks.messageListeners.length = 0;
     mocks.activeTextEditor = undefined;
   });
@@ -283,6 +321,79 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("shows a webview notice instead of opening a missing navigator resource", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.ensureFileNoteResourceAvailability.mockResolvedValue({
+      available: false,
+      changed: true,
+    });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "tmp",
+      currentFile: "current.ts",
+      files: [
+        {
+          name: "missing.ts",
+          relativePath: "src/missing.ts",
+          resourceKind: "file",
+          preview: "Missing file note.",
+          status: {
+            content: "stale",
+            anchor: "needsConfirmation",
+          },
+        },
+      ],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "openNavigatorResource",
+      relativePath: "src/missing.ts",
+    });
+
+    await vi.waitFor(() => expect(mocks.ensureFileNoteResourceAvailability).toHaveBeenCalledOnce());
+    expect(mocks.openTextDocument).not.toHaveBeenCalled();
+    expect(mocks.showTextDocument).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "notice",
+        notice: {
+          tone: "error",
+          title: "Note Target Not Found",
+          message: "src/missing.ts could not be opened. It may have been renamed, moved, or deleted outside VS Code.",
+          actions: [
+            {
+              label: "Close",
+              variant: "primary",
+            },
+          ],
+        },
+      }),
+    );
+
+    provider.dispose();
+  });
+
   it("runs file note generation once and refreshes the current payload", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const generateFileNotes = vi.fn().mockResolvedValue(true);
@@ -328,7 +439,7 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
-  it("confirms All Notes generation and reveals all three AI note levels", async () => {
+  it("runs All Notes generation and reveals all three AI note levels", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const generateAllNotes = vi.fn().mockResolvedValue(true);
     const provider = new NotesViewProvider(
@@ -340,7 +451,6 @@ describe("NotesViewProvider", () => {
     );
     const view = createWebviewView();
 
-    mocks.showWarningMessage.mockResolvedValue("Generate All Notes");
     mocks.getResourceNotes.mockResolvedValue({
       kind: "file",
       name: "index.ts",
@@ -355,11 +465,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(generateAllNotes).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
 
-    expect(mocks.showWarningMessage).toHaveBeenCalledWith(
-      "All Notes generation may take longer and use more AI tokens.",
-      { modal: true },
-      "Generate All Notes",
-    );
+    expect(mocks.showWarningMessage).not.toHaveBeenCalled();
     expect(generateAllNotes).toHaveBeenCalledWith(uri);
     expect(mocks.postMessage).toHaveBeenLastCalledWith({
       type: "resourceNotes",
@@ -465,42 +571,6 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
-  it("does not start All Notes generation when confirmation is cancelled", async () => {
-    const uri = createUri("/workspace/src/index.ts");
-    const generateAllNotes = vi.fn().mockResolvedValue(true);
-    const provider = new NotesViewProvider(
-      createUri("/extension"),
-      {} as never,
-      vi.fn().mockResolvedValue(true),
-      vi.fn().mockResolvedValue(undefined),
-      generateAllNotes,
-    );
-    const view = createWebviewView();
-
-    mocks.showWarningMessage.mockResolvedValue(undefined);
-    mocks.getResourceNotes.mockResolvedValue({
-      kind: "file",
-      name: "index.ts",
-      relativePath: "src/index.ts",
-      aiAction: "generate",
-      sectionNotes: [],
-    });
-
-    await provider.resolveWebviewView(view);
-    await provider.showActiveDocumentNotes(uri, 1);
-    mocks.messageListeners[0]?.({ type: "generateAllNotes" });
-    await vi.waitFor(() => expect(mocks.showWarningMessage).toHaveBeenCalledOnce());
-
-    expect(generateAllNotes).not.toHaveBeenCalled();
-    expect(mocks.getResourceNotes).toHaveBeenCalledOnce();
-    expect(mocks.postMessage).not.toHaveBeenCalledWith({
-      type: "resourceNotes",
-      payload: expect.objectContaining({ isAiActionRunning: true }),
-    });
-
-    provider.dispose();
-  });
-
   it("saves one typed user-note target and refreshes the current file", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const saveUserNote = vi.fn().mockResolvedValue(undefined);
@@ -581,6 +651,232 @@ describe("NotesViewProvider", () => {
 
     provider.dispose();
   });
+
+  it("refreshes the currently tracked resource notes after store changes", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.activeTextEditor = createEditor(uri);
+    mocks.getResourceNotes
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "index.ts",
+        relativePath: "src/index.ts",
+        aiAction: "generate",
+        sectionNotes: [],
+      })
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "index.ts",
+        relativePath: "src/index.ts",
+        fileNote: {
+          userNote: "Needs review.",
+          status: {
+            content: "stale",
+            anchor: "confirmed",
+          },
+        },
+        aiAction: "generate",
+        sectionNotes: [],
+      });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(uri);
+    await provider.refreshCurrentNotes();
+
+    expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2);
+    expect(mocks.postMessage).toHaveBeenLastCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({
+        fileNote: expect.objectContaining({
+          status: {
+            content: "stale",
+            anchor: "confirmed",
+          },
+        }),
+      }),
+    });
+
+    provider.dispose();
+  });
+
+  it("refreshes a moved current resource from its new URI", async () => {
+    const oldUri = createUri("/workspace/src/old.ts");
+    const newUri = createUri("/workspace/src/new.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.activeTextEditor = createEditor(newUri);
+    mocks.getResourceNotes
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "old.ts",
+        relativePath: "src/old.ts",
+        aiAction: "generate",
+        sectionNotes: [],
+      })
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "new.ts",
+        relativePath: "src/new.ts",
+        aiAction: "generate",
+        sectionNotes: [],
+      });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(oldUri);
+    await provider.refreshAfterResourceMove(oldUri, newUri);
+
+    expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
+      uri: newUri,
+      notes: {},
+      activeLine: 12,
+    });
+
+    provider.dispose();
+  });
+
+  it("resolves stale note content from a webview context-menu action", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.clearNoteStaleStatusService.mockResolvedValue(true);
+    mocks.activeTextEditor = createEditor(uri);
+    mocks.getResourceNotes
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "index.ts",
+        relativePath: "src/index.ts",
+        fileNote: {
+          userNote: "Needs review.",
+          status: {
+            content: "stale",
+            anchor: "confirmed",
+          },
+        },
+        aiAction: "generate",
+        sectionNotes: [],
+      })
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "index.ts",
+        relativePath: "src/index.ts",
+        fileNote: {
+          userNote: "Needs review.",
+          status: {
+            content: "current",
+            anchor: "confirmed",
+          },
+        },
+        aiAction: "generate",
+        sectionNotes: [],
+      });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(uri);
+    mocks.messageListeners[0]?.({
+      type: "clearNoteStaleStatus",
+      target: { level: "file" },
+    });
+
+    await vi.waitFor(() => expect(mocks.clearNoteStaleStatusService).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+    expect(mocks.clearNoteStaleStatusService).toHaveBeenCalledWith({
+      uri,
+      notes: {},
+      target: { level: "file" },
+    });
+
+    provider.dispose();
+  });
+
+  it("resolves stale content for a Navigator file item and refreshes Navigator notes", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.clearNoteStaleStatusService.mockResolvedValue(true);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "tmp",
+      currentFile: "current.ts",
+      files: [
+        {
+          name: "missing.ts",
+          relativePath: "src/missing.ts",
+          resourceKind: "file",
+          preview: "Missing file note.",
+          status: {
+            content: "current",
+            anchor: "needsConfirmation",
+          },
+        },
+      ],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "clearNavigatorFileStaleStatus",
+      relativePath: "src/missing.ts",
+    });
+
+    await vi.waitFor(() => expect(mocks.clearNoteStaleStatusService).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
+    expect(mocks.clearNoteStaleStatusService).toHaveBeenCalledWith({
+      uri: expect.objectContaining({ fsPath: `${workspaceRoot}/src/missing.ts` }),
+      notes: {},
+      target: { level: "file" },
+    });
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      type: "navigatorNotes",
+      payload: expect.objectContaining({
+        files: [
+          expect.objectContaining({
+            status: {
+              content: "current",
+              anchor: "needsConfirmation",
+            },
+          }),
+        ],
+      }),
+    });
+
+    provider.dispose();
+  });
 });
 
 /**
@@ -602,6 +898,14 @@ function createWebviewView(): vscodeTypes.WebviewView {
     },
     onDidDispose: () => ({ dispose: vi.fn() }),
   } as unknown as vscodeTypes.WebviewView;
+}
+
+function createWorkspaceFolder(fsPath: string): vscodeTypes.WorkspaceFolder {
+  return {
+    uri: createUri(fsPath),
+    name: fsPath.split("/").filter(Boolean).at(-1) ?? fsPath,
+    index: mocks.workspaceFolders.length,
+  };
 }
 
 /**
