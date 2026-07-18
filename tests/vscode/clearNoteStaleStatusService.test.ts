@@ -9,6 +9,7 @@ import type * as vscodeTypes from "vscode";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
+import { createSourceHash } from "@shared/utils/hashUtils";
 import { WorkspaceNoteStore, WorkspaceNoteStoreRepository } from "@vscode/notes";
 import { clearNoteStaleStatusService } from "@vscode/services/clearNoteStaleStatusService";
 
@@ -23,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   configuredRootDirectory: "",
   outputDirectory: ".caca",
   randomId: "abcdef123456",
+  sourceText: "const value = 1;\nconst next = 2;\nreturn value;\nexport { value };\n",
+  languageId: "typescript",
 }));
 
 vi.mock("vscode", () => ({
@@ -50,6 +53,12 @@ vi.mock("vscode", () => ({
         const relativePath = path.relative(folder.uri.fsPath, uri.fsPath);
         return !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
       }),
+
+    openTextDocument: vi.fn().mockImplementation(async (uri: vscodeTypes.Uri) => ({
+      uri,
+      languageId: mocks.languageId,
+      getText: () => mocks.sourceText,
+    })),
   },
 }));
 
@@ -61,9 +70,11 @@ describe("clearNoteStaleStatusService()", () => {
     mocks.workspaceFolders.length = 0;
     mocks.configuredRootDirectory = "";
     mocks.outputDirectory = ".caca";
+    mocks.sourceText = "const value = 1;\nconst next = 2;\nreturn value;\nexport { value };\n";
+    mocks.languageId = "typescript";
   });
 
-  it("marks a stale file note current while preserving its anchor status", async () => {
+  it("marks a stale file note current and updates the source metadata", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("file");
     const notes = await createStoreWithSourceFile(workspaceRoot, "src/index.ts");
 
@@ -79,11 +90,15 @@ describe("clearNoteStaleStatusService()", () => {
     expect(changed).toBe(true);
     expect(sourceFile?.fileNote?.status).toEqual({
       content: "current",
-      anchor: "orphaned",
+      anchor: "confirmed",
+    });
+    expect(sourceFile?.source).toEqual({
+      sourceHash: createSourceHash(mocks.sourceText),
+      programmingLanguage: "typescript",
     });
   });
 
-  it("marks stale section and line notes current independently", async () => {
+  it("marks stale section and line notes current and updates their anchors independently", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("section-line");
     const notes = await createStoreWithSourceFile(workspaceRoot, "src/index.ts");
     const uri = createUri(path.join(workspaceRoot, "src/index.ts"));
@@ -105,12 +120,16 @@ describe("clearNoteStaleStatusService()", () => {
 
     expect(sourceFile?.sectionNotes[0]?.status).toEqual({
       content: "current",
-      anchor: "needsConfirmation",
+      anchor: "confirmed",
     });
+    expect(sourceFile?.sectionNotes[0]?.anchorHash).toBe(
+      createSourceHash("const value = 1;\nconst next = 2;\nreturn value;\nexport { value };"),
+    );
     expect(sourceFile?.lineNotes[0]?.status).toEqual({
       content: "current",
       anchor: "confirmed",
     });
+    expect(sourceFile?.lineNotes[0]?.anchorText).toBe("return value;");
     expect(sourceFile?.fileNote?.status.content).toBe("stale");
   });
 

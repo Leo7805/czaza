@@ -5,12 +5,12 @@
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
 import {
-  detectChangedSourceRangeNotes,
-  detectEntireSourceFileNotes,
-  type ChangedSourceRangeNoteDetectionOptions,
-  type SourceFileNoteDetectionOptions,
+  detectAffectedFileNotes,
+  detectFileNotes,
+  type AffectedFileNotesDetectionOptions,
+  type FileNoteDetectionOptions,
 } from "@shared/services/notes/noteDetectionService";
-import { applySourceFileNoteDetectionReport } from "@shared/services/notes/noteDetectionApplyService";
+import { applyFileNotesDetectionReport } from "@shared/services/notes/noteDetectionApplyService";
 import type {
   SourceFileNoteCheckResult,
   SourceFileNoteStatusApplyResult,
@@ -99,7 +99,7 @@ export async function checkEntireSourceFileNotes(
   outputDirectory: string,
   relativeFilePath: string,
   sourceText: string,
-  options: SourceFileNoteDetectionOptions = {},
+  options: FileNoteDetectionOptions = {},
 ): Promise<SourceFileNoteCheckResult> {
   const sourceFile = await getTrackedSourceFile(deps, workspaceRoot, outputDirectory, relativeFilePath);
 
@@ -109,7 +109,7 @@ export async function checkEntireSourceFileNotes(
 
   return {
     ...sourceFile,
-    report: detectEntireSourceFileNotes(sourceText, sourceFile.sourceFile, options),
+    report: detectFileNotes(sourceText, sourceFile.sourceFile, options),
   };
 }
 
@@ -133,7 +133,7 @@ export async function checkChangedSourceRangeNotes(
   outputDirectory: string,
   relativeFilePath: string,
   sourceText: string,
-  options: ChangedSourceRangeNoteDetectionOptions,
+  options: AffectedFileNotesDetectionOptions,
 ): Promise<SourceFileNoteCheckResult> {
   const sourceFile = await getTrackedSourceFile(deps, workspaceRoot, outputDirectory, relativeFilePath);
 
@@ -143,7 +143,7 @@ export async function checkChangedSourceRangeNotes(
 
   return {
     ...sourceFile,
-    report: detectChangedSourceRangeNotes(sourceText, sourceFile.sourceFile, options),
+    report: detectAffectedFileNotes(sourceText, sourceFile.sourceFile, options),
   };
 }
 
@@ -168,7 +168,7 @@ export async function checkAndApplyEntireSourceFileNoteStatus(
   outputDirectory: string,
   relativeFilePath: string,
   sourceText: string,
-  options: SourceFileNoteDetectionOptions = {},
+  options: FileNoteDetectionOptions = {},
   now: string,
 ): Promise<SourceFileNoteStatusApplyResult> {
   const checked = await checkEntireSourceFileNotes(
@@ -204,7 +204,7 @@ export async function checkAndApplyChangedSourceRangeNoteStatus(
   outputDirectory: string,
   relativeFilePath: string,
   sourceText: string,
-  options: ChangedSourceRangeNoteDetectionOptions,
+  options: AffectedFileNotesDetectionOptions,
   now: string,
 ): Promise<SourceFileNoteStatusApplyResult> {
   const checked = await checkChangedSourceRangeNotes(
@@ -245,7 +245,7 @@ export async function applyCheckedSourceFileNoteStatus(
     return checked;
   }
 
-  const updatedSourceFile = applySourceFileNoteDetectionReport(checked.sourceFile, checked.report, now);
+  const updatedSourceFile = applyFileNotesDetectionReport(checked.sourceFile, checked.report, now);
 
   await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, updatedSourceFile, now);
 

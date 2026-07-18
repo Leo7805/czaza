@@ -150,7 +150,106 @@ describe("saveUserNoteService()", () => {
     });
   });
 
-  it("creates and then clears a user-only line note without removing the node", async () => {
+  it("removes a user-only section note when clearing it", async () => {
+    const notes = createNoteStore();
+    const uri = createUri(path.join(mocks.rootDirectory, mocks.relativePath));
+    const sourceFile = createStoredSourceFile({
+      sourceCode: mocks.sourceCode,
+      programmingLanguage: mocks.languageId,
+      now: createdAt,
+    });
+    sourceFile.sectionNotes = [
+      {
+        id: "section:user-only",
+        title: "Return value",
+        range: { startLine: 2, endLine: 2 },
+        anchorHash: "sha256:section",
+        userNote: "Review this return path.",
+        status: { content: "current", anchor: "confirmed" },
+        createdBy: "user",
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ];
+    await notes.cache.saveSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+      sourceFile,
+      createdAt,
+    );
+
+    await saveUserNoteService({
+      uri,
+      notes,
+      target: { level: "section", sectionId: "section:user-only" },
+      userNote: "   ",
+    });
+
+    const stored = await notes.cache.getRequiredSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+    );
+    expect(stored.sectionNotes).toHaveLength(0);
+  });
+
+  it("preserves section AI content when clearing its user note", async () => {
+    const notes = createNoteStore();
+    const uri = createUri(path.join(mocks.rootDirectory, mocks.relativePath));
+    const sourceFile = createStoredSourceFile({
+      sourceCode: mocks.sourceCode,
+      programmingLanguage: mocks.languageId,
+      now: createdAt,
+    });
+    sourceFile.sectionNotes = [
+      {
+        id: "section:ai",
+        title: "Return value",
+        range: { startLine: 2, endLine: 2 },
+        anchorHash: "sha256:section",
+        userNote: "Review this return path.",
+        aiExplanation: {
+          summary: "Returns the value.",
+          detail: "Returns the previously declared value.",
+        },
+        status: { content: "current", anchor: "confirmed" },
+        createdBy: "ai",
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ];
+    await notes.cache.saveSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+      sourceFile,
+      createdAt,
+    );
+
+    await saveUserNoteService({
+      uri,
+      notes,
+      target: { level: "section", sectionId: "section:ai" },
+      userNote: "   ",
+    });
+
+    const stored = await notes.cache.getRequiredSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+    );
+    expect(stored.sectionNotes).toHaveLength(1);
+    expect(stored.sectionNotes[0]).toMatchObject({
+      id: "section:ai",
+      aiExplanation: { summary: "Returns the value." },
+      range: { startLine: 2, endLine: 2 },
+      status: { content: "current", anchor: "confirmed" },
+    });
+    expect(stored.sectionNotes[0]?.userNote).toBeUndefined();
+  });
+
+  it("creates and then clears a user-only line note by removing the node", async () => {
     const notes = createNoteStore();
     const uri = createUri(path.join(mocks.rootDirectory, mocks.relativePath));
 
@@ -186,12 +285,60 @@ describe("saveUserNoteService()", () => {
       mocks.outputDirectory,
       mocks.relativePath,
     );
+    expect(stored.lineNotes).toHaveLength(0);
+  });
+
+  it("preserves line AI content when clearing its user note", async () => {
+    const notes = createNoteStore();
+    const uri = createUri(path.join(mocks.rootDirectory, mocks.relativePath));
+    const sourceFile = createStoredSourceFile({
+      sourceCode: mocks.sourceCode,
+      programmingLanguage: mocks.languageId,
+      now: createdAt,
+    });
+    sourceFile.lineNotes = [
+      {
+        id: "line:2",
+        line: 2,
+        anchorText: "return first;",
+        userNote: "Check this line.",
+        aiExplanation: {
+          summary: "Returns the value.",
+          detail: "Returns the previously declared value.",
+        },
+        status: { content: "current", anchor: "confirmed" },
+        createdBy: "ai",
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ];
+    await notes.cache.saveSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+      sourceFile,
+      createdAt,
+    );
+
+    await saveUserNoteService({
+      uri,
+      notes,
+      target: { level: "line", line: 2 },
+      userNote: "   ",
+    });
+
+    const stored = await notes.cache.getRequiredSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+    );
     expect(stored.lineNotes).toHaveLength(1);
     expect(stored.lineNotes[0]).toMatchObject({
       id: "line:2",
       line: 2,
       anchorText: "return first;",
-      createdBy: "user",
+      aiExplanation: { summary: "Returns the value." },
+      status: { content: "current", anchor: "confirmed" },
     });
     expect(stored.lineNotes[0]?.userNote).toBeUndefined();
   });

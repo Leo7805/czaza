@@ -3,6 +3,18 @@
  */
 
 import type { NoteStatus } from "@shared/models/domain/common";
+import {
+  updateLineAnchorText,
+  updateProgrammingLanguage,
+  updateSectionAnchorHash,
+  updateSourceHash,
+} from "@shared/services/notes/noteAnchorService";
+import {
+  updateFileNoteStatus,
+  updateLineNoteStatus,
+  updateSectionNoteStatus,
+} from "@shared/services/notes/noteStatusService";
+import { createSourceHash } from "@shared/utils/hashUtils";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import {
   getCzazaRelativePath,
@@ -46,6 +58,14 @@ export async function clearNoteStaleStatusService(input: ClearNoteStaleStatusInp
 
   const now = new Date().toISOString();
   const target = input.target;
+  const document = await openTextDocument(input.uri);
+  const lines = document ? splitSourceLines(document.getText()) : [];
+  let next = document
+    ? updateProgrammingLanguage(
+        updateSourceHash(sourceFile, createSourceHash(document.getText())),
+        document.languageId,
+      )
+    : sourceFile;
 
   switch (target.level) {
     case "file": {
@@ -55,11 +75,13 @@ export async function clearNoteStaleStatusService(input: ClearNoteStaleStatusInp
         return false;
       }
 
-      await input.notes.update.updateFileNoteStatus(
+      next = updateFileNoteStatus(next, status, now);
+
+      await input.notes.cache.saveSourceFile(
         resolvedRoot.rootDirectory,
         settings.outputDirectory,
         relativePath,
-        status,
+        next,
         now,
       );
       return true;
@@ -73,12 +95,22 @@ export async function clearNoteStaleStatusService(input: ClearNoteStaleStatusInp
         return false;
       }
 
-      await input.notes.update.updateSectionNoteStatus(
+      if (!isValidRange(section.range.startLine, section.range.endLine, lines.length)) {
+        return false;
+      }
+
+      next = updateSectionAnchorHash(
+        updateSectionNoteStatus(next, section.id, status, now),
+        section.id,
+        createSourceHash(getRangeText(lines, section.range.startLine, section.range.endLine)),
+        now,
+      );
+
+      await input.notes.cache.saveSourceFile(
         resolvedRoot.rootDirectory,
         settings.outputDirectory,
         relativePath,
-        section.id,
-        status,
+        next,
         now,
       );
       return true;
@@ -92,12 +124,22 @@ export async function clearNoteStaleStatusService(input: ClearNoteStaleStatusInp
         return false;
       }
 
-      await input.notes.update.updateLineNoteStatus(
+      if (!isValidLine(line.line, lines.length)) {
+        return false;
+      }
+
+      next = updateLineAnchorText(
+        updateLineNoteStatus(next, line.id, status, now),
+        line.id,
+        lines[line.line - 1] ?? "",
+        now,
+      );
+
+      await input.notes.cache.saveSourceFile(
         resolvedRoot.rootDirectory,
         settings.outputDirectory,
         relativePath,
-        line.id,
-        status,
+        next,
         now,
       );
       return true;
@@ -111,7 +153,37 @@ function getClearedStatus(status: NoteStatus | undefined): NoteStatus | undefine
   }
 
   return {
-    ...status,
     content: "current",
+    anchor: "confirmed",
   };
+}
+
+async function openTextDocument(uri: vscode.Uri): Promise<vscode.TextDocument | undefined> {
+  try {
+    return await vscode.workspace.openTextDocument(uri);
+  } catch {
+    return undefined;
+  }
+}
+
+function splitSourceLines(sourceText: string): string[] {
+  return sourceText.split(/\r\n|\r|\n/);
+}
+
+function getRangeText(lines: string[], startLine: number, endLine: number): string {
+  return lines.slice(startLine - 1, endLine).join("\n");
+}
+
+function isValidRange(startLine: number, endLine: number, lineCount: number): boolean {
+  return (
+    Number.isInteger(startLine) &&
+    Number.isInteger(endLine) &&
+    startLine >= 1 &&
+    endLine >= startLine &&
+    endLine <= lineCount
+  );
+}
+
+function isValidLine(line: number, lineCount: number): boolean {
+  return Number.isInteger(line) && line >= 1 && line <= lineCount;
 }

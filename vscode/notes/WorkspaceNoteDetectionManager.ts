@@ -3,8 +3,8 @@
  */
 
 import {
-  type ChangedSourceRangeNoteDetectionOptions,
-  type SourceFileNoteDetectionOptions,
+  type AffectedFileNotesDetectionOptions,
+  type FileNoteDetectionOptions,
 } from "@shared/services/notes/noteDetectionService";
 import {
   checkAndApplyChangedSourceRangeNoteStatus,
@@ -58,7 +58,7 @@ export class WorkspaceNoteDetectionManager {
     outputDirectory: string,
     relativeFilePath: string,
     sourceText: string,
-    options: SourceFileNoteDetectionOptions = {},
+    options: FileNoteDetectionOptions = {},
   ): Promise<SourceFileNoteCheckResult> {
     return this.checkEntireSourceFileNotes(workspaceRoot, outputDirectory, relativeFilePath, sourceText, options);
   }
@@ -81,7 +81,7 @@ export class WorkspaceNoteDetectionManager {
     outputDirectory: string,
     relativeFilePath: string,
     sourceText: string,
-    options: SourceFileNoteDetectionOptions = {},
+    options: FileNoteDetectionOptions = {},
   ): Promise<SourceFileNoteCheckResult> {
     return checkEntireSourceFileNotes(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sourceText, options);
   }
@@ -104,7 +104,7 @@ export class WorkspaceNoteDetectionManager {
     outputDirectory: string,
     relativeFilePath: string,
     sourceText: string,
-    options: ChangedSourceRangeNoteDetectionOptions,
+    options: AffectedFileNotesDetectionOptions,
   ): Promise<SourceFileNoteCheckResult> {
     return checkChangedSourceRangeNotes(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sourceText, options);
   }
@@ -128,7 +128,7 @@ export class WorkspaceNoteDetectionManager {
     outputDirectory: string,
     relativeFilePath: string,
     sourceText: string,
-    options: SourceFileNoteDetectionOptions = {},
+    options: FileNoteDetectionOptions = {},
     now: string,
   ): Promise<SourceFileNoteStatusApplyResult> {
     return checkAndApplyEntireSourceFileNoteStatus(
@@ -161,7 +161,7 @@ export class WorkspaceNoteDetectionManager {
     outputDirectory: string,
     relativeFilePath: string,
     sourceText: string,
-    options: ChangedSourceRangeNoteDetectionOptions,
+    options: AffectedFileNotesDetectionOptions,
     now: string,
   ): Promise<SourceFileNoteStatusApplyResult> {
     return checkAndApplyChangedSourceRangeNoteStatus(

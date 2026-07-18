@@ -11,7 +11,7 @@ import {
 } from "react";
 
 import type { NoteStatus, ResourceAiExplanation, UserNoteTarget } from "../types";
-import { NoteStatusBadges } from "./NoteStatusBadges";
+import { NoteStatusBadges, type NoteStatusBadgeScope } from "./NoteStatusBadges";
 import {
   UserNoteContextMenu,
   type UserNoteContextMenuItem,
@@ -121,6 +121,8 @@ export function NoteCard({
   const hasUserContent = Boolean(userNote?.trim());
   const hasAiContent = Boolean(formatAiNoteForClipboard(aiExplanation).trim());
   const hasActiveContent = selectedTab === "user" ? hasUserContent : hasAiContent;
+  const visibleStatus = getVisibleNoteStatus(status, selectedTab, hasUserContent, hasAiContent);
+  const statusScope = getNoteStatusBadgeScope(variant);
   const isEmpty = !hasActiveContent && !children;
   const cardClass = [
     "notes-card",
@@ -238,7 +240,7 @@ export function NoteCard({
           <h2 className="notes-card__title">{title}</h2>
           {headerAccessory}
         </div>
-        <NoteStatusBadges status={status} />
+        <NoteStatusBadges status={visibleStatus} scope={statusScope} />
         {showTabs ? <TabControl activeTab={selectedTab} onChange={selectTab} /> : null}
       </div>
       {children ?? (
@@ -278,17 +280,44 @@ export function NoteCard({
           showClear={contextMenuState.mode === "user"}
           clearDisabled={!onSaveUserNote || !editKey}
           onClear={contextMenuState.mode === "user" ? clearUserNote : undefined}
-          statusItems={getStatusMenuItems(status, Boolean(statusTarget && onClearStaleStatus), clearStale)}
+          statusItems={getStatusMenuItems(
+            visibleStatus,
+            Boolean(statusTarget && onClearStaleStatus),
+            clearStale,
+            statusScope,
+          )}
         />
       ) : null}
     </section>
   );
 }
 
+/**
+ * Keeps content freshness status scoped to the active User/AI tab.
+ *
+ * Anchor status still belongs to the resource target, so it remains visible even
+ * when the active tab has no content.
+ */
+export function getVisibleNoteStatus(
+  status: NoteStatus | undefined,
+  selectedTab: "user" | "ai",
+  hasUserContent: boolean,
+  hasAiContent: boolean,
+): NoteStatus | undefined {
+  if (!status || status.content !== "stale") {
+    return status;
+  }
+
+  const hasSelectedContent = selectedTab === "user" ? hasUserContent : hasAiContent;
+
+  return hasSelectedContent ? status : { ...status, content: "current" };
+}
+
 function getStatusMenuItems(
   status: NoteStatus | undefined,
   canClearStaleStatus: boolean,
   onClearStaleStatus: () => void,
+  scope: NoteStatusBadgeScope,
 ): UserNoteContextMenuItem[] {
   if (!status) {
     return [];
@@ -299,7 +328,7 @@ function getStatusMenuItems(
   if (status.content === "stale") {
     items.push({
       id: "clearStale",
-      label: "Clear Stale Status: Content Reviewed",
+      label: getClearContentStaleMenuLabel(scope),
       disabled: !canClearStaleStatus,
       onSelect: canClearStaleStatus ? onClearStaleStatus : undefined,
     });
@@ -308,12 +337,52 @@ function getStatusMenuItems(
   if (status.anchor === "needsConfirmation") {
     items.push({
       id: "relocate",
-      label: "Resolve Anchor: Relocate...",
+      label: getLocationReviewMenuLabel(scope),
       disabled: true,
     });
   }
 
   return items;
+}
+
+function getNoteStatusBadgeScope(variant: NoteCardVariant): NoteStatusBadgeScope {
+  if (variant === "file" || variant === "section" || variant === "line") {
+    return variant;
+  }
+
+  return "default";
+}
+
+function getClearContentStaleMenuLabel(scope: NoteStatusBadgeScope): string {
+  if (scope === "file") {
+    return "Clear Content Stale: Mark File Note Reviewed";
+  }
+
+  if (scope === "section") {
+    return "Clear Content Stale: Mark Section Note Reviewed";
+  }
+
+  if (scope === "line") {
+    return "Clear Content Stale: Mark Line Note Reviewed";
+  }
+
+  return "Clear Stale Status: Content Reviewed";
+}
+
+function getLocationReviewMenuLabel(scope: NoteStatusBadgeScope): string {
+  if (scope === "section") {
+    return "Location Review: Relocate Section...";
+  }
+
+  if (scope === "line") {
+    return "Location Review: Relocate Line...";
+  }
+
+  if (scope === "file") {
+    return "Location Review: Relocate File...";
+  }
+
+  return "Resolve Anchor: Relocate...";
 }
 
 function UserNoteContent({

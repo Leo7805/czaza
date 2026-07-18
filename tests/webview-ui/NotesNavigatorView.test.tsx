@@ -91,7 +91,7 @@ describe("NotesNavigatorView", () => {
     expect(markup).toContain("notes-navigator__item-meta");
     expect(markup).toContain("note-status-badge--stale");
     expect(markup).toContain("note-status-badge--orphaned");
-    expect(markup).toContain("Stale");
+    expect(markup).toContain("Content stale");
     expect(markup).toContain("Orphaned");
   });
 

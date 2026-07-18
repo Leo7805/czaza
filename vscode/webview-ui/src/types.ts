@@ -392,6 +392,20 @@ export type WebviewToExtensionMessage =
       /** CZaza-root-relative source path for the notes bundle. */
       relativePath: string;
     }
+  | {
+      /** Deletes one section note from the current Navigator resource. */
+      type: "deleteNavigatorSectionNote";
+
+      /** Stable section note id. */
+      sectionId: string;
+    }
+  | {
+      /** Deletes one line note from the current Navigator resource. */
+      type: "deleteNavigatorLineNote";
+
+      /** Stable line note id. */
+      lineId: string;
+    }
 	  | {
 	      /** Opens or shows one resource selected from the Navigator Files list. */
 	      type: "openNavigatorResource";

@@ -3,9 +3,9 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { SourceFileNoteDetectionReport } from "@shared/services/notes/noteDetectionService";
+import type { FileNotesDetectionReport } from "@shared/services/notes/noteDetectionService";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import { applySourceFileNoteDetectionReport } from "@shared/services/notes/noteDetectionApplyService";
+import { applyFileNotesDetectionReport } from "@shared/services/notes/noteDetectionApplyService";
 
 const createdAt = "2026-07-12T00:00:00.000Z";
 const now = "2026-07-13T00:00:00.000Z";
@@ -14,7 +14,7 @@ describe("noteDetectionApplyService", () => {
   it("applies file, section, and line statuses from a detection report", () => {
     const sourceFile = createStoredSourceFile();
     const report = createDetectionReport();
-    const updated = applySourceFileNoteDetectionReport(sourceFile, report, now);
+    const updated = applyFileNotesDetectionReport(sourceFile, report, now);
 
     expect(updated.fileNote).toMatchObject({
       status: {
@@ -70,7 +70,7 @@ describe("noteDetectionApplyService", () => {
         },
       ],
     };
-    const updated = applySourceFileNoteDetectionReport(sourceFile, report, now);
+    const updated = applyFileNotesDetectionReport(sourceFile, report, now);
 
     expect(updated.sectionNotes[0]?.status).toEqual({
       content: "current",
@@ -90,6 +90,64 @@ describe("noteDetectionApplyService", () => {
     });
   });
 
+  it("does not clear existing stale or location review statuses when detection matches", () => {
+    const sourceFile = createStoredSourceFile();
+    sourceFile.fileNote!.status = {
+      content: "stale",
+      anchor: "confirmed",
+    };
+    sourceFile.sectionNotes[0]!.status = {
+      content: "stale",
+      anchor: "confirmed",
+    };
+    sourceFile.lineNotes[0]!.status = {
+      content: "stale",
+      anchor: "needsConfirmation",
+    };
+    const report = {
+      ...createDetectionReport(),
+      file: {
+        ...createDetectionReport().file,
+        status: {
+          content: "current" as const,
+          anchor: "confirmed" as const,
+        },
+      },
+      sections: [
+        {
+          ...createDetectionReport().sections[0],
+          status: {
+            content: "current" as const,
+            anchor: "confirmed" as const,
+          },
+        },
+      ],
+      lines: [
+        {
+          ...createDetectionReport().lines[0],
+          status: {
+            content: "current" as const,
+            anchor: "confirmed" as const,
+          },
+        },
+      ],
+    };
+    const updated = applyFileNotesDetectionReport(sourceFile, report, now);
+
+    expect(updated.fileNote?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+    expect(updated.sectionNotes[0]?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+    expect(updated.lineNotes[0]?.status).toEqual({
+      content: "stale",
+      anchor: "needsConfirmation",
+    });
+  });
+
   it("does not create a file note when applying a file detection status", () => {
     const sourceFile = createStoredSourceFile();
     const sourceFileWithoutFileNote = {
@@ -97,7 +155,7 @@ describe("noteDetectionApplyService", () => {
       sectionNotes: sourceFile.sectionNotes,
       lineNotes: sourceFile.lineNotes,
     };
-    const updated = applySourceFileNoteDetectionReport(sourceFileWithoutFileNote, createDetectionReport(), now);
+    const updated = applyFileNotesDetectionReport(sourceFileWithoutFileNote, createDetectionReport(), now);
 
     expect(updated.fileNote).toBeUndefined();
   });
@@ -199,7 +257,7 @@ function createStoredSourceFile(): StoredSourceFile {
  * @example
  * const report = createDetectionReport();
  */
-function createDetectionReport(): SourceFileNoteDetectionReport {
+function createDetectionReport(): FileNotesDetectionReport {
   return {
     file: {
       status: {

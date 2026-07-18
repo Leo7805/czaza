@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   getStoredNavigatorFileNotes: vi.fn(),
   clearNoteStaleStatusService: vi.fn(),
   deleteNavigatorFileNotesService: vi.fn(),
+  deleteNavigatorLineNoteService: vi.fn(),
+  deleteNavigatorSectionNoteService: vi.fn(),
   markNavigatorFileNoteOrphanedService: vi.fn(),
   relocateNavigatorFileNoteService: vi.fn(),
   ensureFileNoteResourceAvailability: vi.fn(),
@@ -54,6 +56,14 @@ vi.mock("@vscode/services/clearNoteStaleStatusService", () => ({
 
 vi.mock("@vscode/services/deleteNavigatorFileNotesService", () => ({
   deleteNavigatorFileNotesService: mocks.deleteNavigatorFileNotesService,
+}));
+
+vi.mock("@vscode/services/deleteNavigatorLineNoteService", () => ({
+  deleteNavigatorLineNoteService: mocks.deleteNavigatorLineNoteService,
+}));
+
+vi.mock("@vscode/services/deleteNavigatorSectionNoteService", () => ({
+  deleteNavigatorSectionNoteService: mocks.deleteNavigatorSectionNoteService,
 }));
 
 vi.mock("@vscode/services/markNavigatorFileNoteOrphanedService", () => ({
@@ -180,6 +190,8 @@ describe("NotesViewProvider", () => {
     vi.clearAllMocks();
     mocks.clearNoteStaleStatusService.mockReset();
     mocks.deleteNavigatorFileNotesService.mockReset();
+    mocks.deleteNavigatorLineNoteService.mockReset();
+    mocks.deleteNavigatorSectionNoteService.mockReset();
     mocks.getStoredNavigatorFileNotes.mockReset();
     mocks.markNavigatorFileNoteOrphanedService.mockReset();
     mocks.relocateNavigatorFileNoteService.mockReset();
@@ -1347,6 +1359,110 @@ describe("NotesViewProvider", () => {
       currentUri: uri,
       notes: {},
       relativePath: "src/index.ts",
+    });
+
+    provider.dispose();
+  });
+
+  it("deletes a Navigator section note and refreshes the current notes", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.deleteNavigatorSectionNoteService.mockResolvedValue(undefined);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "tmp",
+      currentFile: "current.ts",
+      files: [],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    provider.postViewMode("navigator");
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.getResourceNotes.mockClear();
+    mocks.getNavigatorNotes.mockClear();
+
+    mocks.messageListeners[0]?.({
+      type: "deleteNavigatorSectionNote",
+      sectionId: "section:run:1-3",
+    });
+
+    await vi.waitFor(() => expect(mocks.deleteNavigatorSectionNoteService).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
+    expect(mocks.deleteNavigatorSectionNoteService).toHaveBeenCalledWith({
+      currentUri: uri,
+      notes: {},
+      sectionId: "section:run:1-3",
+    });
+
+    provider.dispose();
+  });
+
+  it("deletes a Navigator line note and refreshes the current notes", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.deleteNavigatorLineNoteService.mockResolvedValue(undefined);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "tmp",
+      currentFile: "current.ts",
+      files: [],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    provider.postViewMode("navigator");
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.getResourceNotes.mockClear();
+    mocks.getNavigatorNotes.mockClear();
+
+    mocks.messageListeners[0]?.({
+      type: "deleteNavigatorLineNote",
+      lineId: "line:3",
+    });
+
+    await vi.waitFor(() => expect(mocks.deleteNavigatorLineNoteService).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
+    expect(mocks.deleteNavigatorLineNoteService).toHaveBeenCalledWith({
+      currentUri: uri,
+      notes: {},
+      lineId: "line:3",
     });
 
     provider.dispose();

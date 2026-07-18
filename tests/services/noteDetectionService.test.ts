@@ -5,9 +5,12 @@
 import { describe, expect, it } from "vitest";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import {
-  detectChangedSourceRangeNotes,
-  detectEntireSourceFileNotes,
-  detectSourceFileNotes,
+  detectAffectedFileNotes,
+  detectFileNotes,
+  detectLineNote,
+  detectLineNotes,
+  detectSectionNote,
+  detectSectionNotes,
 } from "@shared/services/notes/noteDetectionService";
 import { createSourceHash } from "@shared/utils/hashUtils";
 
@@ -20,7 +23,7 @@ const sourceText = [
 describe("noteDetectionService", () => {
   it("reports matched file, section, and line anchors", () => {
     const sourceFile = createStoredSourceFile(sourceText);
-    const report = detectSourceFileNotes(sourceText, sourceFile);
+    const report = detectFileNotes(sourceText, sourceFile);
 
     expect(report.file).toEqual({
       status: {
@@ -68,7 +71,7 @@ describe("noteDetectionService", () => {
   it("reports file source hash changes", () => {
     const sourceFile = createStoredSourceFile(sourceText);
     const nextSourceText = sourceText.replace("const third", "const total");
-    const report = detectSourceFileNotes(nextSourceText, sourceFile);
+    const report = detectFileNotes(nextSourceText, sourceFile);
 
     expect(report.file).toEqual({
       status: {
@@ -86,7 +89,7 @@ describe("noteDetectionService", () => {
 
   it("reports programming language changes when current language metadata is provided", () => {
     const sourceFile = createStoredSourceFile(sourceText);
-    const report = detectSourceFileNotes(sourceText, sourceFile, {
+    const report = detectFileNotes(sourceText, sourceFile, {
       programmingLanguage: "typescriptreact",
     });
 
@@ -109,7 +112,7 @@ describe("noteDetectionService", () => {
   it("reports section anchors that need confirmation when range text changes", () => {
     const sourceFile = createStoredSourceFile(sourceText);
     const nextSourceText = sourceText.replace("const second = 2;", "const second = 20;");
-    const report = detectSourceFileNotes(nextSourceText, sourceFile);
+    const report = detectFileNotes(nextSourceText, sourceFile);
 
     expect(report.sections).toEqual([
       {
@@ -129,7 +132,7 @@ describe("noteDetectionService", () => {
     ]);
   });
 
-  it("reports orphaned section anchors when the range is out of bounds", () => {
+  it("reports section anchors that need confirmation when the range is out of bounds", () => {
     const sourceFile = {
       ...createStoredSourceFile(sourceText),
       sectionNotes: [
@@ -142,14 +145,14 @@ describe("noteDetectionService", () => {
         },
       ],
     };
-    const report = detectSourceFileNotes(sourceText, sourceFile);
+    const report = detectFileNotes(sourceText, sourceFile);
 
     expect(report.sections).toEqual([
       {
         id: "section:1",
         status: {
           content: "stale",
-          anchor: "orphaned",
+          anchor: "needsConfirmation",
         },
         reason: "rangeOutOfBounds",
         range: {
@@ -164,7 +167,7 @@ describe("noteDetectionService", () => {
   it("reports line anchors that need confirmation when line text changes", () => {
     const sourceFile = createStoredSourceFile(sourceText);
     const nextSourceText = sourceText.replace("const second = 2;", "const second = 20;");
-    const report = detectSourceFileNotes(nextSourceText, sourceFile);
+    const report = detectFileNotes(nextSourceText, sourceFile);
 
     expect(report.lines).toEqual([
       {
@@ -181,7 +184,7 @@ describe("noteDetectionService", () => {
     ]);
   });
 
-  it("reports orphaned line anchors when the line is out of bounds", () => {
+  it("reports line anchors that need confirmation when the line is out of bounds", () => {
     const sourceFile = {
       ...createStoredSourceFile(sourceText),
       lineNotes: [
@@ -191,28 +194,20 @@ describe("noteDetectionService", () => {
         },
       ],
     };
-    const report = detectSourceFileNotes(sourceText, sourceFile);
+    const report = detectFileNotes(sourceText, sourceFile);
 
     expect(report.lines).toEqual([
       {
         id: "line:2",
         status: {
           content: "stale",
-          anchor: "orphaned",
+          anchor: "needsConfirmation",
         },
         reason: "lineOutOfBounds",
         line: 4,
         previousAnchorText: "const second = 2;",
       },
     ]);
-  });
-
-  it("detects the entire source file through the semantic wrapper", () => {
-    const sourceFile = createStoredSourceFile(sourceText);
-
-    expect(detectEntireSourceFileNotes(sourceText, sourceFile)).toEqual(
-      detectSourceFileNotes(sourceText, sourceFile),
-    );
   });
 
   it("detects only section and line notes affected by a changed start line", () => {
@@ -223,7 +218,7 @@ describe("noteDetectionService", () => {
       "const third = 30;",
       "const fourth = 4;",
     ].join("\n");
-    const report = detectChangedSourceRangeNotes(nextSourceText, sourceFile, {
+    const report = detectAffectedFileNotes(nextSourceText, sourceFile, {
       changedStartLine: 3,
       programmingLanguage: "typescript",
     });
@@ -241,9 +236,60 @@ describe("noteDetectionService", () => {
     expect(report.lines.map((line) => line.id)).toEqual(["line:3"]);
   });
 
+  it("detects one section note directly", () => {
+    const sectionNote = createStoredSourceFile(sourceText).sectionNotes[0]!;
+
+    expect(detectSectionNote(sourceText, sectionNote)).toEqual({
+      id: "section:1",
+      status: {
+        content: "current",
+        anchor: "confirmed",
+      },
+      reason: "anchorHashMatched",
+      range: {
+        startLine: 1,
+        endLine: 2,
+      },
+      previousAnchorHash: createSourceHash(["const first = 1;", "const second = 2;"].join("\n")),
+      currentAnchorHash: createSourceHash(["const first = 1;", "const second = 2;"].join("\n")),
+    });
+  });
+
+  it("detects multiple section notes directly", () => {
+    const sourceFile = createStoredSourceFileWithMultipleNotes(sourceText);
+    const nextSourceText = sourceText.replace("const third = first + second;", "const third = 30;");
+
+    expect(detectSectionNotes(nextSourceText, sourceFile.sectionNotes).map((result) => result.reason))
+      .toEqual(["anchorHashMatched", "anchorHashChanged", "anchorHashChanged"]);
+  });
+
+  it("detects one line note directly", () => {
+    const lineNote = createStoredSourceFile(sourceText).lineNotes[0]!;
+
+    expect(detectLineNote(sourceText, lineNote)).toEqual({
+      id: "line:2",
+      status: {
+        content: "current",
+        anchor: "confirmed",
+      },
+      reason: "anchorTextMatched",
+      line: 2,
+      previousAnchorText: "const second = 2;",
+      currentAnchorText: "const second = 2;",
+    });
+  });
+
+  it("detects multiple line notes directly", () => {
+    const sourceFile = createStoredSourceFileWithMultipleNotes(sourceText);
+    const nextSourceText = sourceText.replace("const third = first + second;", "const third = 30;");
+
+    expect(detectLineNotes(nextSourceText, sourceFile.lineNotes).map((result) => result.reason))
+      .toEqual(["anchorTextMatched", "anchorTextChanged"]);
+  });
+
   it("throws when changed source range detection receives an invalid start line", () => {
     expect(() =>
-      detectChangedSourceRangeNotes(sourceText, createStoredSourceFile(sourceText), {
+      detectAffectedFileNotes(sourceText, createStoredSourceFile(sourceText), {
         changedStartLine: 0,
       }),
     ).toThrow("Invalid changed source range: changedStartLine must be a positive integer.");

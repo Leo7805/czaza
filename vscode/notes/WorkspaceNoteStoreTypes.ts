@@ -3,7 +3,7 @@
  */
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import type { SourceFileNoteDetectionReport } from "@shared/services/notes/noteDetectionService";
+import type { FileNotesDetectionReport } from "@shared/services/notes/noteDetectionService";
 
 /**
  * Result returned when checking notes for the current source file.
@@ -26,7 +26,7 @@ export type SourceFileNoteCheckResult =
       sourceFile: StoredSourceFile;
 
       /** Pure detection report for file, section, and line notes. */
-      report: SourceFileNoteDetectionReport;
+      report: FileNotesDetectionReport;
     }
   | {
       /** The workspace index does not contain the current source path. */
@@ -67,7 +67,7 @@ export type SourceFileNoteStatusApplyResult =
       updatedSourceFile: StoredSourceFile;
 
       /** Detection report used to update statuses. */
-      report: SourceFileNoteDetectionReport;
+      report: FileNotesDetectionReport;
     }
   | {
       /** The workspace index does not contain the current source path. */

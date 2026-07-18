@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { NavigatorFileItem, NavigatorNotesViewModel, NoteStatus } from "../types";
+import type {
+  NavigatorFileItem,
+  NavigatorLineItem,
+  NavigatorNotesViewModel,
+  NavigatorSectionItem,
+  NoteStatus,
+} from "../types";
 import { getVsCodeApi } from "../vscodeApi";
 import {
   NavigatorItemContextMenu,
@@ -22,6 +28,16 @@ type FileContextMenuState = {
   item: NavigatorFileItem;
 };
 
+type SectionContextMenuState = {
+  position: NavigatorItemContextMenuPosition;
+  item: NavigatorSectionItem;
+};
+
+type LineContextMenuState = {
+  position: NavigatorItemContextMenuPosition;
+  item: NavigatorLineItem;
+};
+
 type RelocateModalState = {
   fromRelativePath: string;
 };
@@ -32,6 +48,16 @@ type MarkOrphanedModalState = {
 
 type DeleteNotesModalState = {
   relativePath: string;
+};
+
+type DeleteSectionModalState = {
+  sectionId: string;
+  title: string;
+};
+
+type DeleteLineModalState = {
+  lineId: string;
+  line: number;
 };
 
 type RelocatedFileNote = {
@@ -198,9 +224,17 @@ function NavigatorList({
   relocateTargetPath?: string;
 }) {
   const [fileContextMenu, setFileContextMenu] = useState<FileContextMenuState | null>(null);
+  const [sectionContextMenu, setSectionContextMenu] = useState<SectionContextMenuState | null>(
+    null,
+  );
+  const [lineContextMenu, setLineContextMenu] = useState<LineContextMenuState | null>(null);
   const [relocateModal, setRelocateModal] = useState<RelocateModalState | null>(null);
   const [markOrphanedModal, setMarkOrphanedModal] = useState<MarkOrphanedModalState | null>(null);
   const [deleteNotesModal, setDeleteNotesModal] = useState<DeleteNotesModalState | null>(null);
+  const [deleteSectionModal, setDeleteSectionModal] = useState<DeleteSectionModalState | null>(
+    null,
+  );
+  const [deleteLineModal, setDeleteLineModal] = useState<DeleteLineModalState | null>(null);
   const handledRelocationSequence = useRef(0);
 
   useEffect(() => {
@@ -295,6 +329,30 @@ function NavigatorList({
       relativePath,
     });
   };
+  const clearNavigatorSectionStaleStatus = (sectionId: string): void => {
+    getVsCodeApi()?.postMessage({
+      type: "clearNoteStaleStatus",
+      target: { level: "section", sectionId },
+    });
+  };
+  const deleteNavigatorSectionNote = (sectionId: string): void => {
+    getVsCodeApi()?.postMessage({
+      type: "deleteNavigatorSectionNote",
+      sectionId,
+    });
+  };
+  const clearNavigatorLineStaleStatus = (line: number): void => {
+    getVsCodeApi()?.postMessage({
+      type: "clearNoteStaleStatus",
+      target: { level: "line", line },
+    });
+  };
+  const deleteNavigatorLineNote = (lineId: string): void => {
+    getVsCodeApi()?.postMessage({
+      type: "deleteNavigatorLineNote",
+      lineId,
+    });
+  };
 
   return (
     <>
@@ -344,7 +402,7 @@ function NavigatorList({
                   <span className="notes-navigator__item-preview">{item.preview}</span>
                 </span>
                 <span className="notes-navigator__item-meta">
-                  <NoteStatusBadges status={item.status} />
+                  <NoteStatusBadges status={item.status} scope="file" />
                 </span>
               </li>
             );
@@ -360,6 +418,14 @@ function NavigatorList({
                 role="button"
                 tabIndex={0}
                 onClick={() => openNavigatorSection(item)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setSectionContextMenu({
+                    item,
+                    position: { x: event.clientX, y: event.clientY },
+                  });
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
@@ -373,10 +439,10 @@ function NavigatorList({
                   <span>{item.preview}</span>
                 </span>
                 <span className="notes-navigator__item-meta">
+                  <NoteStatusBadges status={item.status} scope="section" />
                   <span className="notes-navigator__item-location">
                     L{item.startLine}-{item.endLine}
                   </span>
-                  <NoteStatusBadges status={item.status} />
                 </span>
               </li>
             );
@@ -392,6 +458,14 @@ function NavigatorList({
                 role="button"
                 tabIndex={0}
                 onClick={() => openNavigatorLine(item.line)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setLineContextMenu({
+                    item,
+                    position: { x: event.clientX, y: event.clientY },
+                  });
+                }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
@@ -405,7 +479,7 @@ function NavigatorList({
                   <span>{item.preview}</span>
                 </span>
                 <span className="notes-navigator__item-meta">
-                  <NoteStatusBadges status={item.status} />
+                  <NoteStatusBadges status={item.status} scope="line" />
                 </span>
               </li>
             );
@@ -439,6 +513,42 @@ function NavigatorList({
           )}
           position={fileContextMenu.position}
           onClose={() => setFileContextMenu(null)}
+        />
+      ) : null}
+      {sectionContextMenu ? (
+        <NavigatorItemContextMenu
+          items={getSectionContextMenuItems(
+            sectionContextMenu.item.status,
+            () => openNavigatorSection(sectionContextMenu.item),
+            () => clearNavigatorSectionStaleStatus(sectionContextMenu.item.id),
+            () => {
+              setDeleteSectionModal({
+                sectionId: sectionContextMenu.item.id,
+                title: sectionContextMenu.item.title || "Untitled section",
+              });
+              setSectionContextMenu(null);
+            },
+          )}
+          position={sectionContextMenu.position}
+          onClose={() => setSectionContextMenu(null)}
+        />
+      ) : null}
+      {lineContextMenu ? (
+        <NavigatorItemContextMenu
+          items={getLineContextMenuItems(
+            lineContextMenu.item.status,
+            () => openNavigatorLine(lineContextMenu.item.line),
+            () => clearNavigatorLineStaleStatus(lineContextMenu.item.line),
+            () => {
+              setDeleteLineModal({
+                lineId: lineContextMenu.item.id,
+                line: lineContextMenu.item.line,
+              });
+              setLineContextMenu(null);
+            },
+          )}
+          position={lineContextMenu.position}
+          onClose={() => setLineContextMenu(null)}
         />
       ) : null}
       {relocateModal ? (
@@ -497,6 +607,52 @@ function NavigatorList({
           onDismiss={() => setDeleteNotesModal(null)}
         />
       ) : null}
+      {deleteSectionModal ? (
+        <NoticeModal
+          tone="error"
+          title="Delete Section Note?"
+          message={`This will permanently remove the section note "${deleteSectionModal.title}". File notes, line notes, and source code will not be deleted.`}
+          actions={[
+            {
+              label: "Cancel",
+              variant: "secondary",
+              onClick: () => setDeleteSectionModal(null),
+            },
+            {
+              label: "Delete Section",
+              variant: "primary",
+              onClick: () => {
+                deleteNavigatorSectionNote(deleteSectionModal.sectionId);
+                setDeleteSectionModal(null);
+              },
+            },
+          ]}
+          onDismiss={() => setDeleteSectionModal(null)}
+        />
+      ) : null}
+      {deleteLineModal ? (
+        <NoticeModal
+          tone="error"
+          title="Delete Line Note?"
+          message={`This will permanently remove the note for line ${deleteLineModal.line}. File notes, section notes, and source code will not be deleted.`}
+          actions={[
+            {
+              label: "Cancel",
+              variant: "secondary",
+              onClick: () => setDeleteLineModal(null),
+            },
+            {
+              label: "Delete Line",
+              variant: "primary",
+              onClick: () => {
+                deleteNavigatorLineNote(deleteLineModal.lineId);
+                setDeleteLineModal(null);
+              },
+            },
+          ]}
+          onDismiss={() => setDeleteLineModal(null)}
+        />
+      ) : null}
     </>
   );
 }
@@ -519,7 +675,7 @@ function getFileContextMenuItems(
       ? [
           {
             id: "clearStale" as const,
-            label: "Clear Stale Status: Content Reviewed",
+            label: "Clear Content Stale: Mark File Note Reviewed",
             onSelect: onClearStaleStatus,
           },
         ]
@@ -542,6 +698,64 @@ function getFileContextMenuItems(
       id: "delete",
       label: "Delete Notes...",
       onSelect: onDeleteNotes,
+    },
+  ];
+}
+
+function getSectionContextMenuItems(
+  status: NoteStatus | undefined,
+  onViewNotes: () => void,
+  onClearStaleStatus: () => void,
+  onDeleteNote: () => void,
+): NavigatorItemContextMenuItem[] {
+  return [
+    {
+      id: "viewNotes",
+      label: "View Notes",
+      onSelect: onViewNotes,
+    },
+    ...(status?.content === "stale"
+      ? [
+          {
+            id: "clearStale" as const,
+            label: "Clear Content Stale: Mark Section Reviewed",
+            onSelect: onClearStaleStatus,
+          },
+        ]
+      : []),
+    {
+      id: "delete",
+      label: "Delete Section Note...",
+      onSelect: onDeleteNote,
+    },
+  ];
+}
+
+function getLineContextMenuItems(
+  status: NoteStatus | undefined,
+  onViewNotes: () => void,
+  onClearStaleStatus: () => void,
+  onDeleteNote: () => void,
+): NavigatorItemContextMenuItem[] {
+  return [
+    {
+      id: "viewNotes",
+      label: "View Notes",
+      onSelect: onViewNotes,
+    },
+    ...(status?.content === "stale"
+      ? [
+          {
+            id: "clearStale" as const,
+            label: "Clear Content Stale: Mark Line Reviewed",
+            onSelect: onClearStaleStatus,
+          },
+        ]
+      : []),
+    {
+      id: "delete",
+      label: "Delete Line Note...",
+      onSelect: onDeleteNote,
     },
   ];
 }

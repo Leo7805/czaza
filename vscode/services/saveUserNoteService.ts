@@ -194,6 +194,17 @@ async function saveSectionUserNote(
     throw new Error(`Section note no longer exists: ${sectionId}`);
   }
 
+  if (shouldDeleteUserOnlyNote(existing, userNote)) {
+    await notes.crud.deleteSectionNote(
+      location.workspaceRoot,
+      location.outputDirectory,
+      location.relativePath,
+      sectionId,
+      location.now,
+    );
+    return;
+  }
+
   await notes.crud.upsertSectionNote(
     location.workspaceRoot,
     location.outputDirectory,
@@ -235,6 +246,17 @@ async function saveLineUserNote(
         createdBy: "user" as const,
       };
 
+  if (existing && shouldDeleteUserOnlyNote(existing, userNote)) {
+    await notes.crud.deleteLineNote(
+      location.workspaceRoot,
+      location.outputDirectory,
+      location.relativePath,
+      existing.id,
+      location.now,
+    );
+    return;
+  }
+
   await notes.crud.upsertLineNote(
     location.workspaceRoot,
     location.outputDirectory,
@@ -256,6 +278,13 @@ function replaceUserNote<TNote extends { userNote?: string }>(
   }
 
   return next;
+}
+
+function shouldDeleteUserOnlyNote<TNote extends { aiExplanation?: unknown }>(
+  note: TNote,
+  userNote: string | undefined,
+): boolean {
+  return !userNote && !note.aiExplanation;
 }
 
 function normalizeUserNote(value: string): string | undefined {

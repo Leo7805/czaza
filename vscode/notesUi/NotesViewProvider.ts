@@ -26,6 +26,8 @@ import {
 import { getStoredNavigatorFileNotes } from "@vscode/services/getStoredNavigatorFileNotesService";
 import { clearNoteStaleStatusService } from "@vscode/services/clearNoteStaleStatusService";
 import { deleteNavigatorFileNotesService } from "@vscode/services/deleteNavigatorFileNotesService";
+import { deleteNavigatorLineNoteService } from "@vscode/services/deleteNavigatorLineNoteService";
+import { deleteNavigatorSectionNoteService } from "@vscode/services/deleteNavigatorSectionNoteService";
 import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavigatorFileNoteOrphanedService";
 import { relocateNavigatorFileNoteService } from "@vscode/services/relocateNavigatorFileNoteService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
@@ -125,6 +127,20 @@ type NotesWebviewMessage =
 
       /** CZaza-root-relative source path for the notes bundle. */
       relativePath: string;
+    }
+  | {
+      /** Deletes one section note from the current Navigator resource. */
+      type: "deleteNavigatorSectionNote";
+
+      /** Stable section note id. */
+      sectionId: string;
+    }
+  | {
+      /** Deletes one line note from the current Navigator resource. */
+      type: "deleteNavigatorLineNote";
+
+      /** Stable line note id. */
+      lineId: string;
     }
 	  | {
 	      /** Opens or shows one resource selected from the Navigator Files list. */
@@ -340,6 +356,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
       if (message.type === "deleteNavigatorFileNotes") {
         void this.runDeleteNavigatorFileNotes(message.relativePath);
+        return;
+      }
+
+      if (message.type === "deleteNavigatorSectionNote") {
+        void this.runDeleteNavigatorSectionNote(message.sectionId);
+        return;
+      }
+
+      if (message.type === "deleteNavigatorLineNote") {
+        void this.runDeleteNavigatorLineNote(message.lineId);
         return;
       }
 
@@ -1117,6 +1143,54 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
+  private async runDeleteNavigatorSectionNote(sectionId: string): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || !sectionId) {
+      return;
+    }
+
+    try {
+      await deleteNavigatorSectionNoteService({
+        currentUri,
+        notes: this.notes,
+        sectionId,
+      });
+      await this.refreshCurrentNotes(currentUri);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      await this.postNotice({
+        tone: "error",
+        title: "Delete Section Failed",
+        message,
+      });
+    }
+  }
+
+  private async runDeleteNavigatorLineNote(lineId: string): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || !lineId) {
+      return;
+    }
+
+    try {
+      await deleteNavigatorLineNoteService({
+        currentUri,
+        notes: this.notes,
+        lineId,
+      });
+      await this.refreshCurrentNotes(currentUri);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      await this.postNotice({
+        tone: "error",
+        title: "Delete Line Failed",
+        message,
+      });
+    }
+  }
+
   private async postActiveNavigatorRelocateTargetPath(uri?: vscode.Uri): Promise<void> {
     if (!this.isNavigatorRelocatePathSyncActive || !this.view) {
       return;
@@ -1220,6 +1294,7 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     startLine?: unknown;
     endLine?: unknown;
     line?: unknown;
+    lineId?: unknown;
     lineScope?: unknown;
     target?: unknown;
     userNote?: unknown;
@@ -1250,6 +1325,8 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     candidate.type === "stopNavigatorFileRelocatePathSync" ||
     (candidate.type === "markNavigatorFileNoteOrphaned" && typeof candidate.relativePath === "string") ||
     (candidate.type === "deleteNavigatorFileNotes" && typeof candidate.relativePath === "string") ||
+    (candidate.type === "deleteNavigatorSectionNote" && typeof candidate.sectionId === "string") ||
+    (candidate.type === "deleteNavigatorLineNote" && typeof candidate.lineId === "string") ||
 	    (candidate.type === "openNavigatorResource" && typeof candidate.relativePath === "string") ||
     (candidate.type === "openNavigatorSection" &&
       typeof candidate.sectionId === "string" &&

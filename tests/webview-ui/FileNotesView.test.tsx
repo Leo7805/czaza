@@ -147,6 +147,95 @@ describe("FileNotesView", () => {
     expect(markup).not.toContain("user-note-edit-button");
   });
 
+  it("does not show stale status on an empty User Notes tab when only AI notes exist", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "regenerate",
+      fileNote: {
+        aiExplanation: {
+          summary: "File AI note.",
+          detail: "File AI detail.",
+        },
+        status: {
+          content: "stale",
+          anchor: "confirmed",
+        },
+      },
+      sectionNotes: [],
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup).not.toContain("note-status-badge--stale");
+    expect(markup).not.toContain("Stale");
+  });
+
+  it("shows stale status on the AI Notes tab when AI notes exist", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "regenerate",
+      revealAiNotes: "fileSection",
+      fileNote: {
+        aiExplanation: {
+          summary: "File AI note.",
+          detail: "File AI detail.",
+        },
+        status: {
+          content: "stale",
+          anchor: "confirmed",
+        },
+      },
+      sectionNotes: [],
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup).toContain("note-status-badge--stale");
+    expect(markup).toContain("Content stale");
+  });
+
+  it("shows section and line note status with explicit content and location labels", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "regenerate",
+      activeLine: 12,
+      sectionNotes: [
+        {
+          id: "section:first",
+          title: "Run function",
+          startLine: 1,
+          endLine: 20,
+          userNote: "Review section.",
+          status: {
+            content: "stale",
+            anchor: "needsConfirmation",
+          },
+        },
+      ],
+      lineNote: {
+        id: "line:12",
+        line: 12,
+        userNote: "Review line.",
+        status: {
+          content: "stale",
+          anchor: "needsConfirmation",
+        },
+      },
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup.match(/Content stale/g)).toHaveLength(2);
+    expect(markup.match(/Location review/g)).toHaveLength(2);
+    expect(markup).not.toContain("Needs confirmation");
+  });
+
   it("shows line AI notes after successful All Notes generation", () => {
     const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
       kind: "file",
