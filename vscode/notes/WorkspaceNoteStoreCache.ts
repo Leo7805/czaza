@@ -131,6 +131,28 @@ export class WorkspaceNoteStoreCache {
   }
 
   /**
+   * Deletes one cached stored source-file note JSON.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Normalized workspace-relative source file path.
+   * @param noteFile - Note file path relative to the notes directory.
+   * @returns Promise that resolves after the note file is removed.
+   */
+  async deleteSourceFileNoteFile(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+    noteFile: string,
+  ): Promise<void> {
+    await this.repository.deleteSourceFileNoteFile(workspaceRoot, outputDirectory, noteFile);
+    this.sourceFileCache.set(
+      getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath),
+      undefined,
+    );
+  }
+
+  /**
    * Reads one source file and throws when it has not been initialized.
    *
    * @param workspaceRoot - Absolute workspace root path.

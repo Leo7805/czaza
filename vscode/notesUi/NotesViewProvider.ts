@@ -8,7 +8,10 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
-import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
+import {
+  getCzazaRelativePath,
+  resolveCzazaRootDirectory,
+} from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import { ensureFileNoteResourceAvailability } from "@vscode/services/ensureFileNoteResourceAvailabilityService";
 import {
@@ -20,7 +23,11 @@ import {
   type ResourceNotesResult,
   type ResourceSectionNoteContent,
 } from "@vscode/services/getResourceNotesService";
+import { getStoredNavigatorFileNotes } from "@vscode/services/getStoredNavigatorFileNotesService";
 import { clearNoteStaleStatusService } from "@vscode/services/clearNoteStaleStatusService";
+import { deleteNavigatorFileNotesService } from "@vscode/services/deleteNavigatorFileNotesService";
+import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavigatorFileNoteOrphanedService";
+import { relocateNavigatorFileNoteService } from "@vscode/services/relocateNavigatorFileNoteService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
 
 /**
@@ -77,6 +84,48 @@ type NotesWebviewMessage =
 	      /** CZaza-root-relative source path for the file note. */
 	      relativePath: string;
 	    }
+  | {
+      /** Opens the detail notes view for one Navigator file-note item. */
+      type: "viewNavigatorFileNotes";
+
+      /** CZaza-root-relative source path for the file note. */
+      relativePath: string;
+
+      /** Current anchor status from the Navigator row. */
+      anchor: "confirmed" | "needsConfirmation" | "orphaned";
+    }
+  | {
+      /** Relocates one Navigator file-note item to a user-confirmed source path. */
+      type: "relocateNavigatorFileNote";
+
+      /** Existing CZaza-root-relative source path. */
+      fromRelativePath: string;
+
+      /** New CZaza-root-relative source path. */
+      toRelativePath: string;
+    }
+  | {
+      /** Starts active-editor path suggestions for the Navigator relocate modal. */
+      type: "startNavigatorFileRelocatePathSync";
+    }
+  | {
+      /** Stops active-editor path suggestions for the Navigator relocate modal. */
+      type: "stopNavigatorFileRelocatePathSync";
+    }
+  | {
+      /** Marks one Navigator file-note item as orphaned after confirmation. */
+      type: "markNavigatorFileNoteOrphaned";
+
+      /** CZaza-root-relative source path for the file note. */
+      relativePath: string;
+    }
+  | {
+      /** Deletes all stored notes for one Navigator file-note item. */
+      type: "deleteNavigatorFileNotes";
+
+      /** CZaza-root-relative source path for the notes bundle. */
+      relativePath: string;
+    }
 	  | {
 	      /** Opens or shows one resource selected from the Navigator Files list. */
 	      type: "openNavigatorResource";
@@ -117,6 +166,8 @@ type AiActionScope = "fileSection" | "all" | "section" | "line";
 /** Mode selected by the VS Code notes View Toolbar. */
 export type NotesViewMode = "detail" | "navigator";
 
+const NOTES_VIEW_MODE_CONTEXT = "czaza.notesViewMode";
+
 /**
  * VS Code provider for the new React notes webview.
  *
@@ -133,6 +184,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private selectedSectionId?: string;
   private pendingEditTarget?: UserNoteTarget;
   private highlightedEditor?: vscode.TextEditor;
+  private isNavigatorRelocatePathSyncActive = false;
   private requestVersion = 0;
   private readonly generatingResources = new Map<string, AiActionScope>();
   private readonly sectionDecorationType = vscode.window.createTextEditorDecorationType({
@@ -261,6 +313,36 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 	        return;
 	      }
 
+      if (message.type === "viewNavigatorFileNotes") {
+        void this.viewNavigatorFileNotes(message.relativePath, message.anchor);
+        return;
+      }
+
+      if (message.type === "relocateNavigatorFileNote") {
+        void this.runRelocateNavigatorFileNote(message.fromRelativePath, message.toRelativePath);
+        return;
+      }
+
+      if (message.type === "startNavigatorFileRelocatePathSync") {
+        this.isNavigatorRelocatePathSyncActive = true;
+        return;
+      }
+
+      if (message.type === "stopNavigatorFileRelocatePathSync") {
+        this.isNavigatorRelocatePathSyncActive = false;
+        return;
+      }
+
+      if (message.type === "markNavigatorFileNoteOrphaned") {
+        void this.runMarkNavigatorFileNoteOrphaned(message.relativePath);
+        return;
+      }
+
+      if (message.type === "deleteNavigatorFileNotes") {
+        void this.runDeleteNavigatorFileNotes(message.relativePath);
+        return;
+      }
+
       if (message.type === "openNavigatorResource") {
         void this.openNavigatorResource(message.relativePath);
         return;
@@ -295,6 +377,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    */
   postViewMode(mode: NotesViewMode): void {
     this.viewMode = mode;
+    void vscode.commands.executeCommand("setContext", NOTES_VIEW_MODE_CONTEXT, mode);
     void this.view?.webview.postMessage({ type: "notesViewMode", mode });
     if (mode === "navigator") {
       void this.loadNavigatorNotes();
@@ -311,6 +394,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * await provider.showResourceNotes(uri);
    */
   async showResourceNotes(uri?: vscode.Uri): Promise<void> {
+    this.postViewMode("detail");
+
     const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
 
     if (!targetUri) {
@@ -367,6 +452,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     await this.loadResourceNotes(uri, true, activeLine);
+    await this.postActiveNavigatorRelocateTargetPath(uri);
   }
 
   /**
@@ -507,9 +593,19 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   private async loadNavigatorNotes(): Promise<void> {
+    const activeLine =
+      this.currentPayload?.kind === "file"
+        ? (this.currentPayload.activeLine ??
+          (this.currentResourceUri ? getActiveLine(this.currentResourceUri) : undefined))
+        : this.currentResourceUri
+          ? getActiveLine(this.currentResourceUri)
+          : undefined;
+
     this.currentNavigatorPayload = await getNavigatorNotes({
       uri: this.currentResourceUri,
       notes: this.notes,
+      selectedSectionId: this.selectedSectionId,
+      activeLine,
     });
     await this.postCurrentNavigatorNotes();
   }
@@ -579,8 +675,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       const resourceKind = await getResourceKind(targetUri);
 
       if (resourceKind === "directory") {
-        await vscode.commands.executeCommand("czaza.showNotesDetail");
-        await this.loadResourceNotes(targetUri, false);
+        await vscode.commands.executeCommand("revealInExplorer", targetUri);
         return;
       }
 
@@ -590,6 +685,53 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error.";
       void vscode.window.showErrorMessage(`Failed to open CZaza navigator resource: ${message}`);
+    }
+  }
+
+  private async openNavigatorResourceNotes(relativePath: string): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || !isSafeRelativePath(relativePath)) {
+      return;
+    }
+
+    try {
+      const { rootDirectory } = resolveCzazaRootDirectory(currentUri);
+      const settings = getCzazaSettings(currentUri);
+      const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
+      const availability = await ensureFileNoteResourceAvailability({
+        notes: this.notes,
+        workspaceRoot: rootDirectory,
+        outputDirectory: settings.outputDirectory,
+        relativePath,
+        now: new Date().toISOString(),
+      });
+
+      if (!availability.available) {
+        await this.loadNavigatorNotes();
+        await this.postNotice({
+          tone: "error",
+          title: "Note Target Not Found",
+          message: `${relativePath} could not be opened. It may have been renamed, moved, or deleted outside VS Code.`,
+        });
+        return;
+      }
+
+      const resourceKind = await getResourceKind(targetUri);
+
+      this.postViewMode("detail");
+
+      if (resourceKind === "directory") {
+        await this.loadResourceNotes(targetUri, false);
+        return;
+      }
+
+      const document = await vscode.workspace.openTextDocument(targetUri);
+      await vscode.window.showTextDocument(document, { preview: false });
+      await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      void vscode.window.showErrorMessage(`Failed to view CZaza navigator notes: ${message}`);
     }
   }
 
@@ -846,6 +988,159 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
+  private async viewNavigatorFileNotes(
+    relativePath: string,
+    anchor: "confirmed" | "needsConfirmation" | "orphaned",
+  ): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || !isSafeRelativePath(relativePath)) {
+      return;
+    }
+
+    if (anchor !== "orphaned") {
+      await this.openNavigatorResourceNotes(relativePath);
+      return;
+    }
+
+    try {
+      const { rootDirectory } = resolveCzazaRootDirectory(currentUri);
+      const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
+      const payload = await getStoredNavigatorFileNotes({
+        currentUri,
+        notes: this.notes,
+        relativePath,
+      });
+
+      this.currentResourceUri = targetUri;
+      this.currentPayload = payload;
+      this.selectedSectionId = selectCurrentSectionId(payload, undefined);
+      this.clearSectionHighlight();
+      this.postViewMode("detail");
+      await this.postCurrentResourceNotes();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      await this.postNotice({
+        tone: "error",
+        title: "View Notes Failed",
+        message,
+      });
+    }
+  }
+
+  private async runRelocateNavigatorFileNote(
+    fromRelativePath: string,
+    toRelativePath: string,
+  ): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri) {
+      return;
+    }
+
+    try {
+      const result = await relocateNavigatorFileNoteService({
+        currentUri,
+        notes: this.notes,
+        fromRelativePath,
+        toRelativePath,
+      });
+
+      await this.loadNavigatorNotes();
+      await this.view?.webview.postMessage({
+        type: "navigatorFileNoteRelocated",
+        fromRelativePath: result.previousRelativePath,
+        toRelativePath: result.nextRelativePath,
+      });
+
+      const document = await vscode.workspace.openTextDocument(result.targetUri);
+      await vscode.window.showTextDocument(document, { preview: false });
+      await this.loadResourceNotes(result.targetUri, false, getActiveLine(result.targetUri));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      await this.postNotice({
+        tone: "error",
+        title: "Relocate Failed",
+        message,
+      });
+    }
+  }
+
+  private async runMarkNavigatorFileNoteOrphaned(relativePath: string): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || !isSafeRelativePath(relativePath)) {
+      return;
+    }
+
+    try {
+      const changed = await markNavigatorFileNoteOrphanedService({
+        currentUri,
+        notes: this.notes,
+        relativePath,
+      });
+
+      if (changed) {
+        await this.loadNavigatorNotes();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      await this.postNotice({
+        tone: "error",
+        title: "Mark Orphaned Failed",
+        message,
+      });
+    }
+  }
+
+  private async runDeleteNavigatorFileNotes(relativePath: string): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || !isSafeRelativePath(relativePath)) {
+      return;
+    }
+
+    try {
+      await deleteNavigatorFileNotesService({
+        currentUri,
+        notes: this.notes,
+        relativePath,
+      });
+      await this.loadNavigatorNotes();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      await this.postNotice({
+        tone: "error",
+        title: "Delete Notes Failed",
+        message,
+      });
+    }
+  }
+
+  private async postActiveNavigatorRelocateTargetPath(uri?: vscode.Uri): Promise<void> {
+    if (!this.isNavigatorRelocatePathSyncActive || !this.view) {
+      return;
+    }
+
+    const activeUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+
+    if (!activeUri || activeUri.scheme !== "file") {
+      return;
+    }
+
+    try {
+      const { rootDirectory } = resolveCzazaRootDirectory(activeUri);
+      const relativePath = getCzazaRelativePath(activeUri, rootDirectory);
+
+      await this.view.webview.postMessage({
+        type: "navigatorRelocateTargetPath",
+        relativePath,
+      });
+    } catch {
+      // Active files outside CZaza root are not valid relocation targets.
+    }
+  }
+
   private selectSection(sectionId: string): void {
     if (this.currentPayload?.kind !== "file") {
       return;
@@ -928,6 +1223,9 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     lineScope?: unknown;
     target?: unknown;
     userNote?: unknown;
+    fromRelativePath?: unknown;
+    toRelativePath?: unknown;
+    anchor?: unknown;
   };
 
   return (
@@ -942,6 +1240,16 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
 	      typeof candidate.userNote === "string") ||
 	    (candidate.type === "clearNoteStaleStatus" && isUserNoteTarget(candidate.target)) ||
 	    (candidate.type === "clearNavigatorFileStaleStatus" && typeof candidate.relativePath === "string") ||
+    (candidate.type === "viewNavigatorFileNotes" &&
+      typeof candidate.relativePath === "string" &&
+      isNoteAnchorStatus(candidate.anchor)) ||
+    (candidate.type === "relocateNavigatorFileNote" &&
+      typeof candidate.fromRelativePath === "string" &&
+      typeof candidate.toRelativePath === "string") ||
+    candidate.type === "startNavigatorFileRelocatePathSync" ||
+    candidate.type === "stopNavigatorFileRelocatePathSync" ||
+    (candidate.type === "markNavigatorFileNoteOrphaned" && typeof candidate.relativePath === "string") ||
+    (candidate.type === "deleteNavigatorFileNotes" && typeof candidate.relativePath === "string") ||
 	    (candidate.type === "openNavigatorResource" && typeof candidate.relativePath === "string") ||
     (candidate.type === "openNavigatorSection" &&
       typeof candidate.sectionId === "string" &&
@@ -953,6 +1261,10 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
       isPositiveLine(Number(candidate.line))) ||
     (candidate.type === "selectSection" && typeof candidate.sectionId === "string")
   );
+}
+
+function isNoteAnchorStatus(value: unknown): value is "confirmed" | "needsConfirmation" | "orphaned" {
+  return value === "confirmed" || value === "needsConfirmation" || value === "orphaned";
 }
 
 function isUserNoteTarget(value: unknown): value is UserNoteTarget {

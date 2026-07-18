@@ -4,7 +4,7 @@
 
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
 import { createSourceHash } from "@shared/utils/hashUtils";
@@ -168,6 +168,26 @@ export class WorkspaceNoteStoreRepository {
 
     await writeStoredSourceFile(workspaceRoot, outputDirectory, noteFile, sourceFile);
     await this.saveIndex(workspaceRoot, outputDirectory, nextIndex);
+  }
+
+  /**
+   * Deletes one stored source-file note JSON.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param noteFile - Note file path relative to the notes directory.
+   * @returns Promise that resolves after the note file is removed or found missing.
+   */
+  async deleteSourceFileNoteFile(
+    workspaceRoot: string,
+    outputDirectory: string,
+    noteFile: string,
+  ): Promise<void> {
+    try {
+      await unlink(getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile));
+    } catch {
+      // Missing note JSON is acceptable when deleting an index entry.
+    }
   }
 }
 

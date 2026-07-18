@@ -10,7 +10,11 @@ const mocks = vi.hoisted(() => ({
   workspaceFolders: [] as vscodeTypes.WorkspaceFolder[],
   getResourceNotes: vi.fn(),
   getNavigatorNotes: vi.fn(),
+  getStoredNavigatorFileNotes: vi.fn(),
   clearNoteStaleStatusService: vi.fn(),
+  deleteNavigatorFileNotesService: vi.fn(),
+  markNavigatorFileNoteOrphanedService: vi.fn(),
+  relocateNavigatorFileNoteService: vi.fn(),
   ensureFileNoteResourceAvailability: vi.fn(),
   postMessage: vi.fn().mockResolvedValue(true),
   setDecorations: vi.fn(),
@@ -19,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   showTextDocument: vi.fn(),
   revealRange: vi.fn(),
   showWarningMessage: vi.fn(),
+  executeCommand: vi.fn(),
+  fsStat: vi.fn(),
   messageListeners: [] as Array<(message: unknown) => void>,
 }));
 
@@ -34,12 +40,28 @@ vi.mock("@vscode/services/getNavigatorNotesService", () => ({
   getNavigatorNotes: mocks.getNavigatorNotes,
 }));
 
+vi.mock("@vscode/services/getStoredNavigatorFileNotesService", () => ({
+  getStoredNavigatorFileNotes: mocks.getStoredNavigatorFileNotes,
+}));
+
 vi.mock("@vscode/services/ensureFileNoteResourceAvailabilityService", () => ({
   ensureFileNoteResourceAvailability: mocks.ensureFileNoteResourceAvailability,
 }));
 
 vi.mock("@vscode/services/clearNoteStaleStatusService", () => ({
   clearNoteStaleStatusService: mocks.clearNoteStaleStatusService,
+}));
+
+vi.mock("@vscode/services/deleteNavigatorFileNotesService", () => ({
+  deleteNavigatorFileNotesService: mocks.deleteNavigatorFileNotesService,
+}));
+
+vi.mock("@vscode/services/markNavigatorFileNoteOrphanedService", () => ({
+  markNavigatorFileNoteOrphanedService: mocks.markNavigatorFileNoteOrphanedService,
+}));
+
+vi.mock("@vscode/services/relocateNavigatorFileNoteService", () => ({
+  relocateNavigatorFileNoteService: mocks.relocateNavigatorFileNoteService,
 }));
 
 vi.mock("vscode", () => ({
@@ -96,6 +118,11 @@ vi.mock("vscode", () => ({
     InCenter: 2,
   },
 
+  FileType: {
+    File: 1,
+    Directory: 2,
+  },
+
   Uri: {
     file: (fsPath: string) => ({
       scheme: "file",
@@ -123,7 +150,14 @@ vi.mock("vscode", () => ({
           : "../outside";
         return !relativePath.startsWith("../");
       }),
+    fs: {
+      stat: mocks.fsStat,
+    },
     openTextDocument: mocks.openTextDocument,
+  },
+
+  commands: {
+    executeCommand: mocks.executeCommand,
   },
 
   window: {
@@ -145,8 +179,14 @@ describe("NotesViewProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.clearNoteStaleStatusService.mockReset();
+    mocks.deleteNavigatorFileNotesService.mockReset();
+    mocks.getStoredNavigatorFileNotes.mockReset();
+    mocks.markNavigatorFileNoteOrphanedService.mockReset();
+    mocks.relocateNavigatorFileNoteService.mockReset();
     mocks.ensureFileNoteResourceAvailability.mockReset();
     mocks.getNavigatorNotes.mockReset();
+    mocks.fsStat.mockReset();
+    mocks.executeCommand.mockReset();
     mocks.workspaceFolders.length = 0;
     mocks.messageListeners.length = 0;
     mocks.activeTextEditor = undefined;
@@ -394,6 +434,51 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("reveals a Navigator directory resource in Explorer instead of opening notes", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const directoryUri = createUri(`${workspaceRoot}/src`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.ensureFileNoteResourceAvailability.mockResolvedValue({
+      available: true,
+      changed: false,
+    });
+    mocks.fsStat.mockResolvedValue({ type: 2 });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "openNavigatorResource",
+      relativePath: "src",
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.executeCommand).toHaveBeenCalledWith(
+        "revealInExplorer",
+        expect.objectContaining({ fsPath: directoryUri.fsPath }),
+      ),
+    );
+    expect(mocks.openTextDocument).not.toHaveBeenCalled();
+    expect(mocks.getResourceNotes).toHaveBeenCalledTimes(1);
+
+    provider.dispose();
+  });
+
   it("runs file note generation once and refreshes the current payload", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const generateFileNotes = vi.fn().mockResolvedValue(true);
@@ -630,7 +715,12 @@ describe("NotesViewProvider", () => {
     });
 
     await provider.resolveWebviewView(view);
+    provider.postViewMode("navigator");
+    mocks.postMessage.mockClear();
+    mocks.executeCommand.mockClear();
     await provider.showResourceNotes(uri);
+    expect(mocks.executeCommand).toHaveBeenCalledWith("setContext", "czaza.notesViewMode", "detail");
+    expect(mocks.postMessage).toHaveBeenCalledWith({ type: "notesViewMode", mode: "detail" });
     mocks.messageListeners[0]?.({
       type: "saveUserNote",
       target: { level: "file" },
@@ -873,6 +963,390 @@ describe("NotesViewProvider", () => {
           }),
         ],
       }),
+    });
+
+    provider.dispose();
+  });
+
+  it("relocates a Navigator file note, refreshes the list, closes the modal, and opens the target", async () => {
+    const workspaceRoot = "/tmp";
+    const currentUri = createUri(`${workspaceRoot}/current.ts`);
+    const targetUri = createUri(`${workspaceRoot}/src/new.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.relocateNavigatorFileNoteService.mockResolvedValue({
+      previousRelativePath: "src/old.ts",
+      nextRelativePath: "src/new.ts",
+      targetUri,
+    });
+    mocks.openTextDocument.mockResolvedValue({ uri: targetUri });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "new.ts",
+      relativePath: "src/new.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "tmp",
+      currentFile: "src/new.ts",
+      files: [
+        {
+          name: "new.ts",
+          relativePath: "src/new.ts",
+          resourceKind: "file",
+          preview: "Relocated file note.",
+          status: {
+            content: "current",
+            anchor: "confirmed",
+          },
+        },
+      ],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(currentUri, 1);
+    mocks.messageListeners[0]?.({
+      type: "relocateNavigatorFileNote",
+      fromRelativePath: "src/old.ts",
+      toRelativePath: "src/new.ts",
+    });
+
+    await vi.waitFor(() => expect(mocks.relocateNavigatorFileNoteService).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "navigatorFileNoteRelocated",
+        fromRelativePath: "src/old.ts",
+        toRelativePath: "src/new.ts",
+      }),
+    );
+    expect(mocks.relocateNavigatorFileNoteService).toHaveBeenCalledWith({
+      currentUri,
+      notes: {},
+      fromRelativePath: "src/old.ts",
+      toRelativePath: "src/new.ts",
+    });
+    expect(mocks.getNavigatorNotes).toHaveBeenCalledWith({
+      uri: currentUri,
+      notes: {},
+      selectedSectionId: undefined,
+      activeLine: undefined,
+    });
+    expect(mocks.openTextDocument).toHaveBeenCalledWith(targetUri);
+    expect(mocks.showTextDocument).toHaveBeenCalledWith({ uri: targetUri }, { preview: false });
+    expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
+      uri: targetUri,
+      notes: {},
+    });
+
+    provider.dispose();
+  });
+
+  it("views non-orphaned Navigator file notes by opening the source file", async () => {
+    const workspaceRoot = "/tmp";
+    const currentUri = createUri(`${workspaceRoot}/current.ts`);
+    const targetUri = createUri(`${workspaceRoot}/src/index.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.ensureFileNoteResourceAvailability.mockResolvedValue({
+      available: true,
+      changed: false,
+    });
+    mocks.fsStat.mockResolvedValue({ type: 1 });
+    mocks.openTextDocument.mockResolvedValue({ uri: targetUri });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(currentUri, 1);
+    mocks.messageListeners[0]?.({
+      type: "viewNavigatorFileNotes",
+      relativePath: "src/index.ts",
+      anchor: "confirmed",
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.openTextDocument).toHaveBeenCalledWith(
+        expect.objectContaining({ fsPath: targetUri.fsPath }),
+      ),
+    );
+    expect(mocks.getStoredNavigatorFileNotes).not.toHaveBeenCalled();
+    expect(mocks.showTextDocument).toHaveBeenCalledWith({ uri: targetUri }, { preview: false });
+    expect(mocks.executeCommand).toHaveBeenCalledWith("setContext", "czaza.notesViewMode", "detail");
+    expect(mocks.postMessage).toHaveBeenCalledWith({ type: "notesViewMode", mode: "detail" });
+
+    provider.dispose();
+  });
+
+  it("views non-orphaned Navigator directory notes without revealing Explorer", async () => {
+    const workspaceRoot = "/tmp";
+    const currentUri = createUri(`${workspaceRoot}/current.ts`);
+    const directoryUri = createUri(`${workspaceRoot}/src`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.ensureFileNoteResourceAvailability.mockResolvedValue({
+      available: true,
+      changed: false,
+    });
+    mocks.fsStat.mockResolvedValue({ type: 2 });
+    mocks.getResourceNotes
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "current.ts",
+        relativePath: "current.ts",
+        aiAction: "generate",
+        sectionNotes: [],
+      })
+      .mockResolvedValueOnce({
+        kind: "directory",
+        name: "src",
+        relativePath: "src",
+        children: [],
+      });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(currentUri, 1);
+    mocks.messageListeners[0]?.({
+      type: "viewNavigatorFileNotes",
+      relativePath: "src",
+      anchor: "confirmed",
+    });
+
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+    expect(mocks.executeCommand).not.toHaveBeenCalledWith(
+      "revealInExplorer",
+      expect.objectContaining({ fsPath: directoryUri.fsPath }),
+    );
+    expect(mocks.openTextDocument).not.toHaveBeenCalled();
+    expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
+      uri: expect.objectContaining({ fsPath: directoryUri.fsPath }),
+      notes: {},
+    });
+    expect(mocks.postMessage).toHaveBeenCalledWith({ type: "notesViewMode", mode: "detail" });
+
+    provider.dispose();
+  });
+
+  it("views orphaned Navigator file notes without opening a source file", async () => {
+    const workspaceRoot = "/tmp";
+    const currentUri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getStoredNavigatorFileNotes.mockResolvedValue({
+      kind: "file",
+      name: "missing.ts",
+      relativePath: "src/missing.ts",
+      fileNote: {
+        userNote: "Orphaned note.",
+        status: {
+          content: "current",
+          anchor: "orphaned",
+        },
+      },
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(currentUri, 1);
+    mocks.messageListeners[0]?.({
+      type: "viewNavigatorFileNotes",
+      relativePath: "src/missing.ts",
+      anchor: "orphaned",
+    });
+
+    await vi.waitFor(() => expect(mocks.getStoredNavigatorFileNotes).toHaveBeenCalledOnce());
+    expect(mocks.openTextDocument).not.toHaveBeenCalled();
+    expect(mocks.showTextDocument).not.toHaveBeenCalled();
+    expect(mocks.getStoredNavigatorFileNotes).toHaveBeenCalledWith({
+      currentUri,
+      notes: {},
+      relativePath: "src/missing.ts",
+    });
+    expect(mocks.executeCommand).toHaveBeenCalledWith("setContext", "czaza.notesViewMode", "detail");
+    expect(mocks.postMessage).toHaveBeenCalledWith({ type: "notesViewMode", mode: "detail" });
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({
+        kind: "file",
+        relativePath: "src/missing.ts",
+      }),
+    });
+
+    provider.dispose();
+  });
+
+  it("posts later active editor relative paths while Navigator file relocation is open", async () => {
+    const workspaceRoot = "/tmp";
+    const targetUri = createUri(`${workspaceRoot}/src/target.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "target.ts",
+      relativePath: "src/target.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    mocks.messageListeners[0]?.({ type: "startNavigatorFileRelocatePathSync" });
+    expect(mocks.postMessage).not.toHaveBeenCalledWith({
+      type: "navigatorRelocateTargetPath",
+      relativePath: "src/target.ts",
+    });
+
+    mocks.activeTextEditor = createEditor(targetUri);
+    await provider.showActiveDocumentNotes(targetUri, 1);
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "navigatorRelocateTargetPath",
+        relativePath: "src/target.ts",
+      }),
+    );
+
+    provider.dispose();
+  });
+
+  it("marks a Navigator file note orphaned and refreshes Navigator notes", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.markNavigatorFileNoteOrphanedService.mockResolvedValue(true);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "tmp",
+      currentFile: "current.ts",
+      files: [],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "markNavigatorFileNoteOrphaned",
+      relativePath: "src/index.ts",
+    });
+
+    await vi.waitFor(() => expect(mocks.markNavigatorFileNoteOrphanedService).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
+    expect(mocks.markNavigatorFileNoteOrphanedService).toHaveBeenCalledWith({
+      currentUri: uri,
+      notes: {},
+      relativePath: "src/index.ts",
+    });
+
+    provider.dispose();
+  });
+
+  it("deletes a Navigator file notes bundle and refreshes Navigator notes", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.deleteNavigatorFileNotesService.mockResolvedValue(true);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "tmp",
+      currentFile: "current.ts",
+      files: [],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "deleteNavigatorFileNotes",
+      relativePath: "src/index.ts",
+    });
+
+    await vi.waitFor(() => expect(mocks.deleteNavigatorFileNotesService).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
+    expect(mocks.deleteNavigatorFileNotesService).toHaveBeenCalledWith({
+      currentUri: uri,
+      notes: {},
+      relativePath: "src/index.ts",
     });
 
     provider.dispose();

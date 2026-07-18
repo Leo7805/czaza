@@ -232,7 +232,10 @@ export type NavigatorNotesViewModel =
   | {
       kind: "resource";
       projectRootName: string;
+      currentResource?: string;
       currentFile?: string;
+      activeSectionId?: string;
+      activeLine?: number;
       files: NavigatorFileItem[];
       sections: NavigatorSectionItem[];
       lines: NavigatorLineItem[];
@@ -265,6 +268,17 @@ export type ExtensionToWebviewMessage =
 	      type: "notice";
 	      notice: WebviewNotice;
 	    }
+  | {
+      /** Confirms that a Navigator file note was relocated successfully. */
+      type: "navigatorFileNoteRelocated";
+      fromRelativePath: string;
+      toRelativePath: string;
+    }
+  | {
+      /** Suggests the currently active editor path for the open relocate modal. */
+      type: "navigatorRelocateTargetPath";
+      relativePath: string;
+    }
 	  | NotesViewModeMessage;
 
 /** Mode selected by the VS Code notes View Toolbar. */
@@ -336,6 +350,48 @@ export type WebviewToExtensionMessage =
 	      /** CZaza-root-relative source path for the file note. */
 	      relativePath: string;
 	    }
+  | {
+      /** Opens the detail notes view for a Navigator file-note item. */
+      type: "viewNavigatorFileNotes";
+
+      /** CZaza-root-relative source path for the file note. */
+      relativePath: string;
+
+      /** Current anchor status from the Navigator row. */
+      anchor: NoteAnchorStatus;
+    }
+  | {
+      /** Relocates a Navigator file-note item to a user-confirmed source path. */
+      type: "relocateNavigatorFileNote";
+
+      /** Existing CZaza-root-relative source path. */
+      fromRelativePath: string;
+
+      /** New CZaza-root-relative source path entered by the user. */
+      toRelativePath: string;
+    }
+  | {
+      /** Starts active-editor path suggestions for the Navigator relocate modal. */
+      type: "startNavigatorFileRelocatePathSync";
+    }
+  | {
+      /** Stops active-editor path suggestions for the Navigator relocate modal. */
+      type: "stopNavigatorFileRelocatePathSync";
+    }
+  | {
+      /** Marks a Navigator file-note item as orphaned after confirmation. */
+      type: "markNavigatorFileNoteOrphaned";
+
+      /** CZaza-root-relative source path for the file note. */
+      relativePath: string;
+    }
+  | {
+      /** Deletes all stored notes for one Navigator file-note item. */
+      type: "deleteNavigatorFileNotes";
+
+      /** CZaza-root-relative source path for the notes bundle. */
+      relativePath: string;
+    }
 	  | {
 	      /** Opens or shows one resource selected from the Navigator Files list. */
 	      type: "openNavigatorResource";

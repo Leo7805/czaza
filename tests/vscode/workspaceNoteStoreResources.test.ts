@@ -2,13 +2,16 @@
  * Unit tests for resource-level workspace note store operations.
  */
 
-import { mkdtemp } from "node:fs/promises";
+import { access, mkdtemp } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { WorkspaceNoteStore } from "@vscode/notes";
-import { WorkspaceNoteStoreRepository } from "@vscode/notes/WorkspaceNoteStoreRepository";
+import {
+  getWorkspaceNoteFilePath,
+  WorkspaceNoteStoreRepository,
+} from "@vscode/notes/WorkspaceNoteStoreRepository";
 
 const outputDirectory = ".caca";
 const createdAt = "2026-07-12T00:00:00.000Z";
@@ -166,6 +169,54 @@ describe("workspaceNoteStoreResources", () => {
     const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository());
 
     const result = await notes.resources.markSourceFileEntryDeleted(
+      root,
+      outputDirectory,
+      "src/missing.ts",
+      now,
+    );
+
+    expect(result).toEqual({
+      kind: "notFound",
+      relativePath: "src/missing.ts",
+    });
+  });
+
+  it("deletes a source file entry and its stored note JSON", async () => {
+    const root = await createTempWorkspaceRoot();
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
+
+    await notes.cache.saveSourceFile(root, outputDirectory, "src/index.ts", createStoredSourceFile(), createdAt);
+    const beforeIndex = await notes.cache.getRequiredIndex(root, outputDirectory);
+    const noteFile = beforeIndex.files["src/index.ts"]?.noteFile;
+
+    if (!noteFile) {
+      throw new Error("Expected note file.");
+    }
+
+    const result = await notes.resources.deleteSourceFileEntry(
+      root,
+      outputDirectory,
+      "src/index.ts",
+      now,
+    );
+    const afterIndex = await notes.cache.getRequiredIndex(root, outputDirectory);
+    const sourceFile = await notes.cache.getSourceFile(root, outputDirectory, "src/index.ts");
+
+    expect(result).toEqual({
+      kind: "deleted",
+      relativePath: "src/index.ts",
+      noteFile,
+    });
+    expect(afterIndex.files["src/index.ts"]).toBeUndefined();
+    expect(sourceFile).toBeUndefined();
+    await expect(access(getWorkspaceNoteFilePath(root, outputDirectory, noteFile))).rejects.toThrow();
+  });
+
+  it("returns notFound when deleting a missing source file entry", async () => {
+    const root = await createTempWorkspaceRoot();
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository());
+
+    const result = await notes.resources.deleteSourceFileEntry(
       root,
       outputDirectory,
       "src/missing.ts",

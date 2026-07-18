@@ -72,7 +72,10 @@ export type NavigatorNotesResult =
   | {
       kind: "resource";
       projectRootName: string;
+      currentResource?: string;
       currentFile?: string;
+      activeSectionId?: string;
+      activeLine?: number;
       files: NavigatorFileItem[];
       sections: NavigatorSectionItem[];
       lines: NavigatorLineItem[];
@@ -85,6 +88,12 @@ export type GetNavigatorNotesInput = {
 
   /** Shared workspace note store and cache. */
   notes: WorkspaceNoteStore;
+
+  /** Currently selected Section Note in the detail view, when any. */
+  selectedSectionId?: string;
+
+  /** Current one-based editor line, when any. */
+  activeLine?: number;
 };
 
 /**
@@ -99,6 +108,8 @@ export type GetNavigatorNotesInput = {
 export async function getNavigatorNotes({
   uri,
   notes,
+  selectedSectionId,
+  activeLine,
 }: GetNavigatorNotesInput): Promise<NavigatorNotesResult> {
   if (!uri) {
     return { kind: "empty" };
@@ -125,7 +136,10 @@ export async function getNavigatorNotes({
     return {
       kind: "resource",
       projectRootName: path.basename(resolvedRoot.rootDirectory),
+      currentResource: relativePath,
       ...(resourceKind === "file" ? { currentFile: relativePath } : {}),
+      ...(resourceKind === "file" && selectedSectionId ? { activeSectionId: selectedSectionId } : {}),
+      ...(resourceKind === "file" && isPositiveLine(activeLine) ? { activeLine } : {}),
       files,
       sections: resourceKind === "file" ? getSectionItems(sourceFile) : [],
       lines: resourceKind === "file" ? getLineItems(sourceFile) : [],
@@ -260,6 +274,10 @@ async function getNavigatorResourceKind(
   } catch {
     return "file";
   }
+}
+
+function isPositiveLine(value: number | undefined): value is number {
+  return Number.isInteger(value) && Number(value) > 0;
 }
 
 function isExpectedResourceError(error: unknown): boolean {

@@ -40,6 +40,18 @@ export type MarkSourceFileEntryDeletedResult =
       relativePath: string;
     };
 
+/** Result of permanently deleting a source-file note entry. */
+export type DeleteSourceFileEntryResult =
+  | {
+      kind: "deleted";
+      relativePath: string;
+      noteFile: string;
+    }
+  | {
+      kind: "notFound";
+      relativePath: string;
+    };
+
 /** Resource-level operations for source-file note entries. */
 export class WorkspaceNoteResourceManager {
   private readonly cache: WorkspaceNoteStoreCache;
@@ -96,6 +108,30 @@ export class WorkspaceNoteResourceManager {
     now: string,
   ): Promise<MarkSourceFileEntryDeletedResult> {
     return markSourceFileEntryDeleted({
+      cache: this.cache,
+      workspaceRoot,
+      outputDirectory,
+      relativePath,
+      now,
+    });
+  }
+
+  /**
+   * Permanently deletes one source-file note entry and its note JSON.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativePath - CZaza-root-relative source path.
+   * @param now - ISO 8601 timestamp used for index metadata.
+   * @returns Delete result.
+   */
+  deleteSourceFileEntry(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativePath: string,
+    now: string,
+  ): Promise<DeleteSourceFileEntryResult> {
+    return deleteSourceFileEntry({
       cache: this.cache,
       workspaceRoot,
       outputDirectory,
@@ -255,6 +291,51 @@ export async function markSourceFileEntryDeleted(input: {
   };
 }
 
+/**
+ * Permanently deletes one source-file note index entry and note JSON.
+ *
+ * @param input - Cache, workspace paths, source path, and timestamp.
+ * @returns Delete result.
+ */
+export async function deleteSourceFileEntry(input: {
+  cache: WorkspaceNoteStoreCache;
+  workspaceRoot: string;
+  outputDirectory: string;
+  relativePath: string;
+  now: string;
+}): Promise<DeleteSourceFileEntryResult> {
+  const index = await input.cache.loadIndex(input.workspaceRoot, input.outputDirectory);
+  const entry = index?.files[input.relativePath];
+
+  if (!index || !entry) {
+    return {
+      kind: "notFound",
+      relativePath: input.relativePath,
+    };
+  }
+
+  const nextIndex = deleteIndexEntry({
+    index,
+    relativePath: input.relativePath,
+    now: input.now,
+  });
+
+  await input.cache.deleteSourceFileNoteFile(
+    input.workspaceRoot,
+    input.outputDirectory,
+    input.relativePath,
+    entry.noteFile,
+  );
+  await input.cache.repository.saveIndex(input.workspaceRoot, input.outputDirectory, nextIndex);
+  input.cache.clearCache(input.workspaceRoot, input.outputDirectory);
+
+  return {
+    kind: "deleted",
+    relativePath: input.relativePath,
+    noteFile: entry.noteFile,
+  };
+}
+
 function moveIndexEntry(input: {
   index: WorkspaceNoteIndexV1;
   previousRelativePath: string;
@@ -274,5 +355,19 @@ function moveIndexEntry(input: {
         updatedAt: input.now,
       },
     },
+  };
+}
+
+function deleteIndexEntry(input: {
+  index: WorkspaceNoteIndexV1;
+  relativePath: string;
+  now: string;
+}): WorkspaceNoteIndexV1 {
+  const { [input.relativePath]: _removed, ...remainingFiles } = input.index.files;
+
+  return {
+    ...input.index,
+    updatedAt: input.now,
+    files: remainingFiles,
   };
 }

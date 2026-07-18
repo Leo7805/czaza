@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   getNavigatorBadge,
   getNavigatorHeading,
+  getNavigatorItemClassName,
   NotesNavigatorView,
 } from "@vscode/webview-ui/src/components/NotesNavigatorView";
 import type { NavigatorNotesViewModel } from "@vscode/webview-ui/src/types";
@@ -92,5 +93,20 @@ describe("NotesNavigatorView", () => {
     expect(markup).toContain("note-status-badge--orphaned");
     expect(markup).toContain("Stale");
     expect(markup).toContain("Orphaned");
+  });
+
+  it("marks current navigator rows with a shared current class", () => {
+    expect(getNavigatorItemClassName("file", { isCurrent: true })).toContain(
+      "notes-navigator__item--current",
+    );
+    expect(getNavigatorItemClassName("section", { isCurrent: true })).toContain(
+      "notes-navigator__item--section",
+    );
+    expect(getNavigatorItemClassName("line", { isCurrent: true })).toContain(
+      "notes-navigator__item--line",
+    );
+    expect(getNavigatorItemClassName("file", { isOrphaned: true })).toContain(
+      "notes-navigator__item--orphaned",
+    );
   });
 });

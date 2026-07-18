@@ -24,6 +24,12 @@ const initialNotes: ResourceNotesViewModel = {
 
 const initialNavigatorNotes: NavigatorNotesViewModel = { kind: "empty" };
 
+type RelocatedFileNote = {
+  fromRelativePath: string;
+  toRelativePath: string;
+  sequence: number;
+};
+
 /**
  * Renders notes for the currently selected VS Code resource.
  *
@@ -38,6 +44,8 @@ export function App() {
   const [navigatorNotes, setNavigatorNotes] =
     useState<NavigatorNotesViewModel>(initialNavigatorNotes);
   const [notice, setNotice] = useState<WebviewNotice | undefined>();
+  const [relocatedFileNote, setRelocatedFileNote] = useState<RelocatedFileNote | undefined>();
+  const [relocateTargetPath, setRelocateTargetPath] = useState<string | undefined>();
   const vscode = useMemo(() => getVsCodeApi(), []);
 
   useEffect(() => {
@@ -71,6 +79,20 @@ export function App() {
 
       if (message.type === "notice") {
         setNotice(message.notice);
+        return;
+      }
+
+      if (message.type === "navigatorFileNoteRelocated") {
+        setRelocatedFileNote((previous) => ({
+          fromRelativePath: message.fromRelativePath,
+          toRelativePath: message.toRelativePath,
+          sequence: (previous?.sequence ?? 0) + 1,
+        }));
+        return;
+      }
+
+      if (message.type === "navigatorRelocateTargetPath") {
+        setRelocateTargetPath(message.relativePath);
       }
     };
 
@@ -91,7 +113,11 @@ export function App() {
       {viewMode === "detail" ? (
         <ResourceNotesView notes={notes} />
       ) : (
-        <NotesNavigatorView navigatorNotes={navigatorNotes} />
+        <NotesNavigatorView
+          navigatorNotes={navigatorNotes}
+          relocatedFileNote={relocatedFileNote}
+          relocateTargetPath={relocateTargetPath}
+        />
       )}
       {notice ? (
         <NoticeModal

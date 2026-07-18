@@ -1,6 +1,6 @@
 /** Renders the initial Files, Sections, and Lines navigator shell. */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { NavigatorFileItem, NavigatorNotesViewModel, NoteStatus } from "../types";
 import { getVsCodeApi } from "../vscodeApi";
@@ -10,6 +10,8 @@ import {
   type NavigatorItemContextMenuPosition,
 } from "./NavigatorItemContextMenu";
 import { NoteStatusBadges } from "./NoteStatusBadges";
+import { NoticeModal } from "./NoticeModal";
+import { RelocateFileNoteModal } from "./RelocateFileNoteModal";
 import { Tooltip } from "./Tooltip";
 
 /** Navigator list categories. */
@@ -20,10 +22,34 @@ type FileContextMenuState = {
   item: NavigatorFileItem;
 };
 
+type RelocateModalState = {
+  fromRelativePath: string;
+};
+
+type MarkOrphanedModalState = {
+  relativePath: string;
+};
+
+type DeleteNotesModalState = {
+  relativePath: string;
+};
+
+type RelocatedFileNote = {
+  fromRelativePath: string;
+  toRelativePath: string;
+  sequence: number;
+};
+
 /** Props for the Notes Navigator view. */
 export type NotesNavigatorViewProps = {
   /** Complete list data loaded by the extension host. */
   navigatorNotes: NavigatorNotesViewModel;
+
+  /** Last successfully relocated file note, if any. */
+  relocatedFileNote?: RelocatedFileNote;
+
+  /** Active editor path suggested by the extension host for relocation. */
+  relocateTargetPath?: string;
 };
 
 /** Maps each navigator list to its corresponding detail-card accent. */
@@ -32,6 +58,32 @@ const navigatorAccentClass: Record<NotesNavigatorTab, string> = {
   sections: "notes-navigator__heading--section",
   lines: "notes-navigator__heading--line",
 };
+
+type NavigatorItemKind = "file" | "section" | "line";
+
+/**
+ * Builds the row classes shared by all Navigator lists.
+ *
+ * @param kind - Navigator list item kind.
+ * @param options - Current state modifiers for the row.
+ * @returns Space-separated class names.
+ *
+ * @example
+ * getNavigatorItemClassName("file", { isCurrent: true })
+ */
+export function getNavigatorItemClassName(
+  kind: NavigatorItemKind,
+  options: { isCurrent?: boolean; isOrphaned?: boolean } = {},
+): string {
+  return [
+    "notes-navigator__item",
+    `notes-navigator__item--${kind}`,
+    options.isCurrent ? "notes-navigator__item--current" : undefined,
+    options.isOrphaned ? "notes-navigator__item--orphaned" : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 
 /**
  * Renders the Files, Sections, and Lines navigator tabs.
@@ -42,7 +94,11 @@ const navigatorAccentClass: Record<NotesNavigatorTab, string> = {
  * @example
  * <NotesNavigatorView notes={notes} />
  */
-export function NotesNavigatorView({ navigatorNotes }: NotesNavigatorViewProps) {
+export function NotesNavigatorView({
+  navigatorNotes,
+  relocatedFileNote,
+  relocateTargetPath,
+}: NotesNavigatorViewProps) {
   const [activeTab, setActiveTab] = useState<NotesNavigatorTab>("files");
   const currentFile = navigatorNotes.kind === "resource" ? navigatorNotes.currentFile : undefined;
   const projectRootName =
@@ -69,7 +125,12 @@ export function NotesNavigatorView({ navigatorNotes }: NotesNavigatorViewProps) 
             <span className="notes-navigator__badge">{badge}</span>
           </Tooltip>
         </div>
-        <NavigatorList notes={navigatorNotes} tab={activeTab} />
+        <NavigatorList
+          notes={navigatorNotes}
+          tab={activeTab}
+          relocatedFileNote={relocatedFileNote}
+          relocateTargetPath={relocateTargetPath}
+        />
       </div>
     </section>
   );
@@ -128,11 +189,44 @@ export function getNavigatorBadge(
 function NavigatorList({
   notes,
   tab,
+  relocatedFileNote,
+  relocateTargetPath,
 }: {
   notes: NavigatorNotesViewModel;
   tab: NotesNavigatorTab;
+  relocatedFileNote?: RelocatedFileNote;
+  relocateTargetPath?: string;
 }) {
   const [fileContextMenu, setFileContextMenu] = useState<FileContextMenuState | null>(null);
+  const [relocateModal, setRelocateModal] = useState<RelocateModalState | null>(null);
+  const [markOrphanedModal, setMarkOrphanedModal] = useState<MarkOrphanedModalState | null>(null);
+  const [deleteNotesModal, setDeleteNotesModal] = useState<DeleteNotesModalState | null>(null);
+  const handledRelocationSequence = useRef(0);
+
+  useEffect(() => {
+    if (
+      !relocatedFileNote ||
+      relocatedFileNote.sequence <= handledRelocationSequence.current ||
+      relocateModal?.fromRelativePath !== relocatedFileNote.fromRelativePath
+    ) {
+      return;
+    }
+
+    handledRelocationSequence.current = relocatedFileNote.sequence;
+    setRelocateModal(null);
+  }, [relocatedFileNote, relocateModal?.fromRelativePath]);
+
+  useEffect(() => {
+    if (!relocateModal) {
+      return;
+    }
+
+    getVsCodeApi()?.postMessage({ type: "startNavigatorFileRelocatePathSync" });
+
+    return () => {
+      getVsCodeApi()?.postMessage({ type: "stopNavigatorFileRelocatePathSync" });
+    };
+  }, [relocateModal]);
 
   if (notes.kind !== "resource") {
     return <p className="notes-navigator__empty">No notes loaded yet.</p>;
@@ -149,6 +243,13 @@ function NavigatorList({
     getVsCodeApi()?.postMessage({
       type: "openNavigatorResource",
       relativePath,
+    });
+  };
+  const viewNavigatorFileNotes = (relativePath: string, anchor: NoteStatus["anchor"]): void => {
+    getVsCodeApi()?.postMessage({
+      type: "viewNavigatorFileNotes",
+      relativePath,
+      anchor,
     });
   };
   const openNavigatorSection = (section: {
@@ -175,19 +276,46 @@ function NavigatorList({
       relativePath,
     });
   };
+  const relocateNavigatorFileNote = (fromRelativePath: string, toRelativePath: string): void => {
+    getVsCodeApi()?.postMessage({
+      type: "relocateNavigatorFileNote",
+      fromRelativePath,
+      toRelativePath,
+    });
+  };
+  const markNavigatorFileNoteOrphaned = (relativePath: string): void => {
+    getVsCodeApi()?.postMessage({
+      type: "markNavigatorFileNoteOrphaned",
+      relativePath,
+    });
+  };
+  const deleteNavigatorFileNotes = (relativePath: string): void => {
+    getVsCodeApi()?.postMessage({
+      type: "deleteNavigatorFileNotes",
+      relativePath,
+    });
+  };
 
   return (
     <>
       <ol className="notes-navigator__list">
         {items.map((item, index) => {
           if (tab === "files" && "relativePath" in item) {
+            const anchor = item.status?.anchor ?? "confirmed";
+            const isOrphaned = anchor === "orphaned";
+            const isCurrent = item.relativePath === notes.currentResource;
+
             return (
               <li
-                className="notes-navigator__item notes-navigator__item--file"
+                className={getNavigatorItemClassName("file", { isCurrent, isOrphaned })}
                 key={item.relativePath}
-                role="button"
-                tabIndex={0}
-                onClick={() => openNavigatorResource(item.relativePath)}
+                role={isOrphaned ? undefined : "button"}
+                tabIndex={isOrphaned ? undefined : 0}
+                onClick={() => {
+                  if (!isOrphaned) {
+                    openNavigatorResource(item.relativePath);
+                  }
+                }}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -197,6 +325,10 @@ function NavigatorList({
                   });
                 }}
                 onKeyDown={(event) => {
+                  if (isOrphaned) {
+                    return;
+                  }
+
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
                     openNavigatorResource(item.relativePath);
@@ -206,8 +338,10 @@ function NavigatorList({
                 <span className="notes-navigator__index">{index + 1}</span>
                 <ResourceIcon resourceKind={item.resourceKind} />
                 <span className="notes-navigator__item-main">
-                  <strong>{item.name}</strong>
-                  <span>{item.preview}</span>
+                  <Tooltip content={item.relativePath}>
+                    <strong className="notes-navigator__item-name">{item.name}</strong>
+                  </Tooltip>
+                  <span className="notes-navigator__item-preview">{item.preview}</span>
                 </span>
                 <span className="notes-navigator__item-meta">
                   <NoteStatusBadges status={item.status} />
@@ -217,9 +351,11 @@ function NavigatorList({
           }
 
           if (tab === "sections" && "startLine" in item) {
+            const isCurrent = item.id === notes.activeSectionId;
+
             return (
               <li
-                className="notes-navigator__item"
+                className={getNavigatorItemClassName("section", { isCurrent })}
                 key={item.id}
                 role="button"
                 tabIndex={0}
@@ -247,9 +383,11 @@ function NavigatorList({
           }
 
           if ("line" in item) {
+            const isCurrent = item.line === notes.activeLine;
+
             return (
               <li
-                className="notes-navigator__item"
+                className={getNavigatorItemClassName("line", { isCurrent })}
                 key={item.id}
                 role="button"
                 tabIndex={0}
@@ -278,11 +416,85 @@ function NavigatorList({
       </ol>
       {fileContextMenu ? (
         <NavigatorItemContextMenu
-          items={getFileContextMenuItems(fileContextMenu.item.status, () =>
-            clearNavigatorFileStaleStatus(fileContextMenu.item.relativePath),
+          items={getFileContextMenuItems(
+            fileContextMenu.item.status,
+            () =>
+              viewNavigatorFileNotes(
+                fileContextMenu.item.relativePath,
+                fileContextMenu.item.status?.anchor ?? "confirmed",
+              ),
+            () => clearNavigatorFileStaleStatus(fileContextMenu.item.relativePath),
+            () => {
+              setRelocateModal({ fromRelativePath: fileContextMenu.item.relativePath });
+              setFileContextMenu(null);
+            },
+            () => {
+              setMarkOrphanedModal({ relativePath: fileContextMenu.item.relativePath });
+              setFileContextMenu(null);
+            },
+            () => {
+              setDeleteNotesModal({ relativePath: fileContextMenu.item.relativePath });
+              setFileContextMenu(null);
+            },
           )}
           position={fileContextMenu.position}
           onClose={() => setFileContextMenu(null)}
+        />
+      ) : null}
+      {relocateModal ? (
+        <RelocateFileNoteModal
+          fromRelativePath={relocateModal.fromRelativePath}
+          suggestedRelativePath={relocateTargetPath}
+          onCancel={() => setRelocateModal(null)}
+          onSubmit={(toRelativePath) =>
+            relocateNavigatorFileNote(relocateModal.fromRelativePath, toRelativePath)
+          }
+        />
+      ) : null}
+      {markOrphanedModal ? (
+        <NoticeModal
+          tone="warning"
+          title="Mark File Note as Orphaned?"
+          message="This will mark the note as no longer attached to a valid file. The note will stay in the file list, but opening it will no longer jump to a source file until you relocate it again."
+          actions={[
+            {
+              label: "Cancel",
+              variant: "secondary",
+              onClick: () => setMarkOrphanedModal(null),
+            },
+            {
+              label: "Mark as Orphaned",
+              variant: "primary",
+              onClick: () => {
+                markNavigatorFileNoteOrphaned(markOrphanedModal.relativePath);
+                setMarkOrphanedModal(null);
+              },
+            },
+          ]}
+          onDismiss={() => setMarkOrphanedModal(null)}
+        />
+      ) : null}
+      {deleteNotesModal ? (
+        <NoticeModal
+          tone="error"
+          title="Delete Notes?"
+          message="This will permanently remove all CZaza notes for this file, including file, section, and line notes. The source file will not be deleted."
+          actions={[
+            {
+              label: "Cancel",
+              variant: "secondary",
+              onClick: () => setDeleteNotesModal(null),
+            },
+            {
+              label: "Delete Notes",
+              variant: "primary",
+              onClick: () => {
+                deleteNavigatorFileNotes(deleteNotesModal.relativePath);
+                setDeleteNotesModal(null);
+              },
+            },
+          ]}
+          onDismiss={() => setDeleteNotesModal(null)}
         />
       ) : null}
     </>
@@ -291,9 +503,18 @@ function NavigatorList({
 
 function getFileContextMenuItems(
   status: NoteStatus | undefined,
+  onViewNotes: () => void,
   onClearStaleStatus: () => void,
+  onRelocate: () => void,
+  onMarkOrphaned: () => void,
+  onDeleteNotes: () => void,
 ): NavigatorItemContextMenuItem[] {
   return [
+    {
+      id: "viewNotes",
+      label: "View Notes",
+      onSelect: onViewNotes,
+    },
     ...(status?.content === "stale"
       ? [
           {
@@ -303,19 +524,24 @@ function getFileContextMenuItems(
           },
         ]
       : []),
-    ...(status?.anchor === "needsConfirmation"
+    {
+      id: "relocate",
+      label: "Relocate...",
+      onSelect: onRelocate,
+    },
+    ...(status?.anchor !== "orphaned"
       ? [
           {
-            id: "relocate" as const,
-            label: "Resolve Anchor: Relocate...",
-            disabled: true,
+            id: "markOrphaned" as const,
+            label: "Mark as Orphaned...",
+            onSelect: onMarkOrphaned,
           },
         ]
       : []),
     {
       id: "delete",
-      label: "Delete",
-      disabled: true,
+      label: "Delete Notes...",
+      onSelect: onDeleteNotes,
     },
   ];
 }

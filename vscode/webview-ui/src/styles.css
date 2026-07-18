@@ -82,16 +82,27 @@ textarea {
 
 .notes-navigator__content {
   min-width: 0;
-  padding: 12px 2px;
+  padding: 0 2px 12px;
+}
+
+.notes-navigator__content::after {
+  content: "";
+  display: block;
+  height: 80vh;
 }
 
 .notes-navigator__heading {
   display: grid;
+  position: sticky;
+  top: 31px;
+  z-index: 8;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   min-width: 0;
-  margin-bottom: 10px;
+  margin: -12px -2px 0;
+  padding: 20px 2px 18px;
+  background: var(--vscode-sideBar-background);
 }
 
 .notes-navigator__title {
@@ -177,12 +188,78 @@ textarea {
 .notes-navigator__item:focus-visible {
   border-color: var(--vscode-focusBorder);
   background: var(--vscode-list-hoverBackground);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--vscode-focusBorder) 55%, transparent),
+    0 3px 10px color-mix(in srgb, #000000 18%, transparent);
   outline: none;
-  transform: translateY(-1px);
+  transform: none;
 }
 
 .notes-navigator__item:active {
   transform: translateY(0);
+}
+
+.notes-navigator__item--orphaned {
+  cursor: default;
+}
+
+.notes-navigator__item--orphaned:hover,
+.notes-navigator__item--orphaned:focus-visible {
+  border-color: color-mix(
+    in srgb,
+    var(--vscode-warningForeground, var(--notes-line-accent)) 46%,
+    var(--vscode-panel-border)
+  );
+  background: color-mix(in srgb, var(--vscode-list-hoverBackground) 70%, transparent);
+  transform: none;
+}
+
+.notes-navigator__item--file {
+  --navigator-item-accent: var(--notes-file-accent);
+}
+
+.notes-navigator__item--section {
+  --navigator-item-accent: var(--notes-section-accent);
+}
+
+.notes-navigator__item--line {
+  --navigator-item-accent: var(--notes-line-accent);
+}
+
+.notes-navigator__item--current {
+  border-color: color-mix(
+    in srgb,
+    var(--navigator-item-accent, var(--vscode-focusBorder)) 68%,
+    var(--vscode-panel-border)
+  );
+  background: color-mix(
+    in srgb,
+    var(--navigator-item-accent, var(--vscode-focusBorder)) 13%,
+    var(--vscode-editor-background)
+  );
+  box-shadow:
+    inset 3px 0 0 var(--navigator-item-accent, var(--vscode-focusBorder)),
+    0 0 0 1px
+      color-mix(in srgb, var(--navigator-item-accent, var(--vscode-focusBorder)) 22%, transparent);
+}
+
+.notes-navigator__item--current:hover,
+.notes-navigator__item--current:focus-visible {
+  border-color: color-mix(
+    in srgb,
+    var(--navigator-item-accent, var(--vscode-focusBorder)) 82%,
+    var(--vscode-focusBorder)
+  );
+  background: color-mix(
+    in srgb,
+    var(--navigator-item-accent, var(--vscode-focusBorder)) 18%,
+    var(--vscode-list-hoverBackground)
+  );
+  box-shadow:
+    inset 3px 0 0 var(--navigator-item-accent, var(--vscode-focusBorder)),
+    0 0 0 1px
+      color-mix(in srgb, var(--navigator-item-accent, var(--vscode-focusBorder)) 38%, transparent),
+    0 3px 10px color-mix(in srgb, #000000 18%, transparent);
 }
 
 .notes-navigator__item--file {
@@ -223,20 +300,25 @@ textarea {
   min-width: 0;
 }
 
-.notes-navigator__item-main strong,
-.notes-navigator__item-main span {
+.notes-navigator__item-name,
+.notes-navigator__item-preview {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.notes-navigator__item-main strong {
+.notes-navigator__item-main > .tooltip {
+  max-width: 100%;
+  width: max-content;
+}
+
+.notes-navigator__item-name {
   color: var(--vscode-foreground);
   font-size: 12px;
   font-weight: 600;
 }
 
-.notes-navigator__item-main span {
+.notes-navigator__item-preview {
   color: var(--vscode-descriptionForeground);
   font-size: 11px;
 }
@@ -322,7 +404,7 @@ textarea {
 
 .tooltip__content {
   position: absolute;
-  z-index: 10;
+  z-index: 120;
   left: 0;
   top: calc(100% + 8px);
   width: max-content;
@@ -579,8 +661,16 @@ textarea {
 
 .notes-card--empty {
   --card-accent: var(--notes-empty-accent);
-  border-color: color-mix(in srgb, var(--vscode-descriptionForeground) 24%, var(--vscode-panel-border));
-  background: color-mix(in srgb, var(--vscode-descriptionForeground) 5%, var(--vscode-editor-background));
+  border-color: color-mix(
+    in srgb,
+    var(--vscode-descriptionForeground) 24%,
+    var(--vscode-panel-border)
+  );
+  background: color-mix(
+    in srgb,
+    var(--vscode-descriptionForeground) 5%,
+    var(--vscode-editor-background)
+  );
 }
 
 .notes-card--user:not(.notes-card--empty) {
@@ -595,10 +685,26 @@ textarea {
 
 .notes-card__head {
   display: grid;
+  position: sticky;
+  top: 0;
+  z-index: 6;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
-  margin-bottom: 9px;
+  margin: -12px -12px 9px;
+  padding: 12px 12px 8px;
+  border-radius: 7px 7px 0 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 18%, transparent);
+  background: color-mix(in srgb, var(--card-accent) 9%, var(--vscode-editor-background));
+  box-shadow: 0 6px 10px color-mix(in srgb, #000000 16%, transparent);
+}
+
+.notes-card--user:not(.notes-card--empty) .notes-card__head {
+  background: color-mix(in srgb, var(--card-accent) 12%, var(--vscode-editor-background));
+}
+
+.notes-card--ai:not(.notes-card--empty) .notes-card__head {
+  background: color-mix(in srgb, var(--card-accent) 8%, var(--vscode-editor-background));
 }
 
 .notes-card__title {
@@ -694,7 +800,7 @@ textarea {
 
 .notice-modal {
   position: fixed;
-  z-index: 200;
+  z-index: 300;
   inset: 0;
   display: grid;
   place-items: center;
@@ -782,7 +888,11 @@ textarea {
 }
 
 .notice-modal__action--primary {
-  border-color: color-mix(in srgb, var(--notice-accent) 66%, var(--vscode-button-border, transparent));
+  border-color: color-mix(
+    in srgb,
+    var(--notice-accent) 66%,
+    var(--vscode-button-border, transparent)
+  );
   color: var(--vscode-button-foreground);
   background: color-mix(in srgb, var(--notice-accent) 72%, var(--vscode-button-background));
 }
@@ -801,6 +911,181 @@ textarea {
 
 .notice-modal__action--secondary:hover,
 .notice-modal__action--secondary:focus-visible {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
+  outline: none;
+}
+
+.relocate-modal {
+  position: fixed;
+  z-index: 210;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: color-mix(in srgb, #000000 34%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.relocate-modal__dialog {
+  --relocate-accent: var(--notes-child-accent);
+
+  width: min(460px, 100%);
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--relocate-accent) 46%, var(--vscode-panel-border));
+  border-radius: 8px;
+  color: var(--vscode-foreground);
+  background: color-mix(
+    in srgb,
+    var(--vscode-sideBar-background) 86%,
+    var(--vscode-editor-background)
+  );
+  box-shadow:
+    0 18px 44px color-mix(in srgb, #000000 42%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--relocate-accent) 10%, transparent);
+}
+
+.relocate-modal__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.relocate-modal__icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--relocate-accent);
+}
+
+.relocate-modal__title {
+  margin: 0;
+  color: color-mix(in srgb, var(--relocate-accent) 78%, var(--vscode-foreground));
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.relocate-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.relocate-modal__paths {
+  margin: 0;
+}
+
+.relocate-modal__paths div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.relocate-modal__paths dt,
+.relocate-modal__label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 16px;
+}
+
+.relocate-modal__paths dd {
+  margin: 0;
+  padding: 6px 8px;
+  overflow-wrap: anywhere;
+  border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 70%, transparent);
+  border-radius: 5px;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.relocate-modal__input {
+  width: 100%;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--relocate-accent) 34%,
+      var(--vscode-input-border, var(--vscode-panel-border))
+    );
+  border-radius: 5px;
+  color: var(--vscode-input-foreground, var(--vscode-foreground));
+  background: var(--vscode-input-background, var(--vscode-editor-background));
+  font: inherit;
+}
+
+.relocate-modal__input:focus {
+  border-color: var(--vscode-focusBorder, var(--relocate-accent));
+  outline: none;
+}
+
+.relocate-modal__hint,
+.relocate-modal__error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.relocate-modal__hint {
+  color: var(--vscode-descriptionForeground);
+}
+
+.relocate-modal__error {
+  color: var(--vscode-errorForeground, #f14c4c);
+}
+
+.relocate-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.relocate-modal__action {
+  min-height: 28px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.relocate-modal__action:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.relocate-modal__action--primary {
+  border-color: color-mix(
+    in srgb,
+    var(--relocate-accent) 66%,
+    var(--vscode-button-border, transparent)
+  );
+  color: var(--vscode-button-foreground);
+  background: color-mix(in srgb, var(--relocate-accent) 72%, var(--vscode-button-background));
+}
+
+.relocate-modal__action--primary:not(:disabled):hover,
+.relocate-modal__action--primary:not(:disabled):focus-visible {
+  background: color-mix(in srgb, var(--relocate-accent) 82%, var(--vscode-button-hoverBackground));
+  outline: none;
+}
+
+.relocate-modal__action--secondary {
+  border-color: color-mix(in srgb, var(--vscode-descriptionForeground) 28%, transparent);
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  background: color-mix(in srgb, var(--vscode-editor-background) 72%, transparent);
+}
+
+.relocate-modal__action--secondary:hover,
+.relocate-modal__action--secondary:focus-visible {
   background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
   outline: none;
 }
@@ -1065,8 +1350,16 @@ textarea {
   color: var(--notes-line-accent);
 }
 
+.navigator-context-menu__item--viewNotes .navigator-context-menu__icon {
+  color: var(--notes-child-accent);
+}
+
 .navigator-context-menu__item--relocate .navigator-context-menu__icon {
   color: var(--vscode-charts-purple, #b180d7);
+}
+
+.navigator-context-menu__item--markOrphaned .navigator-context-menu__icon {
+  color: var(--vscode-warningForeground, var(--notes-line-accent));
 }
 
 .navigator-context-menu__item--delete .navigator-context-menu__icon {
