@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   openTextDocument: vi.fn(),
   showTextDocument: vi.fn(),
   revealRange: vi.fn(),
+  showErrorMessage: vi.fn(),
   showWarningMessage: vi.fn(),
   executeCommand: vi.fn(),
   fsStat: vi.fn(),
@@ -179,6 +180,7 @@ vi.mock("vscode", () => ({
       dispose: mocks.decorationDispose,
     }),
     showTextDocument: mocks.showTextDocument,
+    showErrorMessage: mocks.showErrorMessage,
     showWarningMessage: mocks.showWarningMessage,
   },
 }));
@@ -199,6 +201,7 @@ describe("NotesViewProvider", () => {
     mocks.getNavigatorNotes.mockReset();
     mocks.fsStat.mockReset();
     mocks.executeCommand.mockReset();
+    mocks.showErrorMessage.mockReset();
     mocks.workspaceFolders.length = 0;
     mocks.messageListeners.length = 0;
     mocks.activeTextEditor = undefined;
@@ -487,6 +490,69 @@ describe("NotesViewProvider", () => {
     );
     expect(mocks.openTextDocument).not.toHaveBeenCalled();
     expect(mocks.getResourceNotes).toHaveBeenCalledTimes(1);
+
+    provider.dispose();
+  });
+
+  it("opens a binary Navigator resource with the default VS Code editor", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const binaryUri = createUri(`${workspaceRoot}/dist/czaza-0.5.1.vsix`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.ensureFileNoteResourceAvailability.mockResolvedValue({
+      available: true,
+      changed: false,
+    });
+    mocks.fsStat.mockResolvedValue({ type: 1 });
+    mocks.openTextDocument.mockRejectedValueOnce(
+      new Error("File seems to be binary and cannot be opened as text"),
+    );
+    mocks.getResourceNotes
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "current.ts",
+        relativePath: "current.ts",
+        aiAction: "generate",
+        sectionNotes: [],
+      })
+      .mockResolvedValueOnce({
+        kind: "binary",
+        name: "czaza-0.5.1.vsix",
+        relativePath: "dist/czaza-0.5.1.vsix",
+        aiAction: "generate",
+      });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "openNavigatorResource",
+      relativePath: "dist/czaza-0.5.1.vsix",
+    });
+
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+    expect(mocks.showTextDocument).not.toHaveBeenCalled();
+    expect(mocks.executeCommand).toHaveBeenCalledWith(
+      "revealInExplorer",
+      expect.objectContaining({ fsPath: binaryUri.fsPath }),
+    );
+    expect(mocks.executeCommand).toHaveBeenCalledWith(
+      "vscode.open",
+      expect.objectContaining({ fsPath: binaryUri.fsPath }),
+      { preview: false },
+    );
+    expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
+      uri: expect.objectContaining({ fsPath: binaryUri.fsPath }),
+      notes: {},
+    });
+    expect(mocks.showErrorMessage).not.toHaveBeenCalled();
 
     provider.dispose();
   });

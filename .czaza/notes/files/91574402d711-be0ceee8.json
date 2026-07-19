@@ -1,0 +1,19 @@
+{
+  "source": {
+    "sourceHash": "metadata-sha256:dbda00ded6c757562b122eaefd56d420173a33b30158d7983bbc1cb10e761f84",
+    "sourceHashKind": "metadata"
+  },
+  "sectionNotes": [],
+  "lineNotes": [],
+  "fileNote": {
+    "id": "file",
+    "userNote": "插件的安装文件",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    },
+    "createdBy": "user",
+    "createdAt": "2026-07-19T03:06:33.917Z",
+    "updatedAt": "2026-07-19T03:20:03.234Z"
+  }
+}

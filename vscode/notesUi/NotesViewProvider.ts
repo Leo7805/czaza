@@ -707,9 +707,15 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         return;
       }
 
-      const document = await vscode.workspace.openTextDocument(targetUri);
-      await vscode.window.showTextDocument(document, { preview: false });
-      await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+      try {
+        const document = await vscode.workspace.openTextDocument(targetUri);
+        await vscode.window.showTextDocument(document, { preview: false });
+        await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+      } catch {
+        await vscode.commands.executeCommand("revealInExplorer", targetUri);
+        await vscode.commands.executeCommand("vscode.open", targetUri, { preview: false });
+        await this.loadResourceNotes(targetUri, false);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error.";
       void vscode.window.showErrorMessage(`Failed to open CZaza navigator resource: ${message}`);
