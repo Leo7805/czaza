@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
  * Renders a small VS Code-style hover tooltip around inline content.
  *
  * @param props - Component props.
- * @param props.content - Tooltip text shown on hover or keyboard focus.
+ * @param props.content - Tooltip content shown on hover or keyboard focus.
  * @param props.variant - Optional contextual color treatment.
  * @param props.align - Horizontal alignment of the tooltip content.
  * @param props.children - Inline content that owns the tooltip.
@@ -25,7 +25,7 @@ export function Tooltip({
   align = "start",
   children,
 }: {
-  content: string;
+  content: ReactNode;
   variant?: "default" | "section";
   align?: "start" | "end";
   children: ReactNode;

@@ -64,6 +64,12 @@ export type ResourceNoteContent = {
 
   /** Current content and source-anchor status for this note. */
   status?: NoteStatus;
+
+  /** ISO 8601 timestamp for when this note was created. */
+  createdAt?: string;
+
+  /** ISO 8601 timestamp for when this note was last updated. */
+  updatedAt?: string;
 };
 
 /**
@@ -260,6 +266,8 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
       sourceFile?.fileNote?.userNote,
       sourceFile?.fileNote?.aiExplanation,
       sourceFile?.fileNote?.status,
+      sourceFile?.fileNote?.createdAt,
+      sourceFile?.fileNote?.updatedAt,
     );
 
     if (fingerprint.kind === "binary") {
@@ -405,6 +413,8 @@ function getNoteContent(
   userNote: string | undefined,
   aiExplanation: AIExplanation | undefined,
   status: NoteStatus | undefined,
+  createdAt?: string,
+  updatedAt?: string,
 ): ResourceNoteContent | undefined {
   const hasUserNote = Boolean(userNote?.trim());
   const hasAiExplanation = Boolean(aiExplanation);
@@ -417,6 +427,8 @@ function getNoteContent(
     ...(hasUserNote ? { userNote } : {}),
     ...(hasAiExplanation ? { aiExplanation } : {}),
     ...(status ? { status } : {}),
+    ...(createdAt ? { createdAt } : {}),
+    ...(updatedAt ? { updatedAt } : {}),
   };
 }
 

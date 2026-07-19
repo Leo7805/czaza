@@ -139,6 +139,8 @@ describe("getResourceNotes()", () => {
           content: "current",
           anchor: "confirmed",
         },
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
       },
       aiAction: "regenerate",
       sectionNotes: [],

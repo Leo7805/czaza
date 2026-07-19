@@ -12,6 +12,7 @@ import {
 
 import type { NoteStatus, ResourceAiExplanation, UserNoteTarget } from "../types";
 import { NoteStatusBadges, type NoteStatusBadgeScope } from "./NoteStatusBadges";
+import { Tooltip } from "./Tooltip";
 import {
   UserNoteContextMenu,
   type UserNoteContextMenuItem,
@@ -47,6 +48,7 @@ export type NoteCardVariant = "file" | "section" | "line" | "child";
  * @param props.onSaveUserNote - Optional callback that enables User Note editing.
  * @param props.emptyText - Text shown when the active tab has no content.
  * @param props.headerAccessory - Optional control rendered beside the card title.
+ * @param props.titleTooltip - Optional tooltip shown from the card title.
  * @param props.aiActionLabel - Label for the optional AI generation button.
  * @param props.isAiActionRunning - Whether the AI action is currently running.
  * @param props.isAiActionDisabled - Whether another AI action is running.
@@ -81,6 +83,7 @@ export function NoteCard({
   onSaveUserNote,
   emptyText,
   headerAccessory,
+  titleTooltip,
   aiActionLabel,
   isAiActionRunning = false,
   isAiActionDisabled = false,
@@ -104,6 +107,7 @@ export function NoteCard({
   onSaveUserNote?: (userNote: string) => void;
   emptyText: string;
   headerAccessory?: ReactNode;
+  titleTooltip?: ReactNode;
   aiActionLabel?: "Generate" | "Regenerate";
   isAiActionRunning?: boolean;
   isAiActionDisabled?: boolean;
@@ -237,7 +241,13 @@ export function NoteCard({
     <section className={cardClass} onContextMenu={handleCardContextMenu}>
       <div className="notes-card__head">
         <div className="notes-card__title-group">
-          <h2 className="notes-card__title">{title}</h2>
+          {titleTooltip ? (
+            <Tooltip content={titleTooltip}>
+              <h2 className="notes-card__title">{title}</h2>
+            </Tooltip>
+          ) : (
+            <h2 className="notes-card__title">{title}</h2>
+          )}
           {headerAccessory}
         </div>
         <NoteStatusBadges status={visibleStatus} scope={statusScope} />

@@ -48,6 +48,12 @@ export type ResourceNoteContent = {
 
   /** Current content and source-anchor status for this note. */
   status?: NoteStatus;
+
+  /** ISO 8601 timestamp for when this note was created. */
+  createdAt?: string;
+
+  /** ISO 8601 timestamp for when this note was last updated. */
+  updatedAt?: string;
 };
 
 /** Indicates whether a note still describes the current source code. */

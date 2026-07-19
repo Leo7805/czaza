@@ -134,6 +134,7 @@ export function FileNotesView({
     >
       <NoteCard
         title="File Notes"
+        titleTooltip={getFileNoteTimeTooltip(notes.fileNote)}
         variant="file"
         activeTab={fileTab}
         onTabChange={setFileTab}
@@ -245,6 +246,59 @@ export function FileNotesView({
       ) : null}
     </NotesPanel>
   );
+}
+
+function getFileNoteTimeTooltip(
+  fileNote: Extract<ResourceNotesViewModel, { kind: "file" }>["fileNote"],
+) {
+  const created = formatLocalTimestamp(fileNote?.createdAt);
+  const updated = formatLocalTimestamp(fileNote?.updatedAt);
+
+  if (!created && !updated) {
+    return undefined;
+  }
+
+  return (
+    <span className="note-time-tooltip">
+      {created ? (
+        <>
+          <span>Created</span>
+          <span className="note-time-tooltip__value">{created}</span>
+        </>
+      ) : null}
+      {updated ? (
+        <>
+          <span>Last updated</span>
+          <span className="note-time-tooltip__value">{updated}</span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
+function formatLocalTimestamp(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((candidate) => candidate.type === type)?.value ?? "";
+
+  return `${part("year")}.${part("month")}.${part("day")} ${part("hour")}:${part("minute")}`;
 }
 
 function SectionRangeControl({

@@ -9,6 +9,58 @@ import { FileNotesView } from "@vscode/webview-ui/src/components/FileNotesView";
 import type { ResourceNotesViewModel } from "@vscode/webview-ui/src/types";
 
 describe("FileNotesView", () => {
+  it("shows aligned local created and last-updated times from the File Notes title", () => {
+    const createdAt = "2026-07-19T04:32:00.000Z";
+    const updatedAt = "2026-07-19T06:08:00.000Z";
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "regenerate",
+      fileNote: {
+        userNote: "File note.",
+        createdAt,
+        updatedAt,
+      },
+      sectionNotes: [],
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+    const formatExpected = (value: string): string => {
+      const parts = new Intl.DateTimeFormat("en-CA", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(new Date(value));
+      const part = (type: Intl.DateTimeFormatPartTypes): string =>
+        parts.find((candidate) => candidate.type === type)?.value ?? "";
+      return `${part("year")}.${part("month")}.${part("day")} ${part("hour")}:${part("minute")}`;
+    };
+
+    expect(markup).toContain('class="note-time-tooltip"');
+    expect(markup).toContain("Created");
+    expect(markup).toContain("Last updated");
+    expect(markup).toContain(formatExpected(createdAt));
+    expect(markup).toContain(formatExpected(updatedAt));
+  });
+
+  it("does not show a time tooltip when File Notes has no timestamps", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup).not.toContain("note-time-tooltip");
+  });
+
   it("shows the first matched section, all section options, and one line preview", () => {
     const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
       kind: "file",

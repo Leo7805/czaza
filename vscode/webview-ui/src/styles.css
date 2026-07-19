@@ -626,6 +626,17 @@ textarea {
   transform: rotate(45deg);
 }
 
+.note-time-tooltip {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  column-gap: 8px;
+}
+
+.note-time-tooltip__value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .tooltip--end .tooltip__content {
   right: 0;
   left: auto;
