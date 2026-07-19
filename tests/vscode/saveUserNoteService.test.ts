@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => ({
   sourceCode: "const first = 1;\nreturn first;",
   languageId: "typescript",
   isDirectory: false,
+  cannotOpenText: false,
+  size: 4096,
+  mtime: 1_700_000_000_000,
+  ctime: 1_699_000_000_000,
 }));
 
 vi.mock("vscode", () => ({
@@ -29,9 +33,16 @@ vi.mock("vscode", () => ({
     fs: {
       stat: vi.fn().mockImplementation(async () => ({
         type: mocks.isDirectory ? 2 : 1,
+        size: mocks.size,
+        mtime: mocks.mtime,
+        ctime: mocks.ctime,
       })),
     },
     openTextDocument: vi.fn().mockImplementation(async (uri: vscodeTypes.Uri) => {
+      if (mocks.cannotOpenText) {
+        throw new Error("File seems to be binary and cannot be opened as text");
+      }
+
       const lines = mocks.sourceCode.split(/\r?\n/);
 
       return {
@@ -67,6 +78,10 @@ describe("saveUserNoteService()", () => {
     mocks.sourceCode = "const first = 1;\nreturn first;";
     mocks.languageId = "typescript";
     mocks.isDirectory = false;
+    mocks.cannotOpenText = false;
+    mocks.size = 4096;
+    mocks.mtime = 1_700_000_000_000;
+    mocks.ctime = 1_699_000_000_000;
   });
 
   it("initializes source storage and saves a file user note", async () => {
@@ -398,6 +413,33 @@ describe("saveUserNoteService()", () => {
       createdBy: "user",
     });
     expect(stored.source.programmingLanguage).toBeUndefined();
+  });
+
+  it("initializes and saves a file note when the resource cannot be opened as text", async () => {
+    const notes = createNoteStore();
+    mocks.relativePath = "assets/image.png";
+    mocks.cannotOpenText = true;
+    const uri = createUri(path.join(mocks.rootDirectory, mocks.relativePath));
+
+    await saveUserNoteService({
+      uri,
+      notes,
+      target: { level: "file" },
+      userNote: "Binary asset note.",
+    });
+
+    const stored = await notes.cache.getRequiredSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+    );
+    expect(stored.fileNote).toMatchObject({
+      id: "file",
+      userNote: "Binary asset note.",
+      createdBy: "user",
+    });
+    expect(stored.source.programmingLanguage).toBeUndefined();
+    expect(stored.source.sourceHash).toMatch(/^metadata-sha256:[0-9a-f]{64}$/);
   });
 });
 

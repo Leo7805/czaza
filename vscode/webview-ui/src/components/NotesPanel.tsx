@@ -39,7 +39,7 @@ export function NotesPanel({
   onGenerateAll,
   children,
 }: {
-  kind: "file" | "directory";
+  kind: "file" | "binary" | "directory";
   name: string;
   relativePath: string;
   showHeaderAction?: boolean;

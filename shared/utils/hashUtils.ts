@@ -20,3 +20,18 @@ import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 export function createSourceHash(source: string): string {
   return `sha256:${bytesToHex(sha256(utf8ToBytes(source)))}`;
 }
+
+/**
+ * Creates a lightweight fingerprint for a resource whose content is not read.
+ *
+ * The distinct prefix makes it clear that this is based on filesystem metadata
+ * rather than the complete file content.
+ */
+export function createFileMetadataHash(input: {
+  size: number;
+  mtime: number;
+  ctime: number;
+}): string {
+  const metadata = `${input.size}:${input.mtime}:${input.ctime}`;
+  return `metadata-sha256:${bytesToHex(sha256(utf8ToBytes(metadata)))}`;
+}

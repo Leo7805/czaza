@@ -34,6 +34,12 @@ export type CreateStoredSourceFileInput = {
    */
   sourceCode: string;
 
+  /** Precomputed source fingerprint used when complete source text is unavailable. */
+  sourceHash?: string;
+
+  /** Kind of the supplied source fingerprint. */
+  sourceHashKind?: "text" | "metadata";
+
   /**
    * VS Code TextDocument.languageId for this source file, when available.
    *
@@ -167,7 +173,8 @@ export function createStoredLineNote(lineNote: LineNote, now: string): StoredLin
  */
 export function createStoredSourceFile(input: CreateStoredSourceFileInput): StoredSourceFile {
   const source = {
-    sourceHash: createSourceHash(input.sourceCode),
+    sourceHash: input.sourceHash ?? createSourceHash(input.sourceCode),
+    ...(input.sourceHashKind ? { sourceHashKind: input.sourceHashKind } : {}),
     ...(input.programmingLanguage ? { programmingLanguage: input.programmingLanguage } : {}),
   };
 

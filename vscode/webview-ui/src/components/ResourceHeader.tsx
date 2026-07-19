@@ -42,7 +42,7 @@ export function ResourceHeader({
   onGenerateFileSection,
   onGenerateAll,
 }: {
-  kind: "file" | "directory";
+  kind: "file" | "binary" | "directory";
   name: string;
   relativePath: string;
   showAction?: boolean;
@@ -99,7 +99,9 @@ export function ResourceHeader({
           <Tooltip content={relativePath}>
             <h1 className="resource-header__title">{name}</h1>
           </Tooltip>
-          <span className="resource-header__kind">{kind}</span>
+          <span className="resource-header__kind">
+            {kind === "binary" ? "Binary File" : kind}
+          </span>
         </div>
         {showAction ? (
           <div className="resource-header__actions">

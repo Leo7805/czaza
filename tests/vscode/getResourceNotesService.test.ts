@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   outputDirectory: ".caca",
   stat: vi.fn(),
   readDirectory: vi.fn(),
+  cannotOpenText: false,
 }));
 
 vi.mock("vscode", () => ({
@@ -52,6 +53,14 @@ vi.mock("vscode", () => ({
       stat: mocks.stat,
       readDirectory: mocks.readDirectory,
     },
+
+    openTextDocument: vi.fn().mockImplementation(async (uri: vscodeTypes.Uri) => {
+      if (mocks.cannotOpenText) {
+        throw new Error("File seems to be binary and cannot be opened as text");
+      }
+
+      return { uri, languageId: "typescript", getText: () => "" };
+    }),
 
     getConfiguration: () => ({
       get: <T>(key: string, defaultValue: T): T => {
@@ -87,9 +96,13 @@ describe("getResourceNotes()", () => {
     mocks.workspaceFolders.length = 0;
     mocks.configuredRootDirectory = "";
     mocks.outputDirectory = ".caca";
+    mocks.cannotOpenText = false;
 
     mocks.stat.mockImplementation((uri: vscodeTypes.Uri) => ({
-      type: uri.fsPath.endsWith(".ts") ? 1 : 2,
+      type: uri.fsPath.endsWith(".ts") || uri.fsPath.endsWith(".png") ? 1 : 2,
+      size: 4096,
+      mtime: 2,
+      ctime: 1,
     }));
     mocks.readDirectory.mockResolvedValue([]);
   });
@@ -129,6 +142,28 @@ describe("getResourceNotes()", () => {
       },
       aiAction: "regenerate",
       sectionNotes: [],
+    });
+  });
+
+  it("returns a binary payload without text-only note capabilities", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot();
+    const relativeFilePath = "assets/image.png";
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => randomId));
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.cannotOpenText = true;
+    await saveSourceFile(notes, workspaceRoot, relativeFilePath, { userNote: "Image asset." });
+
+    const result = await getResourceNotes({
+      uri: createUri(path.join(workspaceRoot, relativeFilePath)),
+      notes,
+    });
+
+    expect(result).toEqual({
+      kind: "binary",
+      name: "image.png",
+      relativePath: relativeFilePath,
+      projectRootName: path.basename(workspaceRoot),
+      fileNote: expect.objectContaining({ userNote: "Image asset." }),
     });
   });
 

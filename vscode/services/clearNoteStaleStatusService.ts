@@ -3,6 +3,7 @@
  */
 
 import type { NoteStatus } from "@shared/models/domain/common";
+import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import {
   updateLineAnchorText,
   updateProgrammingLanguage,
@@ -22,6 +23,7 @@ import {
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { UserNoteTarget } from "./saveUserNoteService";
+import { getResourceFingerprint } from "./resourceFingerprint/getResourceFingerprintService";
 import * as vscode from "vscode";
 
 /** Input for clearing stale status on one note. */
@@ -58,14 +60,18 @@ export async function clearNoteStaleStatusService(input: ClearNoteStaleStatusInp
 
   const now = new Date().toISOString();
   const target = input.target;
-  const document = await openTextDocument(input.uri);
+  const fingerprint = await getResourceFingerprint(input.uri);
+  const document = fingerprint.kind === "text" ? fingerprint.document : undefined;
   const lines = document ? splitSourceLines(document.getText()) : [];
-  let next = document
-    ? updateProgrammingLanguage(
-        updateSourceHash(sourceFile, createSourceHash(document.getText())),
-        document.languageId,
-      )
-    : sourceFile;
+  let next =
+    fingerprint.kind === "text"
+      ? updateProgrammingLanguage(
+          updateSourceHash(sourceFile, fingerprint.hash),
+          fingerprint.programmingLanguage,
+        )
+      : fingerprint.kind === "binary"
+        ? updateMetadataFingerprint(sourceFile, fingerprint.hash)
+        : sourceFile;
 
   switch (target.level) {
     case "file": {
@@ -158,12 +164,12 @@ function getClearedStatus(status: NoteStatus | undefined): NoteStatus | undefine
   };
 }
 
-async function openTextDocument(uri: vscode.Uri): Promise<vscode.TextDocument | undefined> {
-  try {
-    return await vscode.workspace.openTextDocument(uri);
-  } catch {
-    return undefined;
-  }
+function updateMetadataFingerprint(sourceFile: StoredSourceFile, hash: string): StoredSourceFile {
+  const next = updateSourceHash(sourceFile, hash);
+  return {
+    ...next,
+    source: { ...next.source, sourceHashKind: "metadata" as const },
+  };
 }
 
 function splitSourceLines(sourceText: string): string[] {

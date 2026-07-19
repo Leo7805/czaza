@@ -7,10 +7,10 @@ import * as vscode from "vscode";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 
 /**
- * Follows the active text editor and refreshes notes for file documents.
+ * Follows active text editors and resource-backed editor tabs.
  *
- * Explorer directory selections do not produce active text editors, so
- * directory previews remain an explicit Show Notes action.
+ * Text editors provide the active source line. Custom tabs such as image
+ * previews provide a resource URI without creating a TextEditor.
  *
  * @param context - Current VS Code extension context.
  * @param provider - Notes provider that loads and displays file previews.
@@ -24,16 +24,15 @@ export function registerNotesPreviewEvents(
 ): void {
   let lastPreviewLocation: string | undefined;
 
-  const followEditor = (editor: vscode.TextEditor | undefined): void => {
-    const uri = editor?.document.uri;
-
+  const followResource = (uri: vscode.Uri | undefined, activeLine?: number): void => {
     if (!uri || uri.scheme !== "file") {
-      lastPreviewLocation = undefined;
       return;
     }
 
-    const activeLine = editor.selection.active.line + 1;
-    const previewLocation = `${uri.toString()}:${activeLine}`;
+    const previewLocation =
+      activeLine === undefined
+        ? `${uri.toString()}:resource`
+        : `${uri.toString()}:line:${activeLine}`;
 
     if (previewLocation === lastPreviewLocation) {
       return;
@@ -46,8 +45,25 @@ export function registerNotesPreviewEvents(
         lastPreviewLocation = undefined;
       }
 
-      console.error("Failed to update CZaza notes preview for the active file.", error);
+      console.error("Failed to update CZaza notes preview for the active resource.", error);
     });
+  };
+
+  const followEditor = (editor: vscode.TextEditor | undefined): void => {
+    followResource(editor?.document.uri, editor ? editor.selection.active.line + 1 : undefined);
+  };
+
+  const followActiveTab = (): void => {
+    const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
+    const uri = getTabResourceUri(tab);
+    const editor = vscode.window.activeTextEditor;
+
+    if (editor && uri && editor.document.uri.toString() === uri.toString()) {
+      followEditor(editor);
+      return;
+    }
+
+    followResource(uri);
   };
 
   context.subscriptions.push(
@@ -57,7 +73,31 @@ export function registerNotesPreviewEvents(
         followEditor(event.textEditor);
       }
     }),
+    vscode.window.tabGroups.onDidChangeTabs(followActiveTab),
+    vscode.window.tabGroups.onDidChangeTabGroups(followActiveTab),
   );
 
-  followEditor(vscode.window.activeTextEditor);
+  if (vscode.window.activeTextEditor) {
+    followEditor(vscode.window.activeTextEditor);
+  } else {
+    followActiveTab();
+  }
+}
+
+function getTabResourceUri(tab: vscode.Tab | undefined): vscode.Uri | undefined {
+  const input = tab?.input;
+
+  if (
+    input instanceof vscode.TabInputText ||
+    input instanceof vscode.TabInputCustom ||
+    input instanceof vscode.TabInputNotebook
+  ) {
+    return input.uri;
+  }
+
+  if (input instanceof vscode.TabInputTextDiff || input instanceof vscode.TabInputNotebookDiff) {
+    return input.modified;
+  }
+
+  return undefined;
 }

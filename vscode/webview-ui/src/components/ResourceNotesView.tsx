@@ -3,6 +3,7 @@
  */
 
 import type { ResourceNotesViewModel } from "../types";
+import { BinaryFileNotesView } from "./BinaryFileNotesView";
 import { DirectoryNotesView } from "./DirectoryNotesView";
 import { EmptyState } from "./EmptyState";
 import { FileNotesView } from "./FileNotesView";
@@ -28,6 +29,10 @@ export function ResourceNotesView({ notes }: { notes: ResourceNotesViewModel }) 
 
   if (notes.kind === "directory") {
     return <DirectoryNotesView notes={notes} />;
+  }
+
+  if (notes.kind === "binary") {
+    return <BinaryFileNotesView notes={notes} />;
   }
 
   return <FileNotesView notes={notes} />;

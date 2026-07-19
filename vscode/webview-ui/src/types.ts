@@ -189,6 +189,15 @@ export type ResourceNotesViewModel =
       lineNote?: ResourceLineNoteContent;
     }
   | {
+      /** Binary file notes view. */
+      kind: "binary";
+      name: string;
+      relativePath: string;
+      projectRootName?: string;
+      fileNote?: ResourceNoteContent;
+      editTarget?: { level: "file" };
+    }
+  | {
       /** Directory notes view. */
       kind: "directory";
       name: string;
@@ -202,6 +211,8 @@ export type ResourceNotesViewModel =
 export type NavigatorNoteContent = ResourceNoteContent & {
   /** One-line preview shown in the list. */
   preview: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 /** File note item rendered by the project-wide Files list. */
@@ -215,6 +226,7 @@ export type NavigatorFileItem = NavigatorNoteContent & {
 export type NavigatorSectionItem = NavigatorNoteContent & {
   id: string;
   title: string;
+  kind?: string;
   startLine: number;
   endLine: number;
 };
@@ -223,6 +235,7 @@ export type NavigatorSectionItem = NavigatorNoteContent & {
 export type NavigatorLineItem = NavigatorNoteContent & {
   id: string;
   line: number;
+  anchorText: string;
 };
 
 /** Complete list data sent to Navigator Mode. */

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-19T02:47:19.386Z",
+  "workspaceRoot": "/Users/leo/Projects/czaza",
+  "files": {
+    "vscode/webview-ui/src/components/NotesNavigatorView.tsx": {
+      "noteFile": "files/4409db6ef14f-f09344e6.json",
+      "sourceHash": "sha256:f007e6dd30963c27c5552b857fa81f1da40ebe22b0bda916e03ba64e775d2a3c",
+      "programmingLanguage": "typescriptreact",
+      "updatedAt": "2026-07-19T02:47:19.386Z"
+    }
+  }
+}

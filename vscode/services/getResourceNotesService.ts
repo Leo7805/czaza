@@ -16,6 +16,7 @@ import {
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { UserNoteTarget } from "./saveUserNoteService";
+import { getResourceFingerprint } from "./resourceFingerprint/getResourceFingerprintService";
 
 /**
  * Single-line note preview for one resource.
@@ -161,6 +162,16 @@ export type ResourceNotesResult =
       editTarget?: UserNoteTarget;
     }
   | {
+      /** Binary file resource notes. */
+      kind: "binary";
+
+      name: string;
+      relativePath: string;
+      projectRootName?: string;
+      fileNote?: ResourceNoteContent;
+      editTarget?: { level: "file" };
+    }
+  | {
       /** Directory resource notes and first-level child previews. */
       kind: "directory";
 
@@ -226,9 +237,9 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
       settings.outputDirectory,
       relativePath,
     );
-    const resourceKind = await getResourceKind(uri);
+    const fingerprint = await getResourceFingerprint(uri);
 
-    if (resourceKind === "directory") {
+    if (fingerprint.kind === "directory") {
       const fileNote = getNoteContent(
         sourceFile?.fileNote?.userNote,
         sourceFile?.fileNote?.aiExplanation,
@@ -250,6 +261,17 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
       sourceFile?.fileNote?.aiExplanation,
       sourceFile?.fileNote?.status,
     );
+
+    if (fingerprint.kind === "binary") {
+      return {
+        kind: "binary",
+        name: getResourceName(uri, relativePath),
+        relativePath,
+        projectRootName: path.basename(resolvedRoot.rootDirectory),
+        ...(fileNote ? { fileNote } : {}),
+      };
+    }
+
     const sectionNotes = getSectionNoteContents(sourceFile, activeLine);
     const lineNote = getLineNoteContent(sourceFile, activeLine);
 
@@ -408,12 +430,6 @@ function getAiPreview(aiExplanation: AIExplanation | undefined): string | undefi
 
 function isPositiveLine(line: number | undefined): line is number {
   return Number.isInteger(line) && (line ?? 0) > 0;
-}
-
-async function getResourceKind(uri: vscode.Uri): Promise<"file" | "directory"> {
-  const stat = await vscode.workspace.fs.stat(uri);
-
-  return stat.type & vscode.FileType.Directory ? "directory" : "file";
 }
 
 function toSupportedChildKind(fileType: vscode.FileType): ResourceChildNotePreview["kind"] | undefined {

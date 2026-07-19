@@ -612,7 +612,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
               ...(revealAiNotes ? { revealAiNotes } : {}),
               ...(this.pendingEditTarget ? { editTarget: this.pendingEditTarget } : {}),
             }
-          : this.currentPayload,
+          : this.currentPayload.kind === "binary" && this.pendingEditTarget?.level === "file"
+            ? { ...this.currentPayload, editTarget: this.pendingEditTarget }
+            : this.currentPayload,
     });
 
     this.pendingEditTarget = undefined;
@@ -946,7 +948,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     if (
       !uri ||
-      (this.currentPayload?.kind !== "file" && this.currentPayload?.kind !== "directory")
+      (this.currentPayload?.kind !== "file" &&
+        this.currentPayload?.kind !== "binary" &&
+        this.currentPayload?.kind !== "directory")
     ) {
       return;
     }
@@ -970,7 +974,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
 	    if (
 	      !uri ||
-	      (this.currentPayload?.kind !== "file" && this.currentPayload?.kind !== "directory")
+      (this.currentPayload?.kind !== "file" &&
+        this.currentPayload?.kind !== "binary" &&
+        this.currentPayload?.kind !== "directory")
 	    ) {
 	      return;
 	    }

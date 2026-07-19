@@ -31,6 +31,9 @@ export type StoredSourceMetadata = {
    */
   sourceHash: string;
 
+  /** Whether the fingerprint represents complete text or filesystem metadata. */
+  sourceHashKind?: "text" | "metadata";
+
   /**
    * VS Code TextDocument.languageId for this source file.
    *

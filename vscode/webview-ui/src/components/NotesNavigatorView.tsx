@@ -1,6 +1,6 @@
 /** Renders the initial Files, Sections, and Lines navigator shell. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   NavigatorFileItem,
@@ -19,6 +19,13 @@ import { NoteStatusBadges } from "./NoteStatusBadges";
 import { NoticeModal } from "./NoticeModal";
 import { RelocateFileNoteModal } from "./RelocateFileNoteModal";
 import { Tooltip } from "./Tooltip";
+import {
+  defaultNavigatorSort,
+  filterAndSortNavigatorItems,
+  matchesGlobalSearch,
+  type NavigatorSortField,
+  type NavigatorSortState,
+} from "./navigatorListUtils";
 
 /** Navigator list categories. */
 export type NotesNavigatorTab = "files" | "sections" | "lines";
@@ -126,34 +133,126 @@ export function NotesNavigatorView({
   relocateTargetPath,
 }: NotesNavigatorViewProps) {
   const [activeTab, setActiveTab] = useState<NotesNavigatorTab>("files");
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [controlsExpanded, setControlsExpanded] = useState(false);
+  const [globalQuery, setGlobalQuery] = useState("");
+  const [filters, setFilters] = useState<Record<NotesNavigatorTab, string>>({
+    files: "",
+    sections: "",
+    lines: "",
+  });
+  const [sorts, setSorts] = useState<Record<NotesNavigatorTab, NavigatorSortState>>(
+    defaultNavigatorSort,
+  );
   const currentFile = navigatorNotes.kind === "resource" ? navigatorNotes.currentFile : undefined;
   const projectRootName =
     navigatorNotes.kind === "resource" ? navigatorNotes.projectRootName : "Project";
   const heading = getNavigatorHeading(activeTab);
   const badge = getNavigatorBadge(activeTab, currentFile, projectRootName);
+  const matchCounts = getGlobalMatchCounts(navigatorNotes, globalQuery);
+  const activeSort = sorts[activeTab];
+  const defaultSort = defaultNavigatorSort[activeTab];
+  const hasHiddenControlState =
+    Boolean(filters[activeTab].trim()) ||
+    activeSort.field !== defaultSort.field ||
+    activeSort.direction !== defaultSort.direction;
 
   return (
     <section className="notes-navigator" aria-label="Notes Navigator">
-      <div className="notes-navigator__tabs" role="tablist" aria-label="Note lists">
-        <NavigatorTab activeTab={activeTab} tab="files" label="Files" onChange={setActiveTab} />
-        <NavigatorTab
-          activeTab={activeTab}
-          tab="sections"
-          label="Sections"
-          onChange={setActiveTab}
-        />
-        <NavigatorTab activeTab={activeTab} tab="lines" label="Lines" onChange={setActiveTab} />
+      <div className="notes-navigator__tabs">
+        <div className="notes-navigator__tab-list" role="tablist" aria-label="Note lists">
+          <NavigatorTab activeTab={activeTab} tab="files" label="Files" count={globalQuery ? matchCounts.files : undefined} onChange={setActiveTab} />
+          <NavigatorTab activeTab={activeTab} tab="sections" label="Sections" count={globalQuery ? matchCounts.sections : undefined} onChange={setActiveTab} />
+          <NavigatorTab activeTab={activeTab} tab="lines" label="Lines" count={globalQuery ? matchCounts.lines : undefined} onChange={setActiveTab} />
+        </div>
+        {globalSearchOpen ? (
+          <div className="notes-navigator__global-search">
+            <input
+              autoFocus
+              aria-label="Search all notes"
+              placeholder="Search all notes…"
+              type="search"
+              value={globalQuery}
+              onChange={(event) => setGlobalQuery(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setGlobalQuery("");
+                  setGlobalSearchOpen(false);
+                }
+              }}
+            />
+            <button
+              className="notes-navigator__search-close"
+              aria-label="Close search"
+              title="Close search"
+              type="button"
+              onClick={() => {
+                setGlobalQuery("");
+                setGlobalSearchOpen(false);
+              }}
+            >
+              <CloseIcon />
+            </button>
+          </div>
+        ) : (
+          <button
+            className={globalQuery ? "notes-navigator__search-toggle notes-navigator__search-toggle--active" : "notes-navigator__search-toggle"}
+            aria-label="Search all notes"
+            title="Search all notes"
+            type="button"
+            onClick={() => setGlobalSearchOpen(true)}
+          >
+            <SearchIcon />
+          </button>
+        )}
       </div>
       <div className="notes-navigator__content" role="tabpanel">
         <div className={`notes-navigator__heading ${navigatorAccentClass[activeTab]}`}>
-          <h1 className="notes-navigator__title">{heading}</h1>
-          <Tooltip content={badge}>
-            <span className="notes-navigator__badge">{badge}</span>
-          </Tooltip>
+          <div className="notes-navigator__heading-main">
+            <h1 className="notes-navigator__title">{heading}</h1>
+            <Tooltip content={badge}>
+              <span className="notes-navigator__badge">{badge}</span>
+            </Tooltip>
+            <button
+              aria-controls="notes-navigator-list-controls"
+              aria-expanded={controlsExpanded}
+              aria-label={controlsExpanded ? "Hide filter and sort controls" : "Show filter and sort controls"}
+              className={[
+                "notes-navigator__controls-toggle",
+                controlsExpanded ? "notes-navigator__controls-toggle--expanded" : "",
+                hasHiddenControlState && !controlsExpanded
+                  ? "notes-navigator__controls-toggle--active"
+                  : "",
+              ].filter(Boolean).join(" ")}
+              title={controlsExpanded ? "Hide filter and sort" : "Show filter and sort"}
+              type="button"
+              onClick={() => setControlsExpanded((current) => !current)}
+            >
+              <AdjustmentsIcon />
+            </button>
+          </div>
+          {controlsExpanded ? (
+            <div className="notes-navigator__controls-region" id="notes-navigator-list-controls">
+              <NavigatorListControls
+                tab={activeTab}
+                filter={filters[activeTab]}
+                sort={sorts[activeTab]}
+                onFilterChange={(filter) =>
+                  setFilters((current) => ({ ...current, [activeTab]: filter }))
+                }
+                onSortChange={(sort) =>
+                  setSorts((current) => ({ ...current, [activeTab]: sort }))
+                }
+              />
+            </div>
+          ) : null}
         </div>
         <NavigatorList
           notes={navigatorNotes}
           tab={activeTab}
+          globalQuery={globalQuery}
+          filterQuery={filters[activeTab]}
+          sort={sorts[activeTab]}
           relocatedFileNote={relocatedFileNote}
           relocateTargetPath={relocateTargetPath}
         />
@@ -162,15 +261,47 @@ export function NotesNavigatorView({
   );
 }
 
+function SearchIcon() {
+  return (
+    <svg className="notes-navigator__search-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M6.75 2a4.75 4.75 0 1 0 2.91 8.5l3.42 3.42.84-.84-3.42-3.42A4.75 4.75 0 0 0 6.75 2Zm-3.5 4.75a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0Z"
+      />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg className="notes-navigator__search-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="m3.7 2.85 4.3 4.3 4.3-4.3.85.85-4.3 4.3 4.3 4.3-.85.85-4.3-4.3-4.3 4.3-.85-.85 4.3-4.3-4.3-4.3.85-.85Z"
+      />
+    </svg>
+  );
+}
+
+function AdjustmentsIcon() {
+  return (
+    <svg className="notes-navigator__controls-toggle-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path fill="currentColor" d="M2 3.4h4.1a2.2 2.2 0 0 1 4.2 0H14v1.2h-3.7a2.2 2.2 0 0 1-4.2 0H2V3.4Zm6.2 1.4a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM2 7.4h1.7a2.2 2.2 0 0 1 4.2 0H14v1.2H7.9a2.2 2.2 0 0 1-4.2 0H2V7.4Zm3.8 1.4a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM2 11.4h6.1a2.2 2.2 0 0 1 4.2 0H14v1.2h-1.7a2.2 2.2 0 0 1-4.2 0H2v-1.2Zm8.2 1.4a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
+    </svg>
+  );
+}
+
 function NavigatorTab({
   activeTab,
   tab,
   label,
+  count,
   onChange,
 }: {
   activeTab: NotesNavigatorTab;
   tab: NotesNavigatorTab;
   label: string;
+  count?: number;
   onChange: (tab: NotesNavigatorTab) => void;
 }) {
   return (
@@ -185,9 +316,110 @@ function NavigatorTab({
       aria-selected={activeTab === tab}
       onClick={() => onChange(tab)}
     >
-      {label}
+      {label}{count === undefined ? "" : ` ${count}`}
     </button>
   );
+}
+
+function NavigatorListControls({
+  tab,
+  filter,
+  sort,
+  onFilterChange,
+  onSortChange,
+}: {
+  tab: NotesNavigatorTab;
+  filter: string;
+  sort: NavigatorSortState;
+  onFilterChange: (filter: string) => void;
+  onSortChange: (sort: NavigatorSortState) => void;
+}) {
+  const options = getSortOptions(tab);
+  const label = tab === "files" ? "files" : tab === "sections" ? "sections" : "lines";
+
+  return (
+    <div className="notes-navigator__controls">
+      <input
+        aria-label={`Filter ${label}`}
+        placeholder={`Filter ${label}…`}
+        type="search"
+        value={filter}
+        onChange={(event) => onFilterChange(event.currentTarget.value)}
+      />
+      <select
+        aria-label={`Sort ${label} by`}
+        className="notes-navigator__sort-field"
+        title={`Sort by ${getSortLabel(options, sort.field)}`}
+        value={sort.field}
+        onChange={(event) =>
+          onSortChange({ ...sort, field: event.currentTarget.value as NavigatorSortField })
+        }
+      >
+        {options.map((option) => (
+          <option key={option.field} value={option.field}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <button
+        aria-label={sort.direction === "ascending" ? "Sort descending" : "Sort ascending"}
+        className="notes-navigator__sort-direction"
+        title={sort.direction === "ascending" ? "Ascending" : "Descending"}
+        type="button"
+        onClick={() =>
+          onSortChange({
+            ...sort,
+            direction: sort.direction === "ascending" ? "descending" : "ascending",
+          })
+        }
+      >
+        {sort.direction === "ascending" ? "↑" : "↓"}
+      </button>
+    </div>
+  );
+}
+
+function getSortOptions(tab: NotesNavigatorTab): Array<{ field: NavigatorSortField; label: string }> {
+  if (tab === "files") {
+    return [
+      { field: "name", label: "Name" },
+      { field: "createdAt", label: "Created" },
+      { field: "updatedAt", label: "Last Updated" },
+    ];
+  }
+
+  if (tab === "sections") {
+    return [
+      { field: "title", label: "Title" },
+      { field: "createdAt", label: "Created" },
+      { field: "updatedAt", label: "Last Updated" },
+    ];
+  }
+
+  return [
+    { field: "line", label: "Line Number" },
+    { field: "createdAt", label: "Created" },
+    { field: "updatedAt", label: "Last Updated" },
+  ];
+}
+
+function getSortLabel(
+  options: Array<{ field: NavigatorSortField; label: string }>,
+  field: NavigatorSortField,
+): string {
+  return options.find((option) => option.field === field)?.label ?? field;
+}
+
+function getGlobalMatchCounts(notes: NavigatorNotesViewModel, query: string) {
+  if (notes.kind !== "resource") {
+    return { files: 0, sections: 0, lines: 0 };
+  }
+
+  return {
+    files: notes.files.filter((item) => matchesGlobalSearch(item, query)).length,
+    sections: notes.sections.filter((item) => matchesGlobalSearch(item, query)).length,
+    lines: notes.lines.filter((item) => matchesGlobalSearch(item, query)).length,
+  };
 }
 
 /** Builds the visible navigator heading without appending its scope badge. */
@@ -217,11 +449,17 @@ function NavigatorList({
   tab,
   relocatedFileNote,
   relocateTargetPath,
+  globalQuery,
+  filterQuery,
+  sort,
 }: {
   notes: NavigatorNotesViewModel;
   tab: NotesNavigatorTab;
   relocatedFileNote?: RelocatedFileNote;
   relocateTargetPath?: string;
+  globalQuery: string;
+  filterQuery: string;
+  sort: NavigatorSortState;
 }) {
   const [fileContextMenu, setFileContextMenu] = useState<FileContextMenuState | null>(null);
   const [sectionContextMenu, setSectionContextMenu] = useState<SectionContextMenuState | null>(
@@ -262,15 +500,27 @@ function NavigatorList({
     };
   }, [relocateModal]);
 
+  const items = useMemo(
+    () => {
+      if (notes.kind !== "resource") {
+        return [];
+      }
+
+      const sourceItems =
+        tab === "files" ? notes.files : tab === "sections" ? notes.sections : notes.lines;
+      return filterAndSortNavigatorItems(sourceItems, tab, globalQuery, filterQuery, sort);
+    },
+    [notes, tab, globalQuery, filterQuery, sort],
+  );
+
   if (notes.kind !== "resource") {
     return <p className="notes-navigator__empty">No notes loaded yet.</p>;
   }
 
-  const items = tab === "files" ? notes.files : tab === "sections" ? notes.sections : notes.lines;
-
   if (items.length === 0) {
     const label = tab === "files" ? "file" : tab === "sections" ? "section" : "line";
-    return <p className="notes-navigator__empty">No {label} notes found.</p>;
+    const isFiltered = Boolean(globalQuery.trim() || filterQuery.trim());
+    return <p className="notes-navigator__empty">{isFiltered ? `No matching ${label} notes.` : `No ${label} notes found.`}</p>;
   }
 
   const openNavigatorResource = (relativePath: string): void => {

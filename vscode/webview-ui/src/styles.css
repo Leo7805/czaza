@@ -46,16 +46,24 @@ textarea {
 }
 
 .notes-navigator__tabs {
-  display: inline-flex;
+  display: flex;
   position: sticky;
   top: 0;
   z-index: 10;
   align-items: center;
   gap: 2px;
   width: 100%;
+  min-height: 36px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--vscode-panel-border);
   background: var(--vscode-sideBar-background);
+}
+
+.notes-navigator__tab-list {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  min-width: 0;
 }
 
 .notes-navigator__tab {
@@ -80,6 +88,85 @@ textarea {
   color: var(--vscode-foreground);
 }
 
+.notes-navigator__search-toggle,
+.notes-navigator__search-close,
+.notes-navigator__sort-direction {
+  border: 0;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.notes-navigator__search-toggle,
+.notes-navigator__search-close {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.notes-navigator__search-toggle {
+  flex: 0 0 32px;
+  margin-left: auto;
+}
+
+.notes-navigator__search-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.notes-navigator__search-toggle:hover,
+.notes-navigator__search-toggle:focus-visible,
+.notes-navigator__search-close:hover,
+.notes-navigator__search-close:focus-visible,
+.notes-navigator__search-toggle--active {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
+  outline: none;
+}
+
+.notes-navigator__global-search {
+  display: grid;
+  flex: 0 1 min(50%, 320px);
+  grid-template-columns: minmax(0, 1fr) 32px;
+  gap: 5px;
+  align-items: center;
+  width: min(50%, 320px);
+  min-width: 150px;
+  min-height: 36px;
+  margin-left: auto;
+}
+
+.notes-navigator__search-close {
+  justify-self: end;
+}
+
+.notes-navigator__global-search input,
+.notes-navigator__controls input,
+.notes-navigator__sort-field {
+  min-width: 0;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  font: inherit;
+  outline: none;
+}
+
+.notes-navigator__global-search input:focus,
+.notes-navigator__controls input:focus,
+.notes-navigator__sort-field:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.notes-navigator__global-search input {
+  height: 24px;
+  padding: 2px 6px;
+}
+
 .notes-navigator__content {
   min-width: 0;
   padding: 0 2px 12px;
@@ -92,17 +179,76 @@ textarea {
 }
 
 .notes-navigator__heading {
-  display: grid;
+  display: flex;
   position: sticky;
-  top: 31px;
+  top: 36px;
   z-index: 8;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   min-width: 0;
   margin: -12px -2px 0;
   padding: 20px 2px 18px;
   background: var(--vscode-sideBar-background);
+}
+
+.notes-navigator__heading-main {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.notes-navigator__controls-toggle {
+  display: grid;
+  position: relative;
+  place-items: center;
+  box-sizing: border-box;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--vscode-descriptionForeground);
+  background: transparent;
+  cursor: pointer;
+}
+
+.notes-navigator__controls-toggle:hover,
+.notes-navigator__controls-toggle:focus-visible {
+  color: var(--vscode-foreground);
+  background: var(--vscode-toolbar-hoverBackground);
+  outline: none;
+}
+
+.notes-navigator__controls-toggle--expanded {
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  color: var(--navigator-item-accent, var(--vscode-focusBorder));
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.notes-navigator__controls-toggle--active::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--vscode-notificationsWarningIcon-foreground, var(--notes-line-accent));
+  box-shadow: 0 0 0 1px var(--vscode-sideBar-background);
+}
+
+.notes-navigator__controls-toggle-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.notes-navigator__controls-region {
+  min-width: 0;
+  margin-top: 8px;
 }
 
 .notes-navigator__title {
@@ -117,8 +263,43 @@ textarea {
   text-overflow: ellipsis;
 }
 
-.notes-navigator__heading > .tooltip {
+.notes-navigator__heading-main > .tooltip {
   max-width: 100%;
+}
+
+.notes-navigator__controls {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(82px, auto) 28px;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+}
+
+.notes-navigator__controls input,
+.notes-navigator__sort-field {
+  height: 26px;
+  padding: 3px 6px;
+}
+
+.notes-navigator__sort-field {
+  color: var(--vscode-dropdown-foreground, var(--vscode-input-foreground));
+  background: var(--vscode-dropdown-background, var(--vscode-input-background));
+}
+
+.notes-navigator__sort-direction {
+  width: 28px;
+  height: 26px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
+  border-radius: 3px;
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  font-size: 15px;
+}
+
+.notes-navigator__sort-direction:hover,
+.notes-navigator__sort-direction:focus-visible {
+  background: var(--vscode-button-hoverBackground);
+  outline: 1px solid var(--vscode-focusBorder);
 }
 
 .notes-navigator__badge {

@@ -207,7 +207,7 @@
         },
         {
           "command": "czaza.showNotes",
-          "when": "resourceScheme == file && explorerResourceIsFolder",
+          "when": "resourceScheme == file",
           "group": "navigation@1"
         }
       ],

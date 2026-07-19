@@ -29,9 +29,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("vscode", () => ({
+  FileType: {
+    File: 1,
+    Directory: 2,
+  },
   workspace: {
     get workspaceFolders() {
       return mocks.workspaceFolders;
+    },
+
+    fs: {
+      stat: vi.fn().mockResolvedValue({ type: 1, size: 100, mtime: 1, ctime: 1 }),
     },
 
     getConfiguration: () => ({

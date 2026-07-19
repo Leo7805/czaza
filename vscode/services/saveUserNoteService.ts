@@ -14,6 +14,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import { getResourceFingerprint } from "./resourceFingerprint/getResourceFingerprintService";
 
 /**
  * Note target accepted by the shared user-note editor.
@@ -62,14 +63,18 @@ export type SaveUserNoteInput = {
  * });
  */
 export async function saveUserNoteService(input: SaveUserNoteInput): Promise<void> {
-  const resourceKind = await getResourceKind(input.uri);
+  const fingerprint = await getResourceFingerprint(input.uri);
+  const resourceKind = fingerprint.kind === "directory" ? "directory" : "file";
 
   if (resourceKind === "directory" && input.target.level !== "file") {
     throw new Error("Directory resources only support file-level user notes.");
   }
 
-  const document =
-    resourceKind === "file" ? await vscode.workspace.openTextDocument(input.uri) : undefined;
+  if (fingerprint.kind === "binary" && input.target.level !== "file") {
+    throw new Error("Binary resources only support file-level user notes.");
+  }
+
+  const document = fingerprint.kind === "text" ? fingerprint.document : undefined;
   const resolvedRoot = resolveCzazaRootDirectory(input.uri);
   const relativePath = getCzazaRelativePath(input.uri, resolvedRoot.rootDirectory);
   const settings = getCzazaSettings(input.uri);
@@ -101,6 +106,9 @@ export async function saveUserNoteService(input: SaveUserNoteInput): Promise<voi
   if (!sourceFile) {
     sourceFile = createStoredSourceFile({
       sourceCode: document?.getText() ?? "",
+      ...(fingerprint.kind !== "directory" ? { sourceHash: fingerprint.hash } : {}),
+      ...(fingerprint.kind === "text" ? { sourceHashKind: "text" as const } : {}),
+      ...(fingerprint.kind === "binary" ? { sourceHashKind: "metadata" as const } : {}),
       ...(document ? { programmingLanguage: document.languageId } : {}),
       now,
     });
@@ -289,9 +297,4 @@ function shouldDeleteUserOnlyNote<TNote extends { aiExplanation?: unknown }>(
 
 function normalizeUserNote(value: string): string | undefined {
   return value.trim() ? value : undefined;
-}
-
-async function getResourceKind(uri: vscode.Uri): Promise<"file" | "directory"> {
-  const stat = await vscode.workspace.fs.stat(uri);
-  return stat.type & vscode.FileType.Directory ? "directory" : "file";
 }

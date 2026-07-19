@@ -5,6 +5,16 @@
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import { checkChangedFileNotesService } from "@vscode/services/checkChangedFileNotesService";
+import {
+  applyFileNoteContentChange,
+  detectFileNoteContentChange,
+} from "@shared/services/notes/fileNoteChangeService";
+import { getCzazaSettings } from "@vscode/config/czazaSettings";
+import {
+  getCzazaRelativePath,
+  resolveCzazaRootDirectory,
+} from "@vscode/config/resolveCzazaRootDirectory";
+import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
 import { applyTextDocumentChangeToNotesService } from "@vscode/services/textDocumentChanges/applyTextDocumentChangeToNotesService";
 import {
   classifyTextDocumentChange,
@@ -318,11 +328,54 @@ async function handleExternalChange(
   notesProvider: NotesViewProvider | undefined,
 ): Promise<void> {
   try {
-    const document = await vscode.workspace.openTextDocument(uri);
+    const fingerprint = await getResourceFingerprint(uri);
 
-    await handleChangedDocument(notes, document, notesProvider, "externalChange");
+    if (fingerprint.kind === "text") {
+      await handleChangedDocument(notes, fingerprint.document, notesProvider, "externalChange");
+      return;
+    }
+
+    if (fingerprint.kind === "binary") {
+      const { rootDirectory } = resolveCzazaRootDirectory(uri);
+      const settings = getCzazaSettings(uri);
+      const relativePath = getCzazaRelativePath(uri, rootDirectory);
+      const sourceFile = await notes.cache.getSourceFile(
+        rootDirectory,
+        settings.outputDirectory,
+        relativePath,
+      );
+
+      if (!sourceFile) {
+        return;
+      }
+
+      const detection = detectFileNoteContentChange({
+        previousSourceHash: sourceFile.source.sourceHash,
+        nextSourceHash: fingerprint.hash,
+      });
+      const result = applyFileNoteContentChange({
+        sourceFile,
+        detection,
+        now: new Date().toISOString(),
+      });
+
+      if (result.changed) {
+        const updatedSourceFile = {
+          ...result.sourceFile,
+          source: { ...result.sourceFile.source, sourceHashKind: "metadata" as const },
+        };
+        await notes.cache.saveSourceFile(
+          rootDirectory,
+          settings.outputDirectory,
+          relativePath,
+          updatedSourceFile,
+          new Date().toISOString(),
+        );
+        await notesProvider?.refreshCurrentNotes(uri);
+      }
+    }
   } catch (error) {
-    console.error("Failed to read externally changed CZaza source file.", error);
+    console.error("Failed to inspect externally changed CZaza resource.", error);
   }
 }
 

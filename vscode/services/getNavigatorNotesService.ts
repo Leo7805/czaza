@@ -27,6 +27,12 @@ export type NavigatorNoteContent = {
 
   /** Current content and source-anchor status for this note. */
   status?: NoteStatus;
+
+  /** ISO timestamp when this note was created. */
+  createdAt?: string;
+
+  /** ISO timestamp when this note was last updated. */
+  updatedAt?: string;
 };
 
 /** One file note shown in the project-wide Files list. */
@@ -49,6 +55,9 @@ export type NavigatorSectionItem = NavigatorNoteContent & {
   /** Section title, when one was supplied. */
   title: string;
 
+  /** Optional semantic section kind used by filtering and search. */
+  kind?: string;
+
   /** One-based inclusive first line. */
   startLine: number;
 
@@ -63,6 +72,9 @@ export type NavigatorLineItem = NavigatorNoteContent & {
 
   /** One-based source line number. */
   line: number;
+
+  /** Source line text used to anchor the note. */
+  anchorText: string;
 };
 
 /** Complete data displayed by Navigator Mode. */
@@ -188,6 +200,8 @@ async function getFileItems(
         : "file",
       name: path.basename(relativePath),
       ...content,
+      createdAt: sourceFile?.fileNote?.createdAt,
+      updatedAt: sourceFile?.fileNote?.updatedAt,
     });
   }
 
@@ -204,12 +218,15 @@ function getSectionItems(sourceFile: StoredSourceFile | undefined): NavigatorSec
     .map(({ note }) => ({
       id: note.id,
       title: note.title,
+      ...(note.kind ? { kind: note.kind } : {}),
       startLine: note.range.startLine,
       endLine: note.range.endLine,
       ...(getNoteContent(note.userNote, note.aiExplanation, note.title, note.status) ?? {
         preview: note.title || "Untitled section",
         status: note.status,
       }),
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
     }));
 }
 
@@ -220,10 +237,13 @@ function getLineItems(sourceFile: StoredSourceFile | undefined): NavigatorLineIt
     .map(({ note }) => ({
       id: note.id,
       line: note.line,
+      anchorText: note.anchorText,
       ...(getNoteContent(note.userNote, note.aiExplanation, `Line ${note.line}`, note.status) ?? {
         preview: `Line ${note.line}`,
         status: note.status,
       }),
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
     }));
 }
 
