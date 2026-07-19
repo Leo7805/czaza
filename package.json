@@ -133,6 +133,11 @@
         "title": "CZaza: Show Notes"
       },
       {
+        "command": "czaza.showProjectNotes",
+        "title": "CZaza: Show Project Notes",
+        "icon": "$(book)"
+      },
+      {
         "command": "czaza.showNotesNavigator",
         "title": "Show Notes Navigator",
         "category": "CZaza",
@@ -183,6 +188,11 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "czaza.showProjectNotes",
+          "when": "view == czaza.notesView",
+          "group": "navigation@10"
+        },
         {
           "command": "czaza.showNotesNavigator",
           "when": "view == czaza.notesView && czaza.notesViewMode == detail",

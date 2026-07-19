@@ -10,10 +10,10 @@
     "userNote": "插件的安装文件",
     "status": {
       "content": "stale",
-      "anchor": "confirmed"
+      "anchor": "needsConfirmation"
     },
     "createdBy": "user",
     "createdAt": "2026-07-19T03:06:33.917Z",
-    "updatedAt": "2026-07-19T03:20:03.234Z"
+    "updatedAt": "2026-07-19T11:54:26.066Z"
   }
 }

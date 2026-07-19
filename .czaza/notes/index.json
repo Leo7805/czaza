@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-19T03:20:03.234Z",
+  "updatedAt": "2026-07-19T11:54:26.066Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -12,13 +12,25 @@
     "dist/czaza-0.5.1.vsix": {
       "noteFile": "files/91574402d711-be0ceee8.json",
       "sourceHash": "metadata-sha256:dbda00ded6c757562b122eaefd56d420173a33b30158d7983bbc1cb10e761f84",
-      "updatedAt": "2026-07-19T03:20:03.234Z"
+      "updatedAt": "2026-07-19T11:54:26.066Z"
     },
     "vscode/webview-ui/src/components/AiGenerationMenu.tsx": {
       "noteFile": "files/c76175225f86-64414ec0.json",
       "sourceHash": "sha256:209a69231cfdf3d8ef0046f3cd712b5300f3d66637a4d4c2eceefec5d110e849",
       "programmingLanguage": "typescriptreact",
-      "updatedAt": "2026-07-19T03:11:38.881Z"
+      "updatedAt": "2026-07-19T10:15:24.387Z"
+    },
+    "vscode/events/registerNotesPreviewEvents.ts": {
+      "noteFile": "files/8c90fa82a5f8-3de1ccd7.json",
+      "sourceHash": "sha256:507650008272def24e20d1fe19b753d79daef8b851817f0ed32db46ec890a082",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-19T10:09:16.942Z"
+    },
+    "shared/prompts/explainFileSectionPrompt.ts": {
+      "noteFile": "files/a4a1475cc80c-ce1ea0f0.json",
+      "sourceHash": "sha256:2aed8ae7c03f33936662eedb1b8dbdb85aa7dd91d46b2fe6991dd933b2375d9f",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-19T11:53:04.656Z"
     }
   }
 }

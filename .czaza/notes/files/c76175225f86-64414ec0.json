@@ -187,5 +187,19 @@
       "updatedAt": "2026-07-19T03:11:29.740Z"
     }
   ],
-  "lineNotes": []
+  "lineNotes": [
+    {
+      "id": "line:50",
+      "line": 50,
+      "anchorText": "  actionLabel: \"Generate\" | \"Regenerate\";",
+      "userNote": "sss",
+      "status": {
+        "content": "current",
+        "anchor": "confirmed"
+      },
+      "createdBy": "user",
+      "createdAt": "2026-07-19T10:15:24.387Z",
+      "updatedAt": "2026-07-19T10:15:24.387Z"
+    }
+  ]
 }

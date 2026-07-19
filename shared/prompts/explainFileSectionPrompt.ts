@@ -15,6 +15,7 @@ import { formatSourceCodeForStructuredAnalysisPrompt } from "./sourcePromptForma
  */
 export type ExplainFileSectionPromptInput = {
   /** Complete source code for the file being analyzed. */
+
   sourceCode: string;
 
   /** Workspace-relative or absolute path used only as prompt context. */
