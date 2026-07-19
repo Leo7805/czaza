@@ -174,6 +174,12 @@ async function getFileItems(
   const items: NavigatorFileItem[] = [];
 
   for (const relativePath of Object.keys(entries).sort((left, right) => left.localeCompare(right))) {
+    // Project Notes belong to the CZaza root itself and are accessed through
+    // the dedicated Project Notes entry point, not the project File Notes list.
+    if (!relativePath) {
+      continue;
+    }
+
     const availability = await ensureFileNoteResourceAvailability({
       notes,
       workspaceRoot,
