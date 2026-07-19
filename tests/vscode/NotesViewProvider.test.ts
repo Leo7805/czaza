@@ -1317,7 +1317,7 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
-  it("deletes a Navigator file notes bundle and refreshes Navigator notes", async () => {
+  it("deletes a Navigator file notes bundle and refreshes the current and Navigator notes", async () => {
     const workspaceRoot = "/tmp";
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
@@ -1355,11 +1355,47 @@ describe("NotesViewProvider", () => {
 
     await vi.waitFor(() => expect(mocks.deleteNavigatorFileNotesService).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.deleteNavigatorFileNotesService).toHaveBeenCalledWith({
       currentUri: uri,
       notes: {},
       relativePath: "src/index.ts",
     });
+
+    provider.dispose();
+  });
+
+  it("does not refresh notes when deleting a Navigator file notes bundle makes no change", async () => {
+    const workspaceRoot = "/tmp";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.deleteNavigatorFileNotesService.mockResolvedValue(false);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "deleteNavigatorFileNotes",
+      relativePath: "src/index.ts",
+    });
+
+    await vi.waitFor(() => expect(mocks.deleteNavigatorFileNotesService).toHaveBeenCalledOnce());
+    expect(mocks.getResourceNotes).toHaveBeenCalledOnce();
+    expect(mocks.getNavigatorNotes).not.toHaveBeenCalled();
 
     provider.dispose();
   });

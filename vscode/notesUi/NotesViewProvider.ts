@@ -1133,12 +1133,18 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     try {
-      await deleteNavigatorFileNotesService({
+      const changed = await deleteNavigatorFileNotesService({
         currentUri,
         notes: this.notes,
         relativePath,
       });
-      await this.loadNavigatorNotes();
+
+      if (changed) {
+        await this.refreshCurrentNotes(currentUri);
+        if (this.viewMode !== "navigator") {
+          await this.loadNavigatorNotes();
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error.";
       await this.postNotice({

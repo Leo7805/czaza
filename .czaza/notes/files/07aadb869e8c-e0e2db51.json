@@ -1,0 +1,20 @@
+{
+  "source": {
+    "sourceHash": "sha256:f681f10f71c2b9f2378293cfccfe4be5b1a51ed93728909618a29b71cbac0112",
+    "sourceHashKind": "text",
+    "programmingLanguage": "xml"
+  },
+  "sectionNotes": [],
+  "lineNotes": [],
+  "fileNote": {
+    "id": "file",
+    "userNote": "czaza logo",
+    "status": {
+      "content": "current",
+      "anchor": "confirmed"
+    },
+    "createdBy": "user",
+    "createdAt": "2026-07-19T02:57:33.523Z",
+    "updatedAt": "2026-07-19T02:57:33.523Z"
+  }
+}
