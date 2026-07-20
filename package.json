@@ -21,7 +21,9 @@
     "watch:vscode": "tsup vscode/extension.ts --tsconfig tsconfig.node.json --format cjs --platform node --external vscode --out-dir dist/vscode --watch"
   },
   "dependencies": {
+    "@emoji-mart/data": "^1.2.1",
     "@noble/hashes": "^2.2.0",
+    "emoji-mart": "^5.6.0",
     "picomatch": "^4.0.5",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
@@ -184,6 +186,11 @@
         "command": "czaza.addSectionNote",
         "title": "Add Section Note",
         "category": "CZaza"
+      },
+      {
+        "command": "czaza.insertEmoji",
+        "title": "Insert Emoji…",
+        "category": "CZaza"
       }
     ],
     "menus": {
@@ -243,6 +250,13 @@
           "command": "czaza.addSectionNote",
           "when": "editorTextFocus && czaza.canAddSectionNote",
           "group": "navigation@11"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "czaza.insertEmoji",
+          "when": "webviewId == czaza.notesView && webviewSection == noteEditor",
+          "group": "1_cutcopypaste@100"
         }
       ]
     },

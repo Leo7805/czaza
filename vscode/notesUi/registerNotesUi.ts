@@ -13,6 +13,7 @@ const SHOW_NOTES_COMMAND = "czaza.showNotes";
 const SHOW_PROJECT_NOTES_COMMAND = "czaza.showProjectNotes";
 const SHOW_NOTES_NAVIGATOR_COMMAND = "czaza.showNotesNavigator";
 const SHOW_NOTES_DETAIL_COMMAND = "czaza.showNotesDetail";
+const INSERT_EMOJI_COMMAND = "czaza.insertEmoji";
 const NOTES_VIEW_MODE_CONTEXT = "czaza.notesViewMode";
 type NotesViewMode = "detail" | "navigator";
 
@@ -69,6 +70,7 @@ export function registerNotesUi(
     }),
     vscode.commands.registerCommand(SHOW_NOTES_NAVIGATOR_COMMAND, () => setViewMode("navigator")),
     vscode.commands.registerCommand(SHOW_NOTES_DETAIL_COMMAND, () => setViewMode("detail")),
+    vscode.commands.registerCommand(INSERT_EMOJI_COMMAND, () => provider.openEmojiPicker()),
   );
 }
 

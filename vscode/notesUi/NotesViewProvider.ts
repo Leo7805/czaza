@@ -410,6 +410,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
+  /** Opens the emoji picker for the most recently focused note editor. */
+  openEmojiPicker(): void {
+    void this.view?.webview.postMessage({ type: "openEmojiPicker" });
+  }
+
   /**
    * Shows notes for one selected resource.
    *

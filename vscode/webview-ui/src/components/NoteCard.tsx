@@ -3,14 +3,30 @@
  */
 
 import {
+  useCallback,
   useEffect,
+  useRef,
   useState,
   type KeyboardEvent,
   type MouseEvent,
+  type RefObject,
   type ReactNode,
 } from "react";
 
-import type { NoteStatus, ResourceAiExplanation, UserNoteTarget } from "../types";
+import type {
+  ExtensionToWebviewMessage,
+  NoteStatus,
+  ResourceAiExplanation,
+  UserNoteTarget,
+} from "../types";
+import {
+  replaceEditorSelection,
+  type EditorSelection,
+} from "../editorTextUtils";
+import {
+  EmojiPickerPopover,
+  type EmojiPickerPosition,
+} from "./EmojiPickerPopover";
 import { NoteStatusBadges, type NoteStatusBadgeScope } from "./NoteStatusBadges";
 import { Tooltip } from "./Tooltip";
 import {
@@ -23,6 +39,8 @@ type NoteContextMenuState = {
   position: UserNoteContextMenuPosition;
   mode: "user" | "ai";
 };
+
+let lastActiveNoteEditor: HTMLTextAreaElement | null = null;
 
 /**
  * Visual note card variants used by the notes panel.
@@ -120,6 +138,9 @@ export function NoteCard({
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [contextMenuState, setContextMenuState] = useState<NoteContextMenuState | null>(null);
+  const [emojiPickerPosition, setEmojiPickerPosition] = useState<EmojiPickerPosition | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const editorSelectionRef = useRef<EditorSelection>({ start: 0, end: 0 });
   const selectedTab = activeTab ?? internalActiveTab;
   const selectTab = onTabChange ?? setInternalActiveTab;
   const hasUserContent = Boolean(userNote?.trim());
@@ -141,7 +162,34 @@ export function NoteCard({
     setIsEditing(startInEditMode && selectedTab === "user");
     setDraft(startInEditMode && selectedTab === "user" ? userNote ?? "" : "");
     setContextMenuState(null);
+    setEmojiPickerPosition(null);
   }, [editKey, selectedTab, startInEditMode, userNote]);
+
+  useEffect(() => {
+    const mountedEditor = editorRef.current;
+    const openFromContextMenu = (event: MessageEvent): void => {
+      const message = event.data as ExtensionToWebviewMessage;
+      if (message.type !== "openEmojiPicker" || lastActiveNoteEditor !== editorRef.current) {
+        return;
+      }
+
+      const editor = editorRef.current;
+      if (!editor) {
+        return;
+      }
+
+      const rect = editor.getBoundingClientRect();
+      setEmojiPickerPosition(getEmojiPickerPosition(rect.left + 8, rect.top + 8));
+    };
+
+    window.addEventListener("message", openFromContextMenu);
+    return () => {
+      window.removeEventListener("message", openFromContextMenu);
+      if (lastActiveNoteEditor === mountedEditor) {
+        lastActiveNoteEditor = null;
+      }
+    };
+  }, [isEditing]);
 
   useEffect(() => {
     if (!contextMenuState) {
@@ -164,6 +212,26 @@ export function NoteCard({
     };
   }, [contextMenuState]);
 
+  useEffect(() => {
+    if (!emojiPickerPosition) {
+      return;
+    }
+
+    const closePickerOnEscape = (event: globalThis.KeyboardEvent): void => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      setEmojiPickerPosition(null);
+      requestAnimationFrame(() => editorRef.current?.focus());
+    };
+
+    window.addEventListener("keydown", closePickerOnEscape, true);
+    return () => window.removeEventListener("keydown", closePickerOnEscape, true);
+  }, [emojiPickerPosition]);
+
   const startEditing = (): void => {
     setDraft(userNote ?? "");
     setIsEditing(true);
@@ -178,6 +246,34 @@ export function NoteCard({
     onSaveUserNote?.(draft);
     setIsEditing(false);
   };
+
+  const rememberEditorSelection = (editor: HTMLTextAreaElement): void => {
+    lastActiveNoteEditor = editor;
+    editorSelectionRef.current = {
+      start: editor.selectionStart,
+      end: editor.selectionEnd,
+    };
+  };
+
+  const closeEmojiPicker = useCallback((): void => {
+    setEmojiPickerPosition(null);
+  }, []);
+
+  const insertEmoji = useCallback((emoji: string): void => {
+    const { start, end } = editorSelectionRef.current;
+    const nextCaret = start + emoji.length;
+
+    setDraft((previous) => replaceEditorSelection(previous, { start, end }, emoji));
+    setEmojiPickerPosition(null);
+
+    requestAnimationFrame(() => {
+      editorRef.current?.focus();
+      editorRef.current?.setSelectionRange(nextCaret, nextCaret);
+      if (editorRef.current) {
+        rememberEditorSelection(editorRef.current);
+      }
+    });
+  }, []);
 
   const copyUserNote = (): void => {
     setContextMenuState(null);
@@ -225,6 +321,22 @@ export function NoteCard({
   };
 
   const handleEditorKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    rememberEditorSelection(event.currentTarget);
+
+    if (event.key === "Escape" && emojiPickerPosition) {
+      event.preventDefault();
+      event.stopPropagation();
+      setEmojiPickerPosition(null);
+      return;
+    }
+
+    if (event.code === "Space" && event.ctrlKey && event.metaKey) {
+      event.preventDefault();
+      const rect = event.currentTarget.getBoundingClientRect();
+      setEmojiPickerPosition(getEmojiPickerPosition(rect.left + 8, rect.top + 8));
+      return;
+    }
+
     if (event.key === "Escape") {
       event.preventDefault();
       cancelEditing();
@@ -266,6 +378,8 @@ export function NoteCard({
             onCancel={cancelEditing}
             onSave={saveEditing}
             onEditorKeyDown={handleEditorKeyDown}
+            editorRef={editorRef}
+            onEditorActivate={rememberEditorSelection}
           />
         ) : (
           <AiExplanationContent
@@ -296,6 +410,13 @@ export function NoteCard({
             clearStale,
             statusScope,
           )}
+        />
+      ) : null}
+      {emojiPickerPosition ? (
+        <EmojiPickerPopover
+          position={emojiPickerPosition}
+          onSelect={insertEmoji}
+          onClose={closeEmojiPicker}
         />
       ) : null}
     </section>
@@ -406,6 +527,8 @@ function UserNoteContent({
   onCancel,
   onSave,
   onEditorKeyDown,
+  editorRef,
+  onEditorActivate,
 }: {
   userNote?: string;
   emptyText: string;
@@ -417,18 +540,25 @@ function UserNoteContent({
   onCancel: () => void;
   onSave: () => void;
   onEditorKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  editorRef: RefObject<HTMLTextAreaElement | null>;
+  onEditorActivate: (editor: HTMLTextAreaElement) => void;
 }) {
   if (isEditing) {
     return (
       <div className="user-note-editor">
         <textarea
+          ref={editorRef}
           className="user-note-editor__input"
           aria-label="User note"
           autoFocus
           spellCheck={false}
           value={draft}
+          data-vscode-context={JSON.stringify({ webviewSection: "noteEditor" })}
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={onEditorKeyDown}
+          onFocus={(event) => onEditorActivate(event.currentTarget)}
+          onSelect={(event) => onEditorActivate(event.currentTarget)}
+          onContextMenu={(event) => onEditorActivate(event.currentTarget)}
         />
         <div className="user-note-editor__actions">
           <button className="user-note-editor__save" type="button" onClick={onSave}>
@@ -464,6 +594,18 @@ function UserNoteContent({
     </div>
   );
 }
+
+function getEmojiPickerPosition(x: number, y: number): EmojiPickerPosition {
+  const margin = 8;
+  const pickerWidth = Math.min(352, window.innerWidth - margin * 2);
+  const pickerHeight = Math.min(435, window.innerHeight - margin * 2);
+
+  return {
+    x: Math.max(margin, Math.min(x, window.innerWidth - pickerWidth - margin)),
+    y: Math.max(margin, Math.min(y, window.innerHeight - pickerHeight - margin)),
+  };
+}
+
 
 function AiExplanationContent({
   explanation,

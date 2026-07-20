@@ -53,7 +53,13 @@ export function App() {
 
     // VS Code can add its own WebView context menu before React's bubbling
     // handler runs, so prevent the default event during capture as well.
+    // Keep native text-editing context menus available inside form fields.
     const preventDefaultContextMenu = (event: MouseEvent): void => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("input, textarea")) {
+        return;
+      }
+
       event.preventDefault();
     };
 
@@ -107,8 +113,14 @@ export function App() {
   return (
     <main
       className={viewMode === "navigator" ? "notes-shell notes-shell--navigator" : "notes-shell"}
-      data-vscode-context={JSON.stringify({ preventDefaultContextMenuItems: true })}
-      onContextMenu={(event) => event.preventDefault()}
+      onContextMenu={(event) => {
+        const target = event.target;
+        if (target instanceof Element && target.closest("input, textarea")) {
+          return;
+        }
+
+        event.preventDefault();
+      }}
     >
       {viewMode === "detail" ? (
         <ResourceNotesView notes={notes} />

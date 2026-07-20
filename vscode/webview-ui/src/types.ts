@@ -298,6 +298,10 @@ export type ExtensionToWebviewMessage =
       type: "navigatorRelocateTargetPath";
       relativePath: string;
     }
+	  | {
+	      /** Opens the emoji picker for the last focused note editor. */
+	      type: "openEmojiPicker";
+	    }
 	  | NotesViewModeMessage;
 
 /** Mode selected by the VS Code notes View Toolbar. */

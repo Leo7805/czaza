@@ -1388,6 +1388,24 @@ textarea {
   outline-offset: -1px;
 }
 
+.emoji-picker-popover {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  width: min(352px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow: hidden;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
+  border-radius: 8px;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  box-shadow: 0 8px 24px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.36));
+}
+
+.emoji-picker-popover > em-emoji-picker {
+  width: 100%;
+  max-height: calc(100vh - 18px);
+}
+
 .user-note-editor__actions {
   display: flex;
   align-items: center;
