@@ -5,6 +5,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -141,6 +142,7 @@ export function NoteCard({
   const [emojiPickerPosition, setEmojiPickerPosition] = useState<EmojiPickerPosition | null>(null);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const editorSelectionRef = useRef<EditorSelection>({ start: 0, end: 0 });
+  const pendingEditorSelectionRef = useRef<EditorSelection | null>(null);
   const selectedTab = activeTab ?? internalActiveTab;
   const selectTab = onTabChange ?? setInternalActiveTab;
   const hasUserContent = Boolean(userNote?.trim());
@@ -232,6 +234,19 @@ export function NoteCard({
     return () => window.removeEventListener("keydown", closePickerOnEscape, true);
   }, [emojiPickerPosition]);
 
+  useLayoutEffect(() => {
+    const pendingSelection = pendingEditorSelectionRef.current;
+    const editor = editorRef.current;
+    if (!pendingSelection || !editor) {
+      return;
+    }
+
+    pendingEditorSelectionRef.current = null;
+    editor.focus();
+    editor.setSelectionRange(pendingSelection.start, pendingSelection.end);
+    editorSelectionRef.current = pendingSelection;
+  }, [draft]);
+
   const startEditing = (): void => {
     setDraft(userNote ?? "");
     setIsEditing(true);
@@ -262,17 +277,12 @@ export function NoteCard({
   const insertEmoji = useCallback((emoji: string): void => {
     const { start, end } = editorSelectionRef.current;
     const nextCaret = start + emoji.length;
+    const nextSelection = { start: nextCaret, end: nextCaret };
 
+    pendingEditorSelectionRef.current = nextSelection;
+    editorSelectionRef.current = nextSelection;
     setDraft((previous) => replaceEditorSelection(previous, { start, end }, emoji));
     setEmojiPickerPosition(null);
-
-    requestAnimationFrame(() => {
-      editorRef.current?.focus();
-      editorRef.current?.setSelectionRange(nextCaret, nextCaret);
-      if (editorRef.current) {
-        rememberEditorSelection(editorRef.current);
-      }
-    });
   }, []);
 
   const copyUserNote = (): void => {
