@@ -4,6 +4,7 @@
 
 import * as vscode from "vscode";
 
+import { AI_REQUEST_DEFAULTS } from "@shared/config/aiRequestDefaults";
 import {
   AI_CATALOG,
   type AiModel,
@@ -36,6 +37,7 @@ export type CzazaSettings = {
     provider: AiProvider;
     model: AiModel;
     responseLanguage: AiResponseLanguage;
+    maxAnalysisLines: number;
   };
   rootDirectory: string;
   outputDirectory: string;
@@ -78,6 +80,12 @@ export function getCzazaSettings(resource?: vscode.Uri): CzazaSettings {
     ? configuredResponseLanguage
     : DEFAULT_RESPONSE_LANGUAGE;
 
+  const configuredMaxAnalysisLines = config.get<number>("ai.maxAnalysisLines");
+  const maxAnalysisLines =
+    Number.isInteger(configuredMaxAnalysisLines) && Number(configuredMaxAnalysisLines) >= 1
+      ? Number(configuredMaxAnalysisLines)
+      : AI_REQUEST_DEFAULTS.allNotes.maxCandidateLines;
+
   // An empty output directory is not useful, so fall back to ".czaza".
   const configuredOutputDirectory = config
     .get<string>("outputDirectory", DEFAULT_OUTPUT_DIRECTORY)
@@ -93,6 +101,7 @@ export function getCzazaSettings(resource?: vscode.Uri): CzazaSettings {
       provider,
       model,
       responseLanguage,
+      maxAnalysisLines,
     },
     rootDirectory,
     outputDirectory,

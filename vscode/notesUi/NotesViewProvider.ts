@@ -30,6 +30,7 @@ import { deleteNavigatorLineNoteService } from "@vscode/services/deleteNavigator
 import { deleteNavigatorSectionNoteService } from "@vscode/services/deleteNavigatorSectionNoteService";
 import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavigatorFileNoteOrphanedService";
 import { relocateNavigatorFileNoteService } from "@vscode/services/relocateNavigatorFileNoteService";
+import { AllNotesLineLimitError } from "@vscode/services/generateAllNotesService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
 
 /**
@@ -47,6 +48,11 @@ type NotesWebviewMessage =
   | {
       /** Requests coordinated file, section, and line AI note generation. */
       type: "generateAllNotes";
+    }
+  | {
+      /** Runs one explicitly supported action from a notice modal. */
+      type: "runNoticeAction";
+      action: "openMaxAnalysisLinesSetting";
     }
   | {
       /** Requests AI note generation for the active source line. */
@@ -301,6 +307,14 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
       if (message.type === "generateAllNotes") {
         void this.runNotesGeneration("all");
+        return;
+      }
+
+      if (message.type === "runNoticeAction") {
+        void vscode.commands.executeCommand(
+          "workbench.action.openSettings",
+          "@id:czaza.ai.maxAnalysisLines",
+        );
         return;
       }
 
@@ -659,6 +673,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     title: string;
     message: string;
     actionLabel?: string;
+    actions?: Array<{
+      label: string;
+      variant?: "primary" | "secondary";
+      action?: "openMaxAnalysisLinesSetting";
+    }>;
   }): Promise<void> {
     await this.view?.webview.postMessage({
       type: "notice",
@@ -666,7 +685,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         tone: input.tone,
         title: input.title,
         message: input.message,
-        actions: [
+        actions: input.actions ?? [
           {
             label: input.actionLabel ?? "Close",
             variant: "primary",
@@ -862,8 +881,24 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.loadResourceNotes(uri, false, getActiveLine(uri));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to generate CZaza notes: ${message}`);
+      if (error instanceof AllNotesLineLimitError) {
+        await this.postNotice({
+          tone: "warning",
+          title: "AI Analysis Line Limit Exceeded",
+          message: `This file contains ${error.sourceLineCount} lines, of which ${error.candidateLineCount} require AI analysis. The current limit is ${error.maxCandidateLines}. Increase “CZaza › AI: Max Analysis Lines” in VS Code Settings and try again.`,
+          actions: [
+            {
+              label: "Open Settings",
+              variant: "primary",
+              action: "openMaxAnalysisLinesSetting",
+            },
+            { label: "Close", variant: "secondary" },
+          ],
+        });
+      } else {
+        const message = error instanceof Error ? error.message : "Unknown error.";
+        void vscode.window.showErrorMessage(`Failed to generate CZaza notes: ${message}`);
+      }
     } finally {
       this.generatingResources.delete(resourceKey);
 
@@ -1324,12 +1359,15 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     fromRelativePath?: unknown;
     toRelativePath?: unknown;
     anchor?: unknown;
+    action?: unknown;
   };
 
   return (
     candidate.type === "ready" ||
     candidate.type === "generateFileNotes" ||
     candidate.type === "generateAllNotes" ||
+    (candidate.type === "runNoticeAction" &&
+      candidate.action === "openMaxAnalysisLinesSetting") ||
     (candidate.type === "generateLineNote" &&
       (candidate.lineScope === "currentLine" || candidate.lineScope === "nearbyLines")) ||
     (candidate.type === "generateSectionNote" && typeof candidate.sectionId === "string") ||

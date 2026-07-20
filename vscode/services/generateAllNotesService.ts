@@ -66,6 +66,9 @@ export type GenerateAllNotesInput = {
   /** Maximum output limit published for the selected model. */
   modelMaxOutputTokens: number;
 
+  /** Maximum number of filtered source lines eligible for individual notes. */
+  maxCandidateLines?: number;
+
   /** Factory used to apply the assessed output cap to the AI client. */
   createAiClient: AllNotesAiClientFactory;
 
@@ -129,9 +132,15 @@ export async function generateAllNotesService(
     candidateLineCount: requestedLineNumbers.length,
     modelContextWindowTokens: input.modelContextWindowTokens,
     modelMaxOutputTokens: input.modelMaxOutputTokens,
+    ...(input.maxCandidateLines !== undefined
+      ? { limits: { maxCandidateLines: input.maxCandidateLines } }
+      : {}),
   });
 
-  assertRequestAllowed(assessment);
+  assertRequestAllowed(
+    assessment,
+    input.maxCandidateLines ?? AI_REQUEST_DEFAULTS.allNotes.maxCandidateLines,
+  );
 
   const analysis = await explainFileSectionLineService(
     prompt,
@@ -208,6 +217,7 @@ export async function generateAllNotesForResource(
     responseLanguageInstruction: aiConfig.languageInstruction,
     modelContextWindowTokens: modelDefinition.contextWindowTokens,
     modelMaxOutputTokens: modelDefinition.maxOutputTokens,
+    maxCandidateLines: settings.ai.maxAnalysisLines,
     createAiClient: (maxTokens) => createRuntimeAiClient(aiConfig, maxTokens),
     ...(existingSourceFile ? { existingSourceFile } : {}),
     now,
@@ -241,11 +251,37 @@ function createRuntimeAiClient(
 }
 
 /** Rejects an unsafe request before creating or calling an AI client. */
-function assertRequestAllowed(assessment: AllNotesRequestAssessment): void {
+function assertRequestAllowed(
+  assessment: AllNotesRequestAssessment,
+  maxCandidateLines: number,
+): void {
   if (!assessment.allowed) {
+    if (assessment.reason === "too-many-lines") {
+      throw new AllNotesLineLimitError(
+        assessment.sourceLineCount,
+        assessment.candidateLineCount,
+        maxCandidateLines,
+      );
+    }
+
     throw new Error(
       `All Notes generation request rejected: ${assessment.reason ?? "unknown-limit"}.`,
     );
+  }
+}
+
+/** User-configurable line-limit rejection surfaced by the notes webview. */
+export class AllNotesLineLimitError extends Error {
+  readonly sourceLineCount: number;
+  readonly candidateLineCount: number;
+  readonly maxCandidateLines: number;
+
+  constructor(sourceLineCount: number, candidateLineCount: number, maxCandidateLines: number) {
+    super("All Notes generation request rejected: too-many-lines.");
+    this.name = "AllNotesLineLimitError";
+    this.sourceLineCount = sourceLineCount;
+    this.candidateLineCount = candidateLineCount;
+    this.maxCandidateLines = maxCandidateLines;
   }
 }
 

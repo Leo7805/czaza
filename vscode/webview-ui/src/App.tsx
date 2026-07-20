@@ -138,7 +138,12 @@ export function App() {
           message={notice.message}
           actions={notice.actions.map((action) => ({
             ...action,
-            onClick: () => setNotice(undefined),
+            onClick: () => {
+              if (action.action) {
+                vscode?.postMessage({ type: "runNoticeAction", action: action.action });
+              }
+              setNotice(undefined);
+            },
           }))}
           onDismiss={() => setNotice(undefined)}
         />

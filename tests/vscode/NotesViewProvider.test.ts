@@ -186,6 +186,7 @@ vi.mock("vscode", () => ({
 }));
 
 import { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
+import { AllNotesLineLimitError } from "@vscode/services/generateAllNotesService";
 
 describe("NotesViewProvider", () => {
   beforeEach(() => {
@@ -638,6 +639,64 @@ describe("NotesViewProvider", () => {
         revealAiNotes: "all",
       }),
     });
+
+    provider.dispose();
+  });
+
+  it("shows the custom notice and opens settings when All Notes exceeds the line limit", async () => {
+    const uri = createUri("/workspace/src/large.ts");
+    const generateAllNotes = vi.fn().mockRejectedValue(
+      new AllNotesLineLimitError(520, 347, 300),
+    );
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      generateAllNotes,
+    );
+    const view = createWebviewView();
+
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "large.ts",
+      relativePath: "src/large.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({ type: "generateAllNotes" });
+
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "notice",
+        notice: {
+          tone: "warning",
+          title: "AI Analysis Line Limit Exceeded",
+          message: expect.stringContaining("347 require AI analysis"),
+          actions: [
+            {
+              label: "Open Settings",
+              variant: "primary",
+              action: "openMaxAnalysisLinesSetting",
+            },
+            { label: "Close", variant: "secondary" },
+          ],
+        },
+      }),
+    );
+    expect(mocks.showErrorMessage).not.toHaveBeenCalled();
+
+    mocks.messageListeners[0]?.({
+      type: "runNoticeAction",
+      action: "openMaxAnalysisLinesSetting",
+    });
+    expect(mocks.executeCommand).toHaveBeenCalledWith(
+      "workbench.action.openSettings",
+      "@id:czaza.ai.maxAnalysisLines",
+    );
 
     provider.dispose();
   });

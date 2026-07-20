@@ -154,6 +154,29 @@ describe("generateAllNotesService()", () => {
     ).rejects.toThrow("All Notes generation request rejected: too-many-lines.");
     expect(createAiClient).not.toHaveBeenCalled();
   });
+
+  it("uses the configured candidate-line limit", async () => {
+    const createAiClient = vi.fn<(maxTokens: number) => AiClient>();
+
+    await expect(
+      generateAllNotesService({
+        sourceCode: ["const one = 1;", "const two = 2;", "const three = 3;"].join("\n"),
+        relativePath: "src/configured-limit.ts",
+        programmingLanguage: "typescript",
+        responseLanguageInstruction: "Respond in English.",
+        ...modelLimits,
+        maxCandidateLines: 2,
+        createAiClient,
+        now,
+      }),
+    ).rejects.toMatchObject({
+      name: "AllNotesLineLimitError",
+      sourceLineCount: 3,
+      candidateLineCount: 3,
+      maxCandidateLines: 2,
+    });
+    expect(createAiClient).not.toHaveBeenCalled();
+  });
 });
 
 describe("generateAllNotesForResource()", () => {
@@ -186,7 +209,10 @@ describe("generateAllNotesForResource()", () => {
     });
     runtimeMocks.resolveRoot.mockReturnValue({ rootDirectory: "/workspace" });
     runtimeMocks.getRelativePath.mockReturnValue("src/add.ts");
-    runtimeMocks.getSettings.mockReturnValue({ outputDirectory: ".czaza" });
+    runtimeMocks.getSettings.mockReturnValue({
+      ai: { maxAnalysisLines: 300 },
+      outputDirectory: ".czaza",
+    });
     runtimeMocks.createDeepSeekClient.mockReturnValue({ complete });
 
     const result = await generateAllNotesForResource(context, notes, uri);
