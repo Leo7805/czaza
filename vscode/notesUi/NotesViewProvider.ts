@@ -32,6 +32,7 @@ import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavig
 import { relocateNavigatorFileNoteService } from "@vscode/services/relocateNavigatorFileNoteService";
 import {
   AllNotesBatchRequiredError,
+  AllNotesInvalidResponseError,
   AllNotesLineLimitError,
 } from "@vscode/services/generateAllNotesService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
@@ -913,6 +914,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
             },
             { label: "Cancel", variant: "secondary" },
           ],
+        });
+      } else if (error instanceof AllNotesInvalidResponseError) {
+        await this.postNotice({
+          tone: "error",
+          title: "AI Response Could Not Be Recovered",
+          message: error.message,
         });
       } else if (error instanceof AllNotesLineLimitError) {
         await this.postNotice({

@@ -6,6 +6,7 @@ import * as vscode from "vscode";
 
 import type { AiClient } from "@shared/ai/aiClient";
 import { AI_REQUEST_DEFAULTS } from "@shared/config/aiRequestDefaults";
+import type { LineAnalysisEntry } from "@shared/models/ai/line";
 import type { StoredLineNote } from "@shared/models/store/line";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { explainAllNotesLineBatchPrompt } from "@shared/prompts/explainAllNotesLineBatchPrompt";
@@ -21,7 +22,10 @@ import {
   type AllNotesRequestAssessment,
 } from "@shared/services/allNotesRequestLimitService";
 import { createStoredSourceFile } from "@shared/services/domainToStoreService";
-import { explainFileSectionLineService } from "@shared/services/explainFileSectionLineService";
+import {
+  explainFileSectionLineService,
+  type FileSectionLineAnalysis,
+} from "@shared/services/explainFileSectionLineService";
 import { explainLineBatchService } from "@shared/services/explainLineBatchService";
 import { selectLineAnalysisCandidates } from "@shared/services/lineAnalysisCandidateService";
 import { getAiRequestConfigOrShowError } from "@vscode/ai/getAiRequestConfigOrShowError";
@@ -141,75 +145,39 @@ export async function generateAllNotesService(
       sourceLines.length,
       requestedLineNumbers.length,
       batches.length,
-      Math.min(
-        AI_REQUEST_DEFAULTS.allNotes.maxRequestOutputTokens,
-        input.modelMaxOutputTokens,
-      ),
+      resolveBatchOutputLimit(input.modelMaxOutputTokens),
     );
   }
 
   const firstBatchLineNumbers = batches[0] ?? [];
-  const prompt = explainFileSectionLinePrompt({
-    sourceCode: input.sourceCode,
-    filePath: input.relativePath,
-    ...(input.programmingLanguage
-      ? { programmingLanguage: input.programmingLanguage }
-      : {}),
-    responseLanguageInstruction: input.responseLanguageInstruction,
-    lineNumbers: firstBatchLineNumbers,
-    skipDependencyDirectives:
-      AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
-  });
-  const assessment = assessAllNotesRequest({
-    prompt,
-    sourceLineCount: sourceLines.length,
-    candidateLineCount: firstBatchLineNumbers.length,
-    modelContextWindowTokens: input.modelContextWindowTokens,
-    modelMaxOutputTokens: input.modelMaxOutputTokens,
-    limits: { maxCandidateLines },
-  });
+  let analysis: FileSectionLineAnalysis;
 
-  assertRequestAllowed(assessment, maxCandidateLines);
+  try {
+    analysis = await generateInitialBatchWithRecovery(
+      input,
+      sourceLines.length,
+      firstBatchLineNumbers,
+      maxCandidateLines,
+    );
+  } catch (error) {
+    throwInvalidAiResponseError(error);
+  }
 
-  const analysis = await explainFileSectionLineService(
-    prompt,
-    input.createAiClient(assessment.recommendedMaxTokens),
-    {
-      lineCount: sourceLines.length,
-      requestedLineNumbers: firstBatchLineNumbers,
-    },
-  );
   const lineAnalyses = [...analysis.lines];
 
   for (const lineNumbers of batches.slice(1)) {
-    const batchPrompt = explainAllNotesLineBatchPrompt({
-      sourceCode: input.sourceCode,
-      filePath: input.relativePath,
-      ...(input.programmingLanguage
-        ? { programmingLanguage: input.programmingLanguage }
-        : {}),
-      responseLanguageInstruction: input.responseLanguageInstruction,
-      lineNumbers,
-      skipDependencyDirectives:
-        AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
-    });
-    const batchAssessment = assessAllNotesRequest({
-      prompt: batchPrompt,
-      sourceLineCount: sourceLines.length,
-      candidateLineCount: lineNumbers.length,
-      modelContextWindowTokens: input.modelContextWindowTokens,
-      modelMaxOutputTokens: input.modelMaxOutputTokens,
-      limits: { maxCandidateLines, baseOutputTokens: 0 },
-    });
-
-    assertRequestAllowed(batchAssessment, maxCandidateLines);
-    lineAnalyses.push(
-      ...(await explainLineBatchService(
-        batchPrompt,
-        input.createAiClient(batchAssessment.recommendedMaxTokens),
-        { requestedLineNumbers: lineNumbers },
-      )),
-    );
+    try {
+      lineAnalyses.push(
+        ...(await generateLineBatchWithRecovery(
+          input,
+          sourceLines.length,
+          lineNumbers,
+          maxCandidateLines,
+        )),
+      );
+    } catch (error) {
+      throwInvalidAiResponseError(error);
+    }
   }
 
   const generatedSourceFile = createStoredSourceFile({
@@ -371,16 +339,214 @@ export class AllNotesBatchRequiredError extends Error {
   }
 }
 
+/** User-facing terminal failure after malformed-response retries are exhausted. */
+export class AllNotesInvalidResponseError extends Error {
+  constructor(options?: { cause?: unknown }) {
+    super(
+      "The AI returned invalid JSON after automatic retries and smaller batches. No notes were changed.",
+      options,
+    );
+    this.name = "AllNotesInvalidResponseError";
+  }
+}
+
+/** Runs the coordinated first batch, retrying and splitting malformed responses. */
+async function generateInitialBatchWithRecovery(
+  input: GenerateAllNotesInput,
+  sourceLineCount: number,
+  lineNumbers: readonly number[],
+  maxCandidateLines: number,
+): Promise<FileSectionLineAnalysis> {
+  try {
+    return await retryInvalidAiResponse(async () => {
+      const prompt = explainFileSectionLinePrompt({
+        sourceCode: input.sourceCode,
+        filePath: input.relativePath,
+        ...(input.programmingLanguage
+          ? { programmingLanguage: input.programmingLanguage }
+          : {}),
+        responseLanguageInstruction: input.responseLanguageInstruction,
+        lineNumbers,
+        skipDependencyDirectives:
+          AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
+      });
+      const assessment = assessBatch(
+        input,
+        prompt,
+        sourceLineCount,
+        lineNumbers.length,
+        maxCandidateLines,
+        AI_REQUEST_DEFAULTS.allNotes.baseOutputTokens,
+      );
+
+      return explainFileSectionLineService(
+        prompt,
+        input.createAiClient(assessment.recommendedMaxTokens),
+        { lineCount: sourceLineCount, requestedLineNumbers: lineNumbers },
+      );
+    });
+  } catch (error) {
+    if (!isInvalidAiResponseError(error) || lineNumbers.length < 2) {
+      throw error;
+    }
+
+    const midpoint = Math.ceil(lineNumbers.length / 2);
+    const first = await generateInitialBatchWithRecovery(
+      input,
+      sourceLineCount,
+      lineNumbers.slice(0, midpoint),
+      maxCandidateLines,
+    );
+    const remainingLines = await generateLineBatchWithRecovery(
+      input,
+      sourceLineCount,
+      lineNumbers.slice(midpoint),
+      maxCandidateLines,
+    );
+
+    return { ...first, lines: [...first.lines, ...remainingLines] };
+  }
+}
+
+/** Runs one line-only batch, recursively halving malformed responses. */
+async function generateLineBatchWithRecovery(
+  input: GenerateAllNotesInput,
+  sourceLineCount: number,
+  lineNumbers: readonly number[],
+  maxCandidateLines: number,
+): Promise<LineAnalysisEntry[]> {
+  try {
+    return await retryInvalidAiResponse(async () => {
+      const prompt = explainAllNotesLineBatchPrompt({
+        sourceCode: input.sourceCode,
+        filePath: input.relativePath,
+        ...(input.programmingLanguage
+          ? { programmingLanguage: input.programmingLanguage }
+          : {}),
+        responseLanguageInstruction: input.responseLanguageInstruction,
+        lineNumbers,
+        skipDependencyDirectives:
+          AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
+      });
+      const assessment = assessBatch(
+        input,
+        prompt,
+        sourceLineCount,
+        lineNumbers.length,
+        maxCandidateLines,
+        0,
+      );
+
+      return explainLineBatchService(
+        prompt,
+        input.createAiClient(assessment.recommendedMaxTokens),
+        { requestedLineNumbers: lineNumbers },
+      );
+    });
+  } catch (error) {
+    if (!isInvalidAiResponseError(error) || lineNumbers.length < 2) {
+      throw error;
+    }
+
+    const midpoint = Math.ceil(lineNumbers.length / 2);
+    return [
+      ...(await generateLineBatchWithRecovery(
+        input,
+        sourceLineCount,
+        lineNumbers.slice(0, midpoint),
+        maxCandidateLines,
+      )),
+      ...(await generateLineBatchWithRecovery(
+        input,
+        sourceLineCount,
+        lineNumbers.slice(midpoint),
+        maxCandidateLines,
+      )),
+    ];
+  }
+}
+
+/** Assesses one planned batch against both the reliability target and model capability. */
+function assessBatch(
+  input: GenerateAllNotesInput,
+  prompt: string,
+  sourceLineCount: number,
+  candidateLineCount: number,
+  maxCandidateLines: number,
+  baseOutputTokens: number,
+): AllNotesRequestAssessment {
+  const assessment = assessAllNotesRequest({
+    prompt,
+    sourceLineCount,
+    candidateLineCount,
+    modelContextWindowTokens: input.modelContextWindowTokens,
+    modelMaxOutputTokens: input.modelMaxOutputTokens,
+    limits: {
+      maxCandidateLines,
+      maxRequestOutputTokens: resolveBatchOutputLimit(input.modelMaxOutputTokens),
+      baseOutputTokens,
+    },
+  });
+
+  assertRequestAllowed(assessment, maxCandidateLines);
+  return assessment;
+}
+
+/** Retries only malformed or structurally invalid AI responses. */
+async function retryInvalidAiResponse<T>(operation: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+
+  for (
+    let attempt = 0;
+    attempt < AI_REQUEST_DEFAULTS.allNotes.invalidResponseAttempts;
+    attempt += 1
+  ) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!isInvalidAiResponseError(error)) {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
+/** Identifies response syntax and DTO validation failures safe to retry. */
+function isInvalidAiResponseError(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError ||
+    (error instanceof Error && /^Invalid .* response:/.test(error.message))
+  );
+}
+
+/** Converts only exhausted malformed responses into a stable user-facing error. */
+function throwInvalidAiResponseError(error: unknown): never {
+  if (isInvalidAiResponseError(error)) {
+    throw new AllNotesInvalidResponseError({ cause: error });
+  }
+  throw error;
+}
+
+/** Resolves the practical JSON batch target without exceeding hard or model limits. */
+function resolveBatchOutputLimit(modelMaxOutputTokens: number): number {
+  const limits = AI_REQUEST_DEFAULTS.allNotes;
+  return Math.min(
+    limits.targetBatchOutputTokens,
+    limits.maxRequestOutputTokens,
+    modelMaxOutputTokens,
+  );
+}
+
 /** Splits target lines using the smaller of the CZaza and selected-model limits. */
 function createLineNumberBatches(
   lineNumbers: readonly number[],
   modelMaxOutputTokens: number,
 ): number[][] {
   const limits = AI_REQUEST_DEFAULTS.allNotes;
-  const effectiveOutputLimit = Math.min(
-    limits.maxRequestOutputTokens,
-    modelMaxOutputTokens,
-  );
+  const effectiveOutputLimit = resolveBatchOutputLimit(modelMaxOutputTokens);
   const firstBatchCapacity = Math.floor(
     (effectiveOutputLimit / limits.outputSafetyMultiplier - limits.baseOutputTokens) /
       limits.tokensPerLineNote,

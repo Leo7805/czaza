@@ -41,6 +41,7 @@ vi.mock("@vscode/config/resolveCzazaRootDirectory", () => ({
 
 import {
   AllNotesBatchRequiredError,
+  AllNotesInvalidResponseError,
   generateAllNotesForResource,
   generateAllNotesService,
 } from "@vscode/services/generateAllNotesService";
@@ -250,6 +251,72 @@ describe("generateAllNotesService()", () => {
     expect(complete.mock.calls[0]?.[0]).toContain("Analyze the file, its meaningful sections");
     expect(complete.mock.calls[1]?.[0]).toContain("return line analysis only");
     expect(result.lineNotes.map((note) => note.line)).toEqual([1, 2, 3]);
+  });
+
+  it("retries malformed JSON then splits the failed batch and assembles every line", async () => {
+    const responses = [
+      "{\"file\":",
+      "{\"file\":",
+      JSON.stringify({
+        file: { summary: "Defines values.", detail: "Defines three constants." },
+        sections: [
+          {
+            title: "Values",
+            kind: "declarations",
+            range: { startLine: 1, endLine: 3 },
+            summary: "Declares values.",
+            detail: "Contains constant declarations.",
+          },
+        ],
+        lines: [
+          { lineNumber: 1, summary: "Defines one.", detail: "Declares the first value." },
+        ],
+      }),
+      JSON.stringify({
+        lines: [
+          { lineNumber: 2, summary: "Defines two.", detail: "Declares the second value." },
+        ],
+      }),
+      JSON.stringify({
+        lines: [
+          { lineNumber: 3, summary: "Defines three.", detail: "Declares the third value." },
+        ],
+      }),
+    ];
+    const complete = vi.fn().mockImplementation(async () => responses.shift() ?? "{}");
+
+    const result = await generateAllNotesService({
+      sourceCode: ["const one = 1;", "const two = 2;", "const three = 3;"].join("\n"),
+      relativePath: "src/recovered.ts",
+      programmingLanguage: "typescript",
+      responseLanguageInstruction: "Respond in English.",
+      modelContextWindowTokens: 1_000_000,
+      modelMaxOutputTokens: 10_000,
+      maxCandidateLines: 10,
+      allowBatching: true,
+      createAiClient: () => ({ complete }),
+      now,
+    });
+
+    expect(complete).toHaveBeenCalledTimes(5);
+    expect(result.lineNotes.map((note) => note.line)).toEqual([1, 2, 3]);
+  });
+
+  it("surfaces a stable error when a single-line malformed response cannot recover", async () => {
+    const complete = vi.fn().mockResolvedValue("{\"file\":");
+
+    await expect(
+      generateAllNotesService({
+        sourceCode: "const value = 1;",
+        relativePath: "src/invalid.ts",
+        programmingLanguage: "typescript",
+        responseLanguageInstruction: "Respond in English.",
+        ...modelLimits,
+        createAiClient: () => ({ complete }),
+        now,
+      }),
+    ).rejects.toBeInstanceOf(AllNotesInvalidResponseError);
+    expect(complete).toHaveBeenCalledTimes(2);
   });
 });
 

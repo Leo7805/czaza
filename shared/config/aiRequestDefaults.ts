@@ -39,6 +39,12 @@ export const AI_REQUEST_DEFAULTS = {
     /** Maximum output-token cap CZaza may send in one All Notes request. */
     maxRequestOutputTokens: 192_000,
 
+    /** Reliability-oriented output target used when planning each JSON batch. */
+    targetBatchOutputTokens: 64_000,
+
+    /** Attempts made before a malformed AI response batch is split in half. */
+    invalidResponseAttempts: 2,
+
     /** Estimated output tokens reserved for file-level and section-level notes. */
     baseOutputTokens: 8_000,
 
