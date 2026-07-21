@@ -604,7 +604,12 @@ describe("WorkspaceNoteStore", () => {
       updatedAt: later,
       files: {},
     });
-    expect(JSON.parse(noteRawAfterDelete) as unknown).toEqual(createStoredSourceFile());
+    expect(JSON.parse(noteRawAfterDelete) as unknown).toEqual({
+      schemaVersion: 2,
+      source: createStoredSourceFile().source,
+      sectionNotes: {},
+      lineNotes: {},
+    });
   });
 
   it("persists fine-grained note updates through the manager", async () => {

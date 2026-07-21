@@ -364,7 +364,7 @@ describe("FileNotesView", () => {
     expect(markup).toContain(">Regenerate</button>");
   });
 
-  it("shows the shared timer badge while file AI generation is running", () => {
+  it("shows only the shared timer while AI generation has no active batch", () => {
     const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
       kind: "file",
       name: "index.ts",
@@ -378,6 +378,8 @@ describe("FileNotesView", () => {
 
     expect(markup).toContain('class="resource-header__timer"');
     expect(markup).toContain("00:00");
+    expect(markup).not.toContain("Batch");
+    expect(markup).not.toContain("Completed");
     expect(markup).toContain("Generating...");
   });
 

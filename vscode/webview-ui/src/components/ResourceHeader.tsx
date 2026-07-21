@@ -104,6 +104,10 @@ export function ResourceHeader({
     return () => window.clearTimeout(timeoutId);
   }, [isAnyActionRunning]);
 
+  const visibleBatchProgress = isAnyActionRunning
+    ? batchProgress
+    : lastBatchProgressRef.current;
+
   return (
     <header className="resource-header">
       <div className="resource-header__content">
@@ -119,8 +123,8 @@ export function ResourceHeader({
           <div className="resource-header__actions">
             {timer.visible ? (
               <span className="resource-header__timer" aria-live="polite">
-                {lastBatchProgressRef.current
-                  ? `${isAnyActionRunning ? "Batch" : "Completed"} ${lastBatchProgressRef.current.currentBatch}/${lastBatchProgressRef.current.totalBatches} · ${formatElapsedTime(timer.seconds)}`
+                {visibleBatchProgress
+                  ? `${isAnyActionRunning ? "Batch" : "Completed"} ${visibleBatchProgress.currentBatch}/${visibleBatchProgress.totalBatches} · ${formatElapsedTime(timer.seconds)}`
                   : formatElapsedTime(timer.seconds)}
               </span>
             ) : null}

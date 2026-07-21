@@ -7,6 +7,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import {
+  decodeSourceFileDocument,
+  encodeSourceFileDocument,
+} from "@shared/services/sourceFileDocumentCodec";
 import { createSourceHash } from "@shared/utils/hashUtils";
 
 const NOTES_DIR_NAME = "notes";
@@ -123,7 +127,7 @@ export class WorkspaceNoteStoreRepository {
       );
       const parsed = JSON.parse(raw) as unknown;
 
-      return isStoredSourceFile(parsed) ? parsed : undefined;
+      return decodeSourceFileDocument(parsed);
     } catch {
       return undefined;
     }
@@ -317,7 +321,7 @@ async function writeStoredSourceFile(
   const notePath = getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile);
 
   await mkdir(path.dirname(notePath), { recursive: true });
-  await writeJsonFile(notePath, sourceFile);
+  await writeJsonFile(notePath, encodeSourceFileDocument(sourceFile));
 }
 
 /**
@@ -355,32 +359,6 @@ function isWorkspaceNoteFileIndexEntry(value: unknown): value is WorkspaceNoteFi
     typeof record.sourceHash === "string" &&
     typeof record.updatedAt === "string" &&
     isOptionalString(record.programmingLanguage)
-  );
-}
-
-/**
- * Validates one stored source-file note JSON.
- *
- * @param value - Parsed JSON value.
- * @returns True when the value has the expected source-file store shape.
- *
- * @example
- * const valid = isStoredSourceFile({ source: { sourceHash: "sha256:a" }, sectionNotes: [], lineNotes: [] });
- */
-function isStoredSourceFile(value: unknown): value is StoredSourceFile {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const record = value as Partial<StoredSourceFile>;
-
-  return (
-    !!record.source &&
-    typeof record.source === "object" &&
-    typeof record.source.sourceHash === "string" &&
-    isOptionalString(record.source.programmingLanguage) &&
-    Array.isArray(record.sectionNotes) &&
-    Array.isArray(record.lineNotes)
   );
 }
 

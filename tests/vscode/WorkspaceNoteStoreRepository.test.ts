@@ -92,6 +92,12 @@ describe("WorkspaceNoteStoreRepository", () => {
     console.log("Persisted source note file:", noteRaw.trim());
 
     expect(getWorkspaceNoteIndexPath(root, outputDirectory)).toContain(`${outputDirectory}/notes/index.json`);
+    expect(JSON.parse(noteRaw) as unknown).toEqual({
+      schemaVersion: 2,
+      source: sourceFile.source,
+      sectionNotes: {},
+      lineNotes: {},
+    });
     expect(loaded).toEqual(sourceFile);
     expect(index).toEqual({
       schemaVersion: 1,
@@ -156,6 +162,42 @@ describe("WorkspaceNoteStoreRepository", () => {
     });
     expect(await repository.getSourceFile(root, outputDirectory, "src/first.ts")).toEqual(firstFile);
     expect(await repository.getSourceFile(root, outputDirectory, "src/second.ts")).toEqual(secondFile);
+  });
+
+  it("reads V1 and replaces it with V2 on the next save", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const sourceFile = createStoredSourceFile();
+    const noteFile = createWorkspaceNoteFileName("src/index.ts", firstRandomId);
+
+    await repository.saveIndex(root, outputDirectory, {
+      schemaVersion: 1,
+      updatedAt: now,
+      workspaceRoot: root,
+      files: {
+        "src/index.ts": {
+          noteFile,
+          sourceHash: sourceFile.source.sourceHash,
+          programmingLanguage: sourceFile.source.programmingLanguage,
+          updatedAt: now,
+        },
+      },
+    });
+    await writeRawNoteFile(root, outputDirectory, noteFile, `${JSON.stringify(sourceFile, null, 2)}\n`);
+
+    const loadedV1 = await repository.getSourceFile(root, outputDirectory, "src/index.ts");
+    expect(loadedV1).toEqual(sourceFile);
+
+    await repository.saveSourceFile(root, outputDirectory, "src/index.ts", loadedV1!, now);
+
+    const migratedRaw = await readFile(
+      getWorkspaceNoteFilePath(root, outputDirectory, noteFile),
+      "utf-8",
+    );
+    expect(JSON.parse(migratedRaw) as { schemaVersion?: number }).toMatchObject({
+      schemaVersion: 2,
+    });
+    expect(await repository.getSourceFile(root, outputDirectory, "src/index.ts")).toEqual(sourceFile);
   });
 
   it("validates the top-level workspace note index shape", () => {
