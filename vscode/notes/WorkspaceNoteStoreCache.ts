@@ -3,7 +3,7 @@
  */
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import { WorkspaceNoteStoreRepository } from "./WorkspaceNoteStoreRepository";
 
 /**
@@ -15,7 +15,7 @@ import { WorkspaceNoteStoreRepository } from "./WorkspaceNoteStoreRepository";
  */
 export class WorkspaceNoteStoreCache {
   readonly repository: WorkspaceNoteStoreRepository;
-  readonly indexCache = new Map<string, WorkspaceNoteIndexV1 | null>();
+  readonly indexCache = new Map<string, WorkspaceNoteIndexV2 | null>();
   readonly sourceFileCache = new Map<string, StoredSourceFile | undefined>();
 
   /**
@@ -40,7 +40,7 @@ export class WorkspaceNoteStoreCache {
    * @example
    * const index = await cache.loadIndex("/workspace/project", ".czaza");
    */
-  async loadIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV1 | null> {
+  async loadIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV2 | null> {
     const key = getWorkspaceCacheKey(workspaceRoot, outputDirectory);
 
     if (!this.indexCache.has(key)) {
@@ -218,7 +218,7 @@ export class WorkspaceNoteStoreCache {
   async getRequiredIndex(
     workspaceRoot: string,
     outputDirectory: string,
-  ): Promise<WorkspaceNoteIndexV1> {
+  ): Promise<WorkspaceNoteIndexV2> {
     const index = await this.loadIndex(workspaceRoot, outputDirectory);
 
     if (!index) {

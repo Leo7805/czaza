@@ -1,5 +1,5 @@
 /**
- * Encodes compact V2 note documents and decodes both legacy V1 and V2 files.
+ * Encodes and decodes compact source-file note documents.
  */
 
 import {
@@ -10,24 +10,20 @@ import type { StoredFileNote } from "@shared/models/store/file";
 import type { StoredLineNote } from "@shared/models/store/line";
 import type { StoredSectionNote } from "@shared/models/store/section";
 import type {
-  FileNoteDocumentV2,
-  LineNoteDocumentV2,
-  SectionNoteDocumentV2,
-  SourceFileDocumentV2,
-  SourceFileNoteDefaultsV2,
-  SourceFileNoteOverridesV2,
+  FileNoteDocument,
+  LineNoteDocument,
+  SectionNoteDocument,
+  SourceFileDocument,
+  SourceFileNoteDefaults,
+  SourceFileNoteOverrides,
 } from "@shared/models/store/sourceFileDocument";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 
 const DEFAULT_CREATED_BY = "ai" as const;
 
-/** Decodes a legacy V1 or compact V2 disk document into the complete in-memory model. */
+/** Decodes a compact disk document into the complete in-memory model. */
 export function decodeSourceFileDocument(value: unknown): StoredSourceFile | undefined {
-  if (isStoredSourceFileV1(value)) {
-    return value;
-  }
-
-  if (!isSourceFileDocumentV2(value)) {
+  if (!isSourceFileDocument(value)) {
     return undefined;
   }
 
@@ -49,8 +45,8 @@ export function decodeSourceFileDocument(value: unknown): StoredSourceFile | und
   };
 }
 
-/** Encodes the complete in-memory model as a compact V2 disk document. */
-export function encodeSourceFileDocument(sourceFile: StoredSourceFile): SourceFileDocumentV2 {
+/** Encodes the complete in-memory model as a compact disk document. */
+export function encodeSourceFileDocument(sourceFile: StoredSourceFile): SourceFileDocument {
   const notes = [
     ...(sourceFile.fileNote ? [sourceFile.fileNote] : []),
     ...sourceFile.sectionNotes,
@@ -59,39 +55,29 @@ export function encodeSourceFileDocument(sourceFile: StoredSourceFile): SourceFi
   const defaults = createDefaults(notes);
 
   return {
-    schemaVersion: 2,
     source: sourceFile.source,
     ...(Object.keys(defaults).length > 0 ? { defaults } : {}),
     ...(sourceFile.fileNote
-      ? { fileNote: encodeNote(sourceFile.fileNote, defaults) as FileNoteDocumentV2 }
+      ? { fileNote: encodeNote(sourceFile.fileNote, defaults) as FileNoteDocument }
       : {}),
     sectionNotes: Object.fromEntries(
       sourceFile.sectionNotes.map((note) => [
         note.id,
-        encodeNote(note, defaults) as SectionNoteDocumentV2,
+        encodeNote(note, defaults) as SectionNoteDocument,
       ]),
     ),
     lineNotes: Object.fromEntries(
       sourceFile.lineNotes.map((note) => [
         note.id,
-        encodeNote(note, defaults) as LineNoteDocumentV2,
+        encodeNote(note, defaults) as LineNoteDocument,
       ]),
     ),
   };
 }
 
-/** Returns true for the legacy unversioned source-file document shape. */
-function isStoredSourceFileV1(value: unknown): value is StoredSourceFile {
-  if (!isRecord(value) || "schemaVersion" in value || !isValidSource(value.source)) {
-    return false;
-  }
-
-  return Array.isArray(value.sectionNotes) && Array.isArray(value.lineNotes);
-}
-
-/** Returns true for the compact V2 top-level document shape. */
-function isSourceFileDocumentV2(value: unknown): value is SourceFileDocumentV2 {
-  if (!isRecord(value) || value.schemaVersion !== 2 || !isValidSource(value.source)) {
+/** Returns true for the compact top-level document shape. */
+function isSourceFileDocument(value: unknown): value is SourceFileDocument {
+  if (!isRecord(value) || !isValidSource(value.source)) {
     return false;
   }
 
@@ -105,10 +91,10 @@ function isSourceFileDocumentV2(value: unknown): value is SourceFileDocumentV2 {
   );
 }
 
-/** Encodes one complete note, omitting fields supplied by V2 defaults. */
+/** Encodes one complete note, omitting fields supplied by document defaults. */
 function encodeNote(
   note: StoredFileNote | StoredSectionNote | StoredLineNote,
-  defaults: SourceFileNoteDefaultsV2,
+  defaults: SourceFileNoteDefaults,
 ): Record<string, unknown> {
   const { id: _id, createdBy, status, createdAt, updatedAt, ...content } = note;
 
@@ -121,10 +107,10 @@ function encodeNote(
   };
 }
 
-/** Decodes every note in one id-keyed V2 collection. */
+/** Decodes every note in one id-keyed collection. */
 function decodeNoteRecord(
-  notes: Record<string, SectionNoteDocumentV2> | Record<string, LineNoteDocumentV2>,
-  defaults: SourceFileNoteDefaultsV2 | undefined,
+  notes: Record<string, SectionNoteDocument> | Record<string, LineNoteDocument>,
+  defaults: SourceFileNoteDefaults | undefined,
 ): Array<StoredSectionNote | StoredLineNote> | undefined {
   const decoded: Array<StoredSectionNote | StoredLineNote> = [];
 
@@ -147,9 +133,9 @@ function decodeNoteRecord(
 
 /** Expands one compact note using schema and document defaults. */
 function decodeNote(
-  note: Record<string, unknown> & SourceFileNoteOverridesV2,
+  note: Record<string, unknown> & SourceFileNoteOverrides,
   id: string,
-  defaults: SourceFileNoteDefaultsV2 | undefined,
+  defaults: SourceFileNoteDefaults | undefined,
 ): Record<string, unknown> | undefined {
   const createdBy = note.createdBy ?? DEFAULT_CREATED_BY;
   const status = note.status ?? createCurrentConfirmedStatus();
@@ -180,7 +166,7 @@ function decodeNote(
 /** Chooses deterministic document defaults from the most common note timestamps. */
 function createDefaults(
   notes: ReadonlyArray<StoredFileNote | StoredSectionNote | StoredLineNote>,
-): SourceFileNoteDefaultsV2 {
+): SourceFileNoteDefaults {
   const createdAt = findMostCommon(notes.map((note) => note.createdAt));
   const updatedAt = findMostCommon(notes.map((note) => note.updatedAt));
 
@@ -204,7 +190,7 @@ function findMostCommon(values: readonly string[]): string | undefined {
     )[0]?.[0];
 }
 
-/** Returns true when a note uses the implicit V2 current/confirmed status. */
+/** Returns true when a note uses the implicit current/confirmed status. */
 function isDefaultStatus(status: NoteStatus): boolean {
   return status.content === "current" && status.anchor === "confirmed";
 }
@@ -224,7 +210,7 @@ function isNoteStatus(value: unknown): value is NoteStatus {
 }
 
 /** Validates compact document defaults. */
-function isOptionalDefaults(value: unknown): value is SourceFileNoteDefaultsV2 | undefined {
+function isOptionalDefaults(value: unknown): value is SourceFileNoteDefaults | undefined {
   if (value === undefined) {
     return true;
   }
@@ -236,7 +222,7 @@ function isOptionalDefaults(value: unknown): value is SourceFileNoteDefaultsV2 |
   );
 }
 
-/** Validates persisted source metadata shared by V1 and V2. */
+/** Validates persisted source metadata in a compact file document. */
 function isValidSource(value: unknown): boolean {
   return (
     isRecord(value) &&

@@ -53,8 +53,8 @@ export type WorkspaceNoteFileIndexEntry = {
  * Top-level persistent note index for one workspace.
  *
  * @example
- * const index: WorkspaceNoteIndexV1 = {
- *   schemaVersion: 1,
+ * const index: WorkspaceNoteIndexV2 = {
+ *   schemaVersion: 2,
  *   updatedAt: "2026-07-13T00:00:00.000Z",
  *   workspaceRoot: "/workspace/project",
  *   files: {
@@ -67,9 +67,9 @@ export type WorkspaceNoteFileIndexEntry = {
  *   },
  * };
  */
-export type WorkspaceNoteIndexV1 = {
-  /** Version of the persisted storage schema. */
-  schemaVersion: 1;
+export type WorkspaceNoteIndexV2 = {
+  /** Version of the complete workspace note-store schema. */
+  schemaVersion: 2;
 
   /**
    * ISO 8601 timestamp for when the store file was last written.

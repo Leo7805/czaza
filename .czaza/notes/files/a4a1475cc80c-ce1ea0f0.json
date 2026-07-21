@@ -3,24 +3,25 @@
     "sourceHash": "sha256:2aed8ae7c03f33936662eedb1b8dbdb85aa7dd91d46b2fe6991dd933b2375d9f",
     "programmingLanguage": "typescript"
   },
-  "sectionNotes": [
-    {
-      "id": "section:user:16-19",
+  "defaults": {
+    "createdAt": "2026-07-19T10:13:20.507Z",
+    "updatedAt": "2026-07-19T11:53:04.656Z"
+  },
+  "sectionNotes": {
+    "section:user:16-19": {
       "title": "",
       "range": {
         "startLine": 19,
         "endLine": 26
       },
       "anchorHash": "sha256:9e8ebc6ef8a127e8484f9abd80ec7ef16aca188b4f6f10f0af48ce61b766a5c9",
+      "userNote": "hhhh",
+      "createdBy": "user",
       "status": {
         "content": "stale",
         "anchor": "needsConfirmation"
-      },
-      "createdBy": "user",
-      "createdAt": "2026-07-19T10:13:20.507Z",
-      "updatedAt": "2026-07-19T11:53:04.656Z",
-      "userNote": "hhhh"
+      }
     }
-  ],
-  "lineNotes": []
+  },
+  "lineNotes": {}
 }

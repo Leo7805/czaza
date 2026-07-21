@@ -2,7 +2,7 @@
  * Provides source-file index update operations for workspace notes.
  */
 
-import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import {
   deleteSourceFileEntry,
   renameSourceFileEntry,
@@ -51,7 +51,7 @@ export class WorkspaceNoteSourceIndexManager {
     oldRelativePath: string,
     newRelativePath: string,
     now: string,
-  ): Promise<WorkspaceNoteIndexV1> {
+  ): Promise<WorkspaceNoteIndexV2> {
     return renameSourceFileEntry(this.getDependencies(), workspaceRoot, outputDirectory, oldRelativePath, newRelativePath, now);
   }
 
@@ -72,7 +72,7 @@ export class WorkspaceNoteSourceIndexManager {
     outputDirectory: string,
     relativeFilePath: string,
     now: string,
-  ): Promise<WorkspaceNoteIndexV1> {
+  ): Promise<WorkspaceNoteIndexV2> {
     return deleteSourceFileEntry(this.getDependencies(), workspaceRoot, outputDirectory, relativeFilePath, now);
   }
 

@@ -10,7 +10,7 @@ import type { StoredFileNote } from "@shared/models/store/file";
 import type { StoredLineNote } from "@shared/models/store/line";
 import type { StoredSectionNote } from "@shared/models/store/section";
 import type { ProgrammingLanguage, StoredSourceFile } from "@shared/models/store/sourceFile";
-import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import { createSourceHash } from "@shared/utils/hashUtils";
 
 /**
@@ -202,9 +202,9 @@ export function createStoredSourceFile(input: CreateStoredSourceFileInput): Stor
  *   now: "2026-07-13T00:00:00.000Z",
  * });
  */
-export function createWorkspaceNoteIndex(input: CreateWorkspaceNoteIndexInput): WorkspaceNoteIndexV1 {
+export function createWorkspaceNoteIndex(input: CreateWorkspaceNoteIndexInput): WorkspaceNoteIndexV2 {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: input.now,
     ...(input.workspaceRoot ? { workspaceRoot: input.workspaceRoot } : {}),
     files: input.files,

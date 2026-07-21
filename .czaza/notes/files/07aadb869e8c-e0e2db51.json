@@ -4,17 +4,14 @@
     "sourceHashKind": "text",
     "programmingLanguage": "xml"
   },
-  "sectionNotes": [],
-  "lineNotes": [],
-  "fileNote": {
-    "id": "file",
-    "userNote": "czaza logo",
-    "status": {
-      "content": "current",
-      "anchor": "confirmed"
-    },
-    "createdBy": "user",
+  "defaults": {
     "createdAt": "2026-07-19T02:57:33.523Z",
     "updatedAt": "2026-07-19T02:57:33.523Z"
-  }
+  },
+  "fileNote": {
+    "userNote": "czaza logo",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
 }

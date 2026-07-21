@@ -3,24 +3,20 @@
     "sourceHash": "sha256:507650008272def24e20d1fe19b753d79daef8b851817f0ed32db46ec890a082",
     "programmingLanguage": "typescript"
   },
+  "defaults": {
+    "createdAt": "2026-07-19T10:08:18.680Z",
+    "updatedAt": "2026-07-19T10:08:18.680Z"
+  },
   "fileNote": {
-    "id": "file",
     "aiExplanation": {
       "summary": "注册VS Code编辑器事件以保持笔记预览同步。",
       "detail": "该文件导出了 `registerNotesPreviewEvents` 函数，该函数监听活跃文本编辑器和选项卡的变化，并在特定资源发生变化时更新笔记预览。它还定义了一个辅助函数 `getTabResourceUri` 来从选项卡中提取资源URI。"
     },
-    "status": {
-      "content": "current",
-      "anchor": "confirmed"
-    },
-    "createdBy": "ai",
-    "createdAt": "2026-07-19T10:08:18.680Z",
-    "updatedAt": "2026-07-19T10:09:16.942Z",
-    "userNote": "ssss"
+    "userNote": "ssss",
+    "updatedAt": "2026-07-19T10:09:16.942Z"
   },
-  "sectionNotes": [
-    {
-      "id": "section:1:section:1-3",
+  "sectionNotes": {
+    "section:1:section:1-3": {
       "title": "文件注释",
       "range": {
         "startLine": 1,
@@ -30,17 +26,9 @@
       "aiExplanation": {
         "summary": "描述文件的主要职责。",
         "detail": "简要说明此文件注册VS Code事件以实现笔记预览的同步更新。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T10:08:18.680Z",
-      "updatedAt": "2026-07-19T10:08:18.680Z"
+      }
     },
-    {
-      "id": "section:2:registernotespreviewevents:9-85",
+    "section:2:registernotespreviewevents:9-85": {
       "title": "registerNotesPreviewEvents",
       "range": {
         "startLine": 9,
@@ -50,17 +38,9 @@
       "aiExplanation": {
         "summary": "注册事件监听器以跟踪活跃编辑器和选项卡。",
         "detail": "定义内部函数 `followResource`、`followEditor` 和 `followActiveTab`，分别用于根据资源URI、编辑器或选项卡更新预览。内部函数维护 `lastPreviewLocation` 以避免重复更新。最后，将事件订阅推送到 `context.subscriptions` 并在当前活跃状态下初始化一次预览。捕获错误并记录到控制台。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T10:08:18.680Z",
-      "updatedAt": "2026-07-19T10:08:18.680Z"
+      }
     },
-    {
-      "id": "section:3:gettabresourceuri:87-103",
+    "section:3:gettabresourceuri:87-103": {
       "title": "getTabResourceUri",
       "range": {
         "startLine": 87,
@@ -70,15 +50,8 @@
       "aiExplanation": {
         "summary": "从选项卡中提取资源URI。",
         "detail": "根据选项卡输入的类型（文本、自定义、笔记本、差异视图等）返回对应的URI。如果不是已知类型则返回undefined。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T10:08:18.680Z",
-      "updatedAt": "2026-07-19T10:08:18.680Z"
+      }
     }
-  ],
-  "lineNotes": []
+  },
+  "lineNotes": {}
 }

@@ -2,7 +2,7 @@
  * Resource-level workspace note store operations.
  */
 
-import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import {
   applyFileNoteResourceDeleted,
   applyFileNoteResourceMoved,
@@ -337,12 +337,12 @@ export async function deleteSourceFileEntry(input: {
 }
 
 function moveIndexEntry(input: {
-  index: WorkspaceNoteIndexV1;
+  index: WorkspaceNoteIndexV2;
   previousRelativePath: string;
   nextRelativePath: string;
   previousEntry: WorkspaceNoteFileIndexEntry;
   now: string;
-}): WorkspaceNoteIndexV1 {
+}): WorkspaceNoteIndexV2 {
   const { [input.previousRelativePath]: _removed, ...remainingFiles } = input.index.files;
 
   return {
@@ -359,10 +359,10 @@ function moveIndexEntry(input: {
 }
 
 function deleteIndexEntry(input: {
-  index: WorkspaceNoteIndexV1;
+  index: WorkspaceNoteIndexV2;
   relativePath: string;
   now: string;
-}): WorkspaceNoteIndexV1 {
+}): WorkspaceNoteIndexV2 {
   const { [input.relativePath]: _removed, ...remainingFiles } = input.index.files;
 
   return {

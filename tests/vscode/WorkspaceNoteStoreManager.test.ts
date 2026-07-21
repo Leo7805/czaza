@@ -530,7 +530,7 @@ describe("WorkspaceNoteStore", () => {
     const notes = new WorkspaceNoteStore(repository);
 
     await repository.saveIndex(root, outputDirectory, {
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: createdAt,
       workspaceRoot: root,
       files: {
@@ -605,7 +605,6 @@ describe("WorkspaceNoteStore", () => {
       files: {},
     });
     expect(JSON.parse(noteRawAfterDelete) as unknown).toEqual({
-      schemaVersion: 2,
       source: createStoredSourceFile().source,
       sectionNotes: {},
       lineNotes: {},

@@ -3,7 +3,7 @@
  */
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import {
   detectAffectedFileNotes,
   detectFileNotes,
@@ -24,7 +24,7 @@ import type {
  */
 export type WorkspaceNoteDetectionDependencies = {
   /** Loads the workspace note index. */
-  loadIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV1 | null>;
+  loadIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV2 | null>;
 
   /** Loads one stored source-file note JSON. */
   getSourceFile(

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import {
   deleteSourceFileEntry,
   renameSourceFileEntry,
@@ -18,7 +18,7 @@ describe("noteIndexService", () => {
     const renamed = renameSourceFileEntry(index, "src/old.ts", "src/new.ts", now);
 
     expect(renamed).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: now,
       workspaceRoot: "/workspace/project",
       files: {
@@ -51,7 +51,7 @@ describe("noteIndexService", () => {
     const deleted = deleteSourceFileEntry(index, "src/old.ts", now);
 
     expect(deleted).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: now,
       workspaceRoot: "/workspace/project",
       files: {
@@ -76,9 +76,9 @@ describe("noteIndexService", () => {
  * @example
  * const index = createWorkspaceNoteIndex();
  */
-function createWorkspaceNoteIndex(): WorkspaceNoteIndexV1 {
+function createWorkspaceNoteIndex(): WorkspaceNoteIndexV2 {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     updatedAt: createdAt,
     workspaceRoot: "/workspace/project",
     files: {

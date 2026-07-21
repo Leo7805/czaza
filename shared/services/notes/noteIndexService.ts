@@ -2,7 +2,7 @@
  * Provides immutable updates for workspace note index entries.
  */
 
-import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 
 /**
  * Renames or moves one source-file index entry.
@@ -21,11 +21,11 @@ import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
  * const next = renameSourceFileEntry(index, "src/old.ts", "src/new.ts", now);
  */
 export function renameSourceFileEntry(
-  index: WorkspaceNoteIndexV1,
+  index: WorkspaceNoteIndexV2,
   oldRelativePath: string,
   newRelativePath: string,
   now: string,
-): WorkspaceNoteIndexV1 {
+): WorkspaceNoteIndexV2 {
   const existingEntry = index.files[oldRelativePath];
 
   if (!existingEntry) {
@@ -67,10 +67,10 @@ export function renameSourceFileEntry(
  * const next = deleteSourceFileEntry(index, "src/old.ts", now);
  */
 export function deleteSourceFileEntry(
-  index: WorkspaceNoteIndexV1,
+  index: WorkspaceNoteIndexV2,
   relativePath: string,
   now: string,
-): WorkspaceNoteIndexV1 {
+): WorkspaceNoteIndexV2 {
   if (!index.files[relativePath]) {
     return index;
   }

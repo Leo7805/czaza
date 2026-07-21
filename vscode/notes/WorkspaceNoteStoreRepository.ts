@@ -6,7 +6,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import {
   decodeSourceFileDocument,
   encodeSourceFileDocument,
@@ -65,12 +65,12 @@ export class WorkspaceNoteStoreRepository {
   async loadIndex(
     workspaceRoot: string,
     outputDirectory: string,
-  ): Promise<WorkspaceNoteIndexV1 | null> {
+  ): Promise<WorkspaceNoteIndexV2 | null> {
     try {
       const raw = await readFile(getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory), "utf-8");
       const parsed = JSON.parse(raw) as unknown;
 
-      return isWorkspaceNoteIndexV1(parsed) ? parsed : null;
+      return isWorkspaceNoteIndexV2(parsed) ? parsed : null;
     } catch {
       return null;
     }
@@ -90,7 +90,7 @@ export class WorkspaceNoteStoreRepository {
   async saveIndex(
     workspaceRoot: string,
     outputDirectory: string,
-    index: WorkspaceNoteIndexV1,
+    index: WorkspaceNoteIndexV2,
   ): Promise<void> {
     const indexPath = getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory);
 
@@ -160,8 +160,8 @@ export class WorkspaceNoteStoreRepository {
       this.createNoteFileRandomId(),
     );
     const nextEntry = createFileIndexEntry(noteFile, sourceFile, now);
-    const nextIndex: WorkspaceNoteIndexV1 = {
-      schemaVersion: 1,
+    const nextIndex: WorkspaceNoteIndexV2 = {
+      schemaVersion: 2,
       updatedAt: now,
       workspaceRoot: normalizePath(path.resolve(workspaceRoot)),
       files: {
@@ -248,23 +248,23 @@ export function createWorkspaceNoteFileName(relativeFilePath: string, randomId: 
 }
 
 /**
- * Validates a parsed JSON value as a WorkspaceNoteIndexV1 object.
+ * Validates a parsed JSON value as a WorkspaceNoteIndexV2 object.
  *
  * @param value - Parsed JSON value.
  * @returns True when the value has the expected top-level index shape.
  *
  * @example
- * const valid = isWorkspaceNoteIndexV1({ schemaVersion: 1, updatedAt: "", files: {} });
+ * const valid = isWorkspaceNoteIndexV2({ schemaVersion: 2, updatedAt: "", files: {} });
  */
-export function isWorkspaceNoteIndexV1(value: unknown): value is WorkspaceNoteIndexV1 {
+export function isWorkspaceNoteIndexV2(value: unknown): value is WorkspaceNoteIndexV2 {
   if (!value || typeof value !== "object") {
     return false;
   }
 
-  const record = value as Partial<WorkspaceNoteIndexV1>;
+  const record = value as Partial<WorkspaceNoteIndexV2>;
 
   return (
-    record.schemaVersion === 1 &&
+    record.schemaVersion === 2 &&
     typeof record.updatedAt === "string" &&
     isOptionalString(record.workspaceRoot) &&
     !!record.files &&

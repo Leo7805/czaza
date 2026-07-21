@@ -11,7 +11,7 @@ import {
   createWorkspaceNoteFileName,
   getWorkspaceNoteFilePath,
   getWorkspaceNoteIndexPath,
-  isWorkspaceNoteIndexV1,
+  isWorkspaceNoteIndexV2,
   WorkspaceNoteStoreRepository,
 } from "@vscode/notes/WorkspaceNoteStoreRepository";
 
@@ -32,7 +32,7 @@ describe("WorkspaceNoteStoreRepository", () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository();
     const index = {
-      schemaVersion: 1 as const,
+      schemaVersion: 2 as const,
       updatedAt: now,
       workspaceRoot: root,
       files: {
@@ -69,7 +69,7 @@ describe("WorkspaceNoteStoreRepository", () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository();
 
-    await writeRawStoreFile(root, `${JSON.stringify({ schemaVersion: 2, updatedAt: now, files: {} })}\n`);
+    await writeRawStoreFile(root, `${JSON.stringify({ schemaVersion: 1, updatedAt: now, files: {} })}\n`);
 
     expect(await repository.loadIndex(root, outputDirectory)).toBeNull();
   });
@@ -93,14 +93,13 @@ describe("WorkspaceNoteStoreRepository", () => {
 
     expect(getWorkspaceNoteIndexPath(root, outputDirectory)).toContain(`${outputDirectory}/notes/index.json`);
     expect(JSON.parse(noteRaw) as unknown).toEqual({
-      schemaVersion: 2,
       source: sourceFile.source,
       sectionNotes: {},
       lineNotes: {},
     });
     expect(loaded).toEqual(sourceFile);
     expect(index).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: now,
       workspaceRoot: root,
       files: {
@@ -120,29 +119,17 @@ describe("WorkspaceNoteStoreRepository", () => {
     const firstFile = createStoredSourceFile("sha256:first");
     const secondFile = createStoredSourceFile("sha256:second");
 
-    await repository.saveIndex(root, outputDirectory, {
-      schemaVersion: 1,
-      updatedAt: "2026-07-12T00:00:00.000Z",
-      workspaceRoot: root,
-      files: {
-        "src/first.ts": {
-          noteFile: createWorkspaceNoteFileName("src/first.ts", firstRandomId),
-          sourceHash: "sha256:first",
-          programmingLanguage: "typescript",
-          updatedAt: "2026-07-12T00:00:00.000Z",
-        },
-      },
-    });
-    await writeRawNoteFile(
+    await repository.saveSourceFile(
       root,
       outputDirectory,
-      createWorkspaceNoteFileName("src/first.ts", firstRandomId),
-      `${JSON.stringify(firstFile)}\n`,
+      "src/first.ts",
+      firstFile,
+      "2026-07-12T00:00:00.000Z",
     );
     await repository.saveSourceFile(root, outputDirectory, "src/second.ts", secondFile, now);
 
     expect(await repository.loadIndex(root, outputDirectory)).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: now,
       workspaceRoot: root,
       files: {
@@ -153,7 +140,7 @@ describe("WorkspaceNoteStoreRepository", () => {
           updatedAt: "2026-07-12T00:00:00.000Z",
         },
         "src/second.ts": {
-          noteFile: createWorkspaceNoteFileName("src/second.ts", firstRandomId),
+          noteFile: createWorkspaceNoteFileName("src/second.ts", secondRandomId),
           sourceHash: "sha256:second",
           programmingLanguage: "typescript",
           updatedAt: now,
@@ -164,47 +151,12 @@ describe("WorkspaceNoteStoreRepository", () => {
     expect(await repository.getSourceFile(root, outputDirectory, "src/second.ts")).toEqual(secondFile);
   });
 
-  it("reads V1 and replaces it with V2 on the next save", async () => {
-    const root = await createTempWorkspaceRoot();
-    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
-    const sourceFile = createStoredSourceFile();
-    const noteFile = createWorkspaceNoteFileName("src/index.ts", firstRandomId);
-
-    await repository.saveIndex(root, outputDirectory, {
-      schemaVersion: 1,
-      updatedAt: now,
-      workspaceRoot: root,
-      files: {
-        "src/index.ts": {
-          noteFile,
-          sourceHash: sourceFile.source.sourceHash,
-          programmingLanguage: sourceFile.source.programmingLanguage,
-          updatedAt: now,
-        },
-      },
-    });
-    await writeRawNoteFile(root, outputDirectory, noteFile, `${JSON.stringify(sourceFile, null, 2)}\n`);
-
-    const loadedV1 = await repository.getSourceFile(root, outputDirectory, "src/index.ts");
-    expect(loadedV1).toEqual(sourceFile);
-
-    await repository.saveSourceFile(root, outputDirectory, "src/index.ts", loadedV1!, now);
-
-    const migratedRaw = await readFile(
-      getWorkspaceNoteFilePath(root, outputDirectory, noteFile),
-      "utf-8",
-    );
-    expect(JSON.parse(migratedRaw) as { schemaVersion?: number }).toMatchObject({
-      schemaVersion: 2,
-    });
-    expect(await repository.getSourceFile(root, outputDirectory, "src/index.ts")).toEqual(sourceFile);
-  });
-
   it("validates the top-level workspace note index shape", () => {
-    expect(isWorkspaceNoteIndexV1({ schemaVersion: 1, updatedAt: now, files: {} })).toBe(true);
-    expect(isWorkspaceNoteIndexV1({ schemaVersion: 1, files: {} })).toBe(false);
-    expect(isWorkspaceNoteIndexV1({
-      schemaVersion: 1,
+    expect(isWorkspaceNoteIndexV2({ schemaVersion: 2, updatedAt: now, files: {} })).toBe(true);
+    expect(isWorkspaceNoteIndexV2({ schemaVersion: 2, files: {} })).toBe(false);
+    expect(isWorkspaceNoteIndexV2({ schemaVersion: 1, updatedAt: now, files: {} })).toBe(false);
+    expect(isWorkspaceNoteIndexV2({
+      schemaVersion: 2,
       updatedAt: now,
       files: {
         "src/index.ts": {
@@ -264,30 +216,6 @@ async function writeRawStoreFile(root: string, content: string): Promise<void> {
 
   await mkdir(path.dirname(storePath), { recursive: true });
   await writeFile(storePath, content, "utf-8");
-}
-
-/**
- * Writes raw content to a per-file note JSON for repository tests.
- *
- * @param root - Temporary workspace root path.
- * @param outputDirectory - Workspace-relative CZaza output directory.
- * @param noteFile - Note file path relative to the notes directory.
- * @param content - Raw file content to write.
- * @returns Promise that resolves after the file is written.
- *
- * @example
- * await writeRawNoteFile(root, ".caca", "files/abc123.json", "{}");
- */
-async function writeRawNoteFile(
-  root: string,
-  outputDirectory: string,
-  noteFile: string,
-  content: string,
-): Promise<void> {
-  const notePath = getWorkspaceNoteFilePath(root, outputDirectory, noteFile);
-
-  await mkdir(path.dirname(notePath), { recursive: true });
-  await writeFile(notePath, content, "utf-8");
 }
 
 /**

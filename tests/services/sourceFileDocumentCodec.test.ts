@@ -1,9 +1,9 @@
 /**
- * Unit tests for V1/V2 source-file note document encoding.
+ * Unit tests for compact source-file note document encoding.
  */
 
 import { describe, expect, it } from "vitest";
-import type { SourceFileDocumentV2 } from "@shared/models/store/sourceFileDocument";
+import type { SourceFileDocument } from "@shared/models/store/sourceFileDocument";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import {
   decodeSourceFileDocument,
@@ -14,13 +14,7 @@ const commonTime = "2026-07-21T03:50:28.604Z";
 const overrideTime = "2026-07-21T04:10:00.000Z";
 
 describe("sourceFileDocumentCodec", () => {
-  it("decodes an unversioned V1 document without changing it", () => {
-    const sourceFile = createStoredSourceFile();
-
-    expect(decodeSourceFileDocument(sourceFile)).toEqual(sourceFile);
-  });
-
-  it("round-trips complete note data through compact V2", () => {
+  it("round-trips complete note data through the compact document", () => {
     const sourceFile = createStoredSourceFile();
     const encoded = encodeSourceFileDocument(sourceFile);
 
@@ -31,7 +25,6 @@ describe("sourceFileDocumentCodec", () => {
     const encoded = encodeSourceFileDocument(createStoredSourceFile());
 
     expect(encoded).toMatchObject({
-      schemaVersion: 2,
       defaults: {
         createdAt: commonTime,
         updatedAt: commonTime,
@@ -56,10 +49,8 @@ describe("sourceFileDocumentCodec", () => {
     });
   });
 
-  it("rejects unknown versions and V2 notes without resolvable timestamps", () => {
-    expect(decodeSourceFileDocument({ schemaVersion: 3 })).toBeUndefined();
+  it("rejects compact notes without resolvable timestamps", () => {
     expect(decodeSourceFileDocument({
-      schemaVersion: 2,
       source: { sourceHash: "sha256:source" },
       sectionNotes: {},
       lineNotes: {
@@ -68,7 +59,7 @@ describe("sourceFileDocumentCodec", () => {
           anchorText: "const value = 1;",
         },
       },
-    } satisfies SourceFileDocumentV2)).toBeUndefined();
+    } satisfies SourceFileDocument)).toBeUndefined();
   });
 });
 

@@ -3,7 +3,7 @@
  */
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import type { WorkspaceNoteIndexV1 } from "@shared/models/store/workspace";
+import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import {
   deleteSourceFileEntry as deleteSourceFileEntryPure,
   renameSourceFileEntry as renameSourceFileEntryPure,
@@ -21,13 +21,13 @@ export type WorkspaceNoteSourceIndexDependencies = {
   repository: WorkspaceNoteStoreRepository;
 
   /** Cached workspace indexes keyed by workspace/output directory. */
-  indexCache: Map<string, WorkspaceNoteIndexV1 | null>;
+  indexCache: Map<string, WorkspaceNoteIndexV2 | null>;
 
   /** Cached per-file notes keyed by workspace/output/source path. */
   sourceFileCache: Map<string, StoredSourceFile | undefined>;
 
   /** Reads the workspace note index and throws when it is missing. */
-  getRequiredIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV1>;
+  getRequiredIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV2>;
 };
 
 /**
@@ -43,7 +43,7 @@ export async function renameSourceFileEntry(
   oldRelativePath: string,
   newRelativePath: string,
   now: string,
-): Promise<WorkspaceNoteIndexV1> {
+): Promise<WorkspaceNoteIndexV2> {
   const index = await deps.getRequiredIndex(workspaceRoot, outputDirectory);
   const next = renameSourceFileEntryPure(index, oldRelativePath, newRelativePath, now);
   const workspaceKey = getWorkspaceCacheKey(workspaceRoot, outputDirectory);
@@ -77,7 +77,7 @@ export async function deleteSourceFileEntry(
   outputDirectory: string,
   relativeFilePath: string,
   now: string,
-): Promise<WorkspaceNoteIndexV1> {
+): Promise<WorkspaceNoteIndexV2> {
   const index = await deps.getRequiredIndex(workspaceRoot, outputDirectory);
   const next = deleteSourceFileEntryPure(index, relativeFilePath, now);
 

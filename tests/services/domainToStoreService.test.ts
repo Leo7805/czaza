@@ -221,7 +221,7 @@ describe("domainToStoreService", () => {
     console.log("Workspace note index:", JSON.stringify(index, null, 2));
 
     expect(index).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       updatedAt: now,
       workspaceRoot: "/workspace/project",
       files: {

@@ -3,23 +3,19 @@
     "sourceHash": "sha256:209a69231cfdf3d8ef0046f3cd712b5300f3d66637a4d4c2eceefec5d110e849",
     "programmingLanguage": "typescriptreact"
   },
+  "defaults": {
+    "createdAt": "2026-07-19T03:10:22.274Z",
+    "updatedAt": "2026-07-19T03:11:29.740Z"
+  },
   "fileNote": {
-    "id": "file",
     "aiExplanation": {
       "summary": "定义AI笔记生成菜单组件及相关类型。",
       "detail": "提供用于生成AI笔记的作用域选择菜单，包括文件、段落、当前行等选项。支持自定义作用域、加载状态和键盘/鼠标关闭行为。"
     },
-    "status": {
-      "content": "current",
-      "anchor": "confirmed"
-    },
-    "createdBy": "ai",
-    "createdAt": "2026-07-19T03:10:22.274Z",
     "updatedAt": "2026-07-19T03:11:38.881Z"
   },
-  "sectionNotes": [
-    {
-      "id": "section:1:section:7-15",
+  "sectionNotes": {
+    "section:1:section:7-15": {
       "title": "类型定义",
       "kind": "type",
       "range": {
@@ -31,16 +27,9 @@
         "summary": "定义生成作用域类型和菜单选项类型。",
         "detail": "GenerationScope限定作用域为'fileSection','all','currentLine','nearbyLines'。GenerationScopeOption包含scope和label字段，用于菜单选项。"
       },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T03:10:22.274Z",
       "updatedAt": "2026-07-19T03:10:22.274Z"
     },
-    {
-      "id": "section:2:section:17-59",
+    "section:2:section:17-59": {
       "title": "组件定义与文档",
       "kind": "component",
       "range": {
@@ -51,17 +40,9 @@
       "aiExplanation": {
         "summary": "AiGenerationMenu组件的函数声明和JSDoc。",
         "detail": "组件接收actionLabel、isRunning、isDisabled、回调函数等props，生成带作用域选择的按钮菜单。JSDoc描述了每个prop的用途。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T03:10:22.274Z",
-      "updatedAt": "2026-07-19T03:11:29.740Z"
+      }
     },
-    {
-      "id": "section:3:section:60-71",
+    "section:3:section:60-71": {
       "title": "状态与变量初始化",
       "kind": "state",
       "range": {
@@ -72,17 +53,9 @@
       "aiExplanation": {
         "summary": "初始化组件内部状态和计算变量。",
         "detail": "使用useRef引用根元素，useState管理菜单打开状态和选中的作用域。根据isRunning调整按钮文字，并提供默认作用域选项。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T03:10:22.274Z",
-      "updatedAt": "2026-07-19T03:11:29.740Z"
+      }
     },
-    {
-      "id": "section:4:esc:73-96",
+    "section:4:esc:73-96": {
       "title": "关闭菜单效果（外部点击/ESC）",
       "kind": "effect",
       "range": {
@@ -93,17 +66,9 @@
       "aiExplanation": {
         "summary": "监听外部点击和ESC键关闭菜单。",
         "detail": "当菜单打开时，添加mousedown和keydown事件监听，点击菜单外部或按下ESC时关闭菜单，并在卸载时移除监听。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T03:10:22.274Z",
-      "updatedAt": "2026-07-19T03:11:29.740Z"
+      }
     },
-    {
-      "id": "section:5:section:98-106",
+    "section:5:section:98-106": {
       "title": "运行状态同步效果",
       "kind": "effect",
       "range": {
@@ -114,17 +79,9 @@
       "aiExplanation": {
         "summary": "生成进行时关闭菜单并同步默认作用域。",
         "detail": "当isRunning变为true时关闭菜单；当defaultScope变化时更新selectedScope。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T03:10:22.274Z",
-      "updatedAt": "2026-07-19T03:11:29.740Z"
+      }
     },
-    {
-      "id": "section:6:section:108-125",
+    "section:6:section:108-125": {
       "title": "操作函数",
       "kind": "handler",
       "range": {
@@ -135,17 +92,9 @@
       "aiExplanation": {
         "summary": "定义菜单动作执行和选项选择函数。",
         "detail": "runAction执行传入的回调并关闭菜单；runSelectedAction根据是否有onGenerateScope决定调用自定义回调或内建的回调；selectScope设置选中作用域并关闭菜单。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T03:10:22.274Z",
-      "updatedAt": "2026-07-19T03:11:29.740Z"
+      }
     },
-    {
-      "id": "section:7:section:127-199",
+    "section:7:section:127-199": {
       "title": "组件渲染",
       "kind": "render",
       "range": {
@@ -156,17 +105,9 @@
       "aiExplanation": {
         "summary": "渲染菜单按钮和弹出作用域选项。",
         "detail": "包含一个主按钮（触发当前作用域生成）和一个下拉箭头按钮（展开选项）。弹出菜单根据isOpen条件渲染，使用role='menu'和menuitemradio，通过ScopeCheck组件显示选中状态。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T03:10:22.274Z",
-      "updatedAt": "2026-07-19T03:11:29.740Z"
+      }
     },
-    {
-      "id": "section:8:scopecheck:202-208",
+    "section:8:scopecheck:202-208": {
       "title": "ScopeCheck辅助组件",
       "kind": "component",
       "range": {
@@ -177,29 +118,17 @@
       "aiExplanation": {
         "summary": "显示选中状态的勾选图标。",
         "detail": "一个极小组件，根据isSelected属性显示或隐藏勾选符号，用于菜单项的选中指示。"
-      },
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
-      "createdBy": "ai",
-      "createdAt": "2026-07-19T03:10:22.274Z",
-      "updatedAt": "2026-07-19T03:11:29.740Z"
+      }
     }
-  ],
-  "lineNotes": [
-    {
-      "id": "line:50",
+  },
+  "lineNotes": {
+    "line:50": {
       "line": 50,
       "anchorText": "  actionLabel: \"Generate\" | \"Regenerate\";",
       "userNote": "sss",
-      "status": {
-        "content": "current",
-        "anchor": "confirmed"
-      },
       "createdBy": "user",
       "createdAt": "2026-07-19T10:15:24.387Z",
       "updatedAt": "2026-07-19T10:15:24.387Z"
     }
-  ]
+  }
 }
