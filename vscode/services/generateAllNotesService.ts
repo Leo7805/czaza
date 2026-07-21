@@ -8,6 +8,7 @@ import type { AiClient } from "@shared/ai/aiClient";
 import { AI_REQUEST_DEFAULTS } from "@shared/config/aiRequestDefaults";
 import type { StoredLineNote } from "@shared/models/store/line";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
+import { explainAllNotesLineBatchPrompt } from "@shared/prompts/explainAllNotesLineBatchPrompt";
 import { explainFileSectionLinePrompt } from "@shared/prompts/explainFileSectionLinePrompt";
 import { createDeepSeekClient } from "@shared/providers/deepseek";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@shared/services/allNotesRequestLimitService";
 import { createStoredSourceFile } from "@shared/services/domainToStoreService";
 import { explainFileSectionLineService } from "@shared/services/explainFileSectionLineService";
+import { explainLineBatchService } from "@shared/services/explainLineBatchService";
 import { selectLineAnalysisCandidates } from "@shared/services/lineAnalysisCandidateService";
 import { getAiRequestConfigOrShowError } from "@vscode/ai/getAiRequestConfigOrShowError";
 import { AI_CATALOG } from "@vscode/config/aiCatalog";
@@ -69,6 +71,9 @@ export type GenerateAllNotesInput = {
   /** Maximum number of filtered source lines eligible for individual notes. */
   maxCandidateLines?: number;
 
+  /** Allows a previously confirmed request to execute across multiple AI calls. */
+  allowBatching?: boolean;
+
   /** Factory used to apply the assessed output cap to the AI client. */
   createAiClient: AllNotesAiClientFactory;
 
@@ -80,15 +85,15 @@ export type GenerateAllNotesInput = {
 };
 
 /**
- * Generates and merges all three note levels with one coordinated AI request.
+ * Generates and merges all three note levels with one or more coordinated AI requests.
  *
- * The service selects meaningful line targets locally, rejects requests that
- * exceed application or model limits, and delegates response normalization to
- * the existing coordinated explain service.
+ * The service selects meaningful line targets locally, asks for confirmation
+ * before batching, and keeps follow-up requests line-only while retaining the
+ * complete source file as context.
  *
  * @param input - Source context, model limits, AI client factory, and previous notes.
  * @returns Stored source-file data ready to persist.
- * @throws Error when the request exceeds an All Notes safety limit.
+ * @throws Error when the request exceeds an All Notes safety limit or needs batching confirmation.
  *
  * @example
  * const sourceFile = await generateAllNotesService({
@@ -115,6 +120,35 @@ export async function generateAllNotesService(
       AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
   });
   const requestedLineNumbers = candidates.map((candidate) => candidate.lineNumber);
+  const maxCandidateLines =
+    input.maxCandidateLines ?? AI_REQUEST_DEFAULTS.allNotes.maxCandidateLines;
+
+  if (requestedLineNumbers.length > maxCandidateLines) {
+    throw new AllNotesLineLimitError(
+      sourceLines.length,
+      requestedLineNumbers.length,
+      maxCandidateLines,
+    );
+  }
+
+  const batches = createLineNumberBatches(
+    requestedLineNumbers,
+    input.modelMaxOutputTokens,
+  );
+
+  if (batches.length > 1 && !input.allowBatching) {
+    throw new AllNotesBatchRequiredError(
+      sourceLines.length,
+      requestedLineNumbers.length,
+      batches.length,
+      Math.min(
+        AI_REQUEST_DEFAULTS.allNotes.maxRequestOutputTokens,
+        input.modelMaxOutputTokens,
+      ),
+    );
+  }
+
+  const firstBatchLineNumbers = batches[0] ?? [];
   const prompt = explainFileSectionLinePrompt({
     sourceCode: input.sourceCode,
     filePath: input.relativePath,
@@ -122,34 +156,62 @@ export async function generateAllNotesService(
       ? { programmingLanguage: input.programmingLanguage }
       : {}),
     responseLanguageInstruction: input.responseLanguageInstruction,
-    lineNumbers: requestedLineNumbers,
+    lineNumbers: firstBatchLineNumbers,
     skipDependencyDirectives:
       AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
   });
   const assessment = assessAllNotesRequest({
     prompt,
     sourceLineCount: sourceLines.length,
-    candidateLineCount: requestedLineNumbers.length,
+    candidateLineCount: firstBatchLineNumbers.length,
     modelContextWindowTokens: input.modelContextWindowTokens,
     modelMaxOutputTokens: input.modelMaxOutputTokens,
-    ...(input.maxCandidateLines !== undefined
-      ? { limits: { maxCandidateLines: input.maxCandidateLines } }
-      : {}),
+    limits: { maxCandidateLines },
   });
 
-  assertRequestAllowed(
-    assessment,
-    input.maxCandidateLines ?? AI_REQUEST_DEFAULTS.allNotes.maxCandidateLines,
-  );
+  assertRequestAllowed(assessment, maxCandidateLines);
 
   const analysis = await explainFileSectionLineService(
     prompt,
     input.createAiClient(assessment.recommendedMaxTokens),
     {
       lineCount: sourceLines.length,
-      requestedLineNumbers,
+      requestedLineNumbers: firstBatchLineNumbers,
     },
   );
+  const lineAnalyses = [...analysis.lines];
+
+  for (const lineNumbers of batches.slice(1)) {
+    const batchPrompt = explainAllNotesLineBatchPrompt({
+      sourceCode: input.sourceCode,
+      filePath: input.relativePath,
+      ...(input.programmingLanguage
+        ? { programmingLanguage: input.programmingLanguage }
+        : {}),
+      responseLanguageInstruction: input.responseLanguageInstruction,
+      lineNumbers,
+      skipDependencyDirectives:
+        AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
+    });
+    const batchAssessment = assessAllNotesRequest({
+      prompt: batchPrompt,
+      sourceLineCount: sourceLines.length,
+      candidateLineCount: lineNumbers.length,
+      modelContextWindowTokens: input.modelContextWindowTokens,
+      modelMaxOutputTokens: input.modelMaxOutputTokens,
+      limits: { maxCandidateLines, baseOutputTokens: 0 },
+    });
+
+    assertRequestAllowed(batchAssessment, maxCandidateLines);
+    lineAnalyses.push(
+      ...(await explainLineBatchService(
+        batchPrompt,
+        input.createAiClient(batchAssessment.recommendedMaxTokens),
+        { requestedLineNumbers: lineNumbers },
+      )),
+    );
+  }
+
   const generatedSourceFile = createStoredSourceFile({
     sourceCode: input.sourceCode,
     ...(input.programmingLanguage
@@ -157,7 +219,7 @@ export async function generateAllNotesService(
       : {}),
     fileNote: createFileNoteFromAiAnalysis(analysis.file),
     sectionNotes: createSectionNotesFromAiAnalysis(analysis.sections, sourceLines),
-    lineNotes: createLineNotesFromAiBatchAnalysis(analysis.lines, sourceLines),
+    lineNotes: createLineNotesFromAiBatchAnalysis(lineAnalyses, sourceLines),
     now: input.now,
   });
 
@@ -183,6 +245,7 @@ export async function generateAllNotesForResource(
   context: vscode.ExtensionContext,
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
+  options?: { allowBatching?: boolean },
 ): Promise<boolean> {
   const aiConfig = await getAiRequestConfigOrShowError(context, uri);
 
@@ -218,6 +281,7 @@ export async function generateAllNotesForResource(
     modelContextWindowTokens: modelDefinition.contextWindowTokens,
     modelMaxOutputTokens: modelDefinition.maxOutputTokens,
     maxCandidateLines: settings.ai.maxAnalysisLines,
+    allowBatching: options?.allowBatching,
     createAiClient: (maxTokens) => createRuntimeAiClient(aiConfig, maxTokens),
     ...(existingSourceFile ? { existingSourceFile } : {}),
     now,
@@ -283,6 +347,63 @@ export class AllNotesLineLimitError extends Error {
     this.candidateLineCount = candidateLineCount;
     this.maxCandidateLines = maxCandidateLines;
   }
+}
+
+/** Signals that a safe request requires user-confirmed sequential batches. */
+export class AllNotesBatchRequiredError extends Error {
+  readonly sourceLineCount: number;
+  readonly candidateLineCount: number;
+  readonly batchCount: number;
+  readonly effectiveOutputLimit: number;
+
+  constructor(
+    sourceLineCount: number,
+    candidateLineCount: number,
+    batchCount: number,
+    effectiveOutputLimit: number,
+  ) {
+    super("All Notes generation requires multiple output batches.");
+    this.name = "AllNotesBatchRequiredError";
+    this.sourceLineCount = sourceLineCount;
+    this.candidateLineCount = candidateLineCount;
+    this.batchCount = batchCount;
+    this.effectiveOutputLimit = effectiveOutputLimit;
+  }
+}
+
+/** Splits target lines using the smaller of the CZaza and selected-model limits. */
+function createLineNumberBatches(
+  lineNumbers: readonly number[],
+  modelMaxOutputTokens: number,
+): number[][] {
+  const limits = AI_REQUEST_DEFAULTS.allNotes;
+  const effectiveOutputLimit = Math.min(
+    limits.maxRequestOutputTokens,
+    modelMaxOutputTokens,
+  );
+  const firstBatchCapacity = Math.floor(
+    (effectiveOutputLimit / limits.outputSafetyMultiplier - limits.baseOutputTokens) /
+      limits.tokensPerLineNote,
+  );
+  const lineOnlyBatchCapacity = Math.floor(
+    effectiveOutputLimit /
+      limits.outputSafetyMultiplier /
+      limits.tokensPerLineNote,
+  );
+
+  if (firstBatchCapacity < 0 || (lineNumbers.length > 0 && firstBatchCapacity < 1)) {
+    return [Array.from(lineNumbers)];
+  }
+
+  const batches = [Array.from(lineNumbers.slice(0, firstBatchCapacity))];
+  let offset = firstBatchCapacity;
+
+  while (offset < lineNumbers.length) {
+    batches.push(Array.from(lineNumbers.slice(offset, offset + lineOnlyBatchCapacity)));
+    offset += lineOnlyBatchCapacity;
+  }
+
+  return batches;
 }
 
 /** Merges generated line notes after reusing file-and-section merge behavior. */

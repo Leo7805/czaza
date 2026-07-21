@@ -76,7 +76,7 @@ export type WebviewNotice = {
   actions: Array<{
     label: string;
     variant?: "primary" | "secondary";
-    action?: "openMaxAnalysisLinesSetting";
+    action?: "openMaxAnalysisLinesSetting" | "confirmBatchedAllNotes";
   }>;
 };
 
@@ -339,7 +339,7 @@ export type WebviewToExtensionMessage =
   | {
       /** Runs one explicitly supported action from a notice modal. */
       type: "runNoticeAction";
-      action: "openMaxAnalysisLinesSetting";
+      action: "openMaxAnalysisLinesSetting" | "confirmBatchedAllNotes";
     }
   | {
       /** Requests AI note generation for the active source line. */

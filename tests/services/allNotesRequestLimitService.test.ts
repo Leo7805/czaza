@@ -12,6 +12,10 @@ const MODEL_CONTEXT_TOKENS = 1_000_000;
 const MODEL_OUTPUT_TOKENS = 384_000;
 
 describe("assessAllNotesRequest()", () => {
+  it("uses the 192k CZaza per-request output ceiling", () => {
+    expect(DEFAULT_ALL_NOTES_REQUEST_LIMITS.maxRequestOutputTokens).toBe(192_000);
+  });
+
   it("allows a request at the 300 candidate-line boundary", () => {
     const result = assessAllNotesRequest({
       prompt: "Analyze this source file.",

@@ -186,7 +186,10 @@ vi.mock("vscode", () => ({
 }));
 
 import { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
-import { AllNotesLineLimitError } from "@vscode/services/generateAllNotesService";
+import {
+  AllNotesBatchRequiredError,
+  AllNotesLineLimitError,
+} from "@vscode/services/generateAllNotesService";
 
 describe("NotesViewProvider", () => {
   beforeEach(() => {
@@ -697,6 +700,62 @@ describe("NotesViewProvider", () => {
       "workbench.action.openSettings",
       "@id:czaza.ai.maxAnalysisLines",
     );
+
+    provider.dispose();
+  });
+
+  it("confirms and reruns All Notes when safe generation requires batches", async () => {
+    const uri = createUri("/workspace/src/large.ts");
+    const generateAllNotes = vi
+      .fn()
+      .mockRejectedValueOnce(new AllNotesBatchRequiredError(1_500, 1_200, 2, 192_000))
+      .mockResolvedValueOnce(true);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      generateAllNotes,
+    );
+    const view = createWebviewView();
+
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "large.ts",
+      relativePath: "src/large.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({ type: "generateAllNotes" });
+
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "notice",
+        notice: expect.objectContaining({
+          title: "Batch AI Analysis Required",
+          message: expect.stringContaining("2 sequential batches"),
+          actions: [
+            {
+              label: "Continue",
+              variant: "primary",
+              action: "confirmBatchedAllNotes",
+            },
+            { label: "Cancel", variant: "secondary" },
+          ],
+        }),
+      }),
+    );
+
+    mocks.messageListeners[0]?.({
+      type: "runNoticeAction",
+      action: "confirmBatchedAllNotes",
+    });
+    await vi.waitFor(() => expect(generateAllNotes).toHaveBeenCalledTimes(2));
+    expect(generateAllNotes).toHaveBeenNthCalledWith(1, uri);
+    expect(generateAllNotes).toHaveBeenNthCalledWith(2, uri, { allowBatching: true });
 
     provider.dispose();
   });

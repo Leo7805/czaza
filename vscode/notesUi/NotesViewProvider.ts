@@ -30,7 +30,10 @@ import { deleteNavigatorLineNoteService } from "@vscode/services/deleteNavigator
 import { deleteNavigatorSectionNoteService } from "@vscode/services/deleteNavigatorSectionNoteService";
 import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavigatorFileNoteOrphanedService";
 import { relocateNavigatorFileNoteService } from "@vscode/services/relocateNavigatorFileNoteService";
-import { AllNotesLineLimitError } from "@vscode/services/generateAllNotesService";
+import {
+  AllNotesBatchRequiredError,
+  AllNotesLineLimitError,
+} from "@vscode/services/generateAllNotesService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
 
 /**
@@ -52,7 +55,7 @@ type NotesWebviewMessage =
   | {
       /** Runs one explicitly supported action from a notice modal. */
       type: "runNoticeAction";
-      action: "openMaxAnalysisLinesSetting";
+      action: "openMaxAnalysisLinesSetting" | "confirmBatchedAllNotes";
     }
   | {
       /** Requests AI note generation for the active source line. */
@@ -216,7 +219,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
   private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
-  private readonly generateAllNotes?: (uri: vscode.Uri) => Promise<boolean>;
+  private readonly generateAllNotes?: (
+    uri: vscode.Uri,
+    options?: { allowBatching?: boolean },
+  ) => Promise<boolean>;
   private readonly generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>;
   private readonly generateLineBatchNotes?: (
     uri: vscode.Uri,
@@ -249,7 +255,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     notes: WorkspaceNoteStore,
     generateFileNotes: (uri: vscode.Uri) => Promise<boolean>,
     saveUserNote: (uri: vscode.Uri, target: UserNoteTarget, userNote: string) => Promise<void>,
-    generateAllNotes?: (uri: vscode.Uri) => Promise<boolean>,
+    generateAllNotes?: (
+      uri: vscode.Uri,
+      options?: { allowBatching?: boolean },
+    ) => Promise<boolean>,
     generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
     generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>,
     generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
@@ -311,10 +320,14 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       }
 
       if (message.type === "runNoticeAction") {
-        void vscode.commands.executeCommand(
-          "workbench.action.openSettings",
-          "@id:czaza.ai.maxAnalysisLines",
-        );
+        if (message.action === "openMaxAnalysisLinesSetting") {
+          void vscode.commands.executeCommand(
+            "workbench.action.openSettings",
+            "@id:czaza.ai.maxAnalysisLines",
+          );
+        } else {
+          void this.runNotesGeneration("all", true);
+        }
         return;
       }
 
@@ -676,7 +689,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     actions?: Array<{
       label: string;
       variant?: "primary" | "secondary";
-      action?: "openMaxAnalysisLinesSetting";
+      action?: "openMaxAnalysisLinesSetting" | "confirmBatchedAllNotes";
     }>;
   }): Promise<void> {
     await this.view?.webview.postMessage({
@@ -850,7 +863,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         });
   }
 
-  private async runNotesGeneration(scope: "fileSection" | "all"): Promise<void> {
+  private async runNotesGeneration(
+    scope: "fileSection" | "all",
+    allowBatching = false,
+  ): Promise<void> {
     const uri = this.currentResourceUri;
 
     if (!uri || this.currentPayload?.kind !== "file") {
@@ -874,14 +890,31 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     let revealAiNotes: "fileSection" | "all" | undefined;
 
     try {
-      const saved = await generateNotes(uri);
+      const saved =
+        scope === "all" && allowBatching
+          ? await this.generateAllNotes?.(uri, { allowBatching: true })
+          : await generateNotes(uri);
       revealAiNotes = saved ? scope : undefined;
 
       if (saved && this.currentResourceUri?.toString() === resourceKey) {
         await this.loadResourceNotes(uri, false, getActiveLine(uri));
       }
     } catch (error) {
-      if (error instanceof AllNotesLineLimitError) {
+      if (error instanceof AllNotesBatchRequiredError) {
+        await this.postNotice({
+          tone: "info",
+          title: "Batch AI Analysis Required",
+          message: `This file contains ${error.sourceLineCount} lines, of which ${error.candidateLineCount} require AI analysis. The selected model and CZaza allow ${error.effectiveOutputLimit.toLocaleString("en-US")} output tokens per request, so CZaza will use ${error.batchCount} sequential batches and merge them after every batch succeeds.`,
+          actions: [
+            {
+              label: "Continue",
+              variant: "primary",
+              action: "confirmBatchedAllNotes",
+            },
+            { label: "Cancel", variant: "secondary" },
+          ],
+        });
+      } else if (error instanceof AllNotesLineLimitError) {
         await this.postNotice({
           tone: "warning",
           title: "AI Analysis Line Limit Exceeded",
@@ -1367,7 +1400,8 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     candidate.type === "generateFileNotes" ||
     candidate.type === "generateAllNotes" ||
     (candidate.type === "runNoticeAction" &&
-      candidate.action === "openMaxAnalysisLinesSetting") ||
+      (candidate.action === "openMaxAnalysisLinesSetting" ||
+        candidate.action === "confirmBatchedAllNotes")) ||
     (candidate.type === "generateLineNote" &&
       (candidate.lineScope === "currentLine" || candidate.lineScope === "nearbyLines")) ||
     (candidate.type === "generateSectionNote" && typeof candidate.sectionId === "string") ||

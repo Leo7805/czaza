@@ -39,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
     notes,
     (uri) => generateFileNotesForResource(context, notes, uri),
     (uri, target, userNote) => saveUserNoteService({ uri, notes, target, userNote }),
-    (uri) => generateAllNotesForResource(context, notes, uri),
+    (uri, options) => generateAllNotesForResource(context, notes, uri, options),
     (uri, lineNumber) => generateLineNoteForResource(context, notes, uri, lineNumber),
     (uri, sectionId) => generateSectionNoteForResource(context, notes, uri, sectionId),
     (uri, lineNumber) => generateLineBatchNotesForResource(context, notes, uri, lineNumber),

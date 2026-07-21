@@ -40,6 +40,7 @@ vi.mock("@vscode/config/resolveCzazaRootDirectory", () => ({
 }));
 
 import {
+  AllNotesBatchRequiredError,
   generateAllNotesForResource,
   generateAllNotesService,
 } from "@vscode/services/generateAllNotesService";
@@ -176,6 +177,79 @@ describe("generateAllNotesService()", () => {
       maxCandidateLines: 2,
     });
     expect(createAiClient).not.toHaveBeenCalled();
+  });
+
+  it("requires confirmation before a model-limited request is split into batches", async () => {
+    const createAiClient = vi.fn<(maxTokens: number) => AiClient>();
+
+    await expect(
+      generateAllNotesService({
+        sourceCode: ["const one = 1;", "const two = 2;", "const three = 3;"].join("\n"),
+        relativePath: "src/batched.ts",
+        programmingLanguage: "typescript",
+        responseLanguageInstruction: "Respond in English.",
+        modelContextWindowTokens: 1_000_000,
+        modelMaxOutputTokens: 10_000,
+        maxCandidateLines: 10,
+        createAiClient,
+        now,
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining<Partial<AllNotesBatchRequiredError>>({
+        name: "AllNotesBatchRequiredError",
+        candidateLineCount: 3,
+        batchCount: 2,
+        effectiveOutputLimit: 10_000,
+      }),
+    );
+    expect(createAiClient).not.toHaveBeenCalled();
+  });
+
+  it("generates confirmed batches and merges line-only follow-up results", async () => {
+    const responses = [
+      {
+        file: { summary: "Defines values.", detail: "Defines three constants." },
+        sections: [
+          {
+            title: "Values",
+            kind: "declarations",
+            range: { startLine: 1, endLine: 3 },
+            summary: "Declares values.",
+            detail: "Contains constant declarations.",
+          },
+        ],
+        lines: [
+          { lineNumber: 1, summary: "Defines one.", detail: "Declares the first value." },
+          { lineNumber: 2, summary: "Defines two.", detail: "Declares the second value." },
+        ],
+      },
+      {
+        lines: [
+          { lineNumber: 3, summary: "Defines three.", detail: "Declares the third value." },
+        ],
+      },
+    ];
+    const complete = vi.fn().mockImplementation(async () => JSON.stringify(responses.shift()));
+    const createAiClient = vi.fn<(maxTokens: number) => AiClient>(() => ({ complete }));
+
+    const result = await generateAllNotesService({
+      sourceCode: ["const one = 1;", "const two = 2;", "const three = 3;"].join("\n"),
+      relativePath: "src/batched.ts",
+      programmingLanguage: "typescript",
+      responseLanguageInstruction: "Respond in English.",
+      modelContextWindowTokens: 1_000_000,
+      modelMaxOutputTokens: 10_000,
+      maxCandidateLines: 10,
+      allowBatching: true,
+      createAiClient,
+      now,
+    });
+
+    expect(createAiClient).toHaveBeenCalledTimes(2);
+    expect(createAiClient.mock.calls.map(([maxTokens]) => maxTokens)).toEqual([9_960, 180]);
+    expect(complete.mock.calls[0]?.[0]).toContain("Analyze the file, its meaningful sections");
+    expect(complete.mock.calls[1]?.[0]).toContain("return line analysis only");
+    expect(result.lineNotes.map((note) => note.line)).toEqual([1, 2, 3]);
   });
 });
 

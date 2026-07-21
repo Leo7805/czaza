@@ -37,7 +37,7 @@ export const AI_REQUEST_DEFAULTS = {
     maxEstimatedInputTokens: 100_000,
 
     /** Maximum output-token cap CZaza may send in one All Notes request. */
-    maxRequestOutputTokens: 64_000,
+    maxRequestOutputTokens: 192_000,
 
     /** Estimated output tokens reserved for file-level and section-level notes. */
     baseOutputTokens: 8_000,
