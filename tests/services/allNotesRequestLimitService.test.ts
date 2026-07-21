@@ -15,7 +15,12 @@ const MODEL_OUTPUT_TOKENS = 384_000;
 describe("assessAllNotesRequest()", () => {
   it("uses the 192k CZaza per-request output ceiling", () => {
     expect(DEFAULT_ALL_NOTES_REQUEST_LIMITS.maxRequestOutputTokens).toBe(192_000);
-    expect(AI_REQUEST_DEFAULTS.allNotes.targetBatchOutputTokens).toBe(64_000);
+    expect(AI_REQUEST_DEFAULTS.allNotes.batchParams).toMatchObject({
+      regularLineCount: 150,
+      minimumSplitLineCount: 75,
+      requestTimeoutSeconds: 180,
+      taskTimeoutSeconds: 900,
+    });
   });
 
   it("allows a request at the 300 candidate-line boundary", () => {

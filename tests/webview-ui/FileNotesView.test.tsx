@@ -377,8 +377,30 @@ describe("FileNotesView", () => {
     const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
 
     expect(markup).toContain('class="resource-header__timer"');
-    expect(markup).toContain("0s");
+    expect(markup).toContain("00:00");
     expect(markup).toContain("Generating...");
+  });
+
+  it("shows All Notes batch progress beside total elapsed time", () => {
+    const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
+      kind: "file",
+      name: "large.ts",
+      relativePath: "src/large.ts",
+      aiAction: "generate",
+      isAiActionRunning: true,
+      aiActionRunningScope: "all",
+      aiBatchProgress: {
+        currentBatch: 1,
+        totalBatches: 4,
+        completedLines: 0,
+        totalLines: 600,
+      },
+      sectionNotes: [],
+    };
+
+    const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
+
+    expect(markup).toContain("Batch 1/4 · 00:00");
   });
 
   it("keeps other AI actions disabled without labeling them as running", () => {

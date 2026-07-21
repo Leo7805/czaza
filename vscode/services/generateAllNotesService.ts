@@ -48,7 +48,15 @@ import { mergeGeneratedFileSectionNotes } from "@vscode/services/generateFileNot
  * const createAiClient = (maxTokens: number) =>
  *   createDeepSeekClient({ apiKey, model, maxTokens });
  */
-export type AllNotesAiClientFactory = (maxTokens: number) => AiClient;
+export type AllNotesAiClientFactory = (maxTokens: number, timeoutMs: number) => AiClient;
+
+/** Progress for the currently executing All Notes batch plan. */
+export type AllNotesProgress = {
+  currentBatch: number;
+  totalBatches: number;
+  completedLines: number;
+  totalLines: number;
+};
 
 /**
  * Provider-independent input for coordinated note generation.
@@ -77,6 +85,9 @@ export type GenerateAllNotesInput = {
 
   /** Allows a previously confirmed request to execute across multiple AI calls. */
   allowBatching?: boolean;
+
+  /** Receives progress before each batch request and after final completion. */
+  onProgress?: (progress: AllNotesProgress) => void | Promise<void>;
 
   /** Factory used to apply the assessed output cap to the AI client. */
   createAiClient: AllNotesAiClientFactory;
@@ -135,59 +146,35 @@ export async function generateAllNotesService(
     );
   }
 
-  const batches = createLineNumberBatches(
-    requestedLineNumbers,
-    input.modelMaxOutputTokens,
-  );
+  const batches = createLineNumberBatches(requestedLineNumbers);
 
   if (batches.length > 1 && !input.allowBatching) {
     throw new AllNotesBatchRequiredError(
       sourceLines.length,
       requestedLineNumbers.length,
       batches.length,
-      resolveBatchOutputLimit(input.modelMaxOutputTokens),
+      Math.min(
+        AI_REQUEST_DEFAULTS.allNotes.maxRequestOutputTokens,
+        input.modelMaxOutputTokens,
+      ),
     );
   }
 
-  const firstBatchLineNumbers = batches[0] ?? [];
-  let analysis: FileSectionLineAnalysis;
-
-  try {
-    analysis = await generateInitialBatchWithRecovery(
-      input,
-      sourceLines.length,
-      firstBatchLineNumbers,
-      maxCandidateLines,
-    );
-  } catch (error) {
-    throwInvalidAiResponseError(error);
-  }
-
-  const lineAnalyses = [...analysis.lines];
-
-  for (const lineNumbers of batches.slice(1)) {
-    try {
-      lineAnalyses.push(
-        ...(await generateLineBatchWithRecovery(
-          input,
-          sourceLines.length,
-          lineNumbers,
-          maxCandidateLines,
-        )),
-      );
-    } catch (error) {
-      throwInvalidAiResponseError(error);
-    }
-  }
+  const result = await executeBatchPlan(
+    input,
+    sourceLines.length,
+    batches,
+    maxCandidateLines,
+  );
 
   const generatedSourceFile = createStoredSourceFile({
     sourceCode: input.sourceCode,
     ...(input.programmingLanguage
       ? { programmingLanguage: input.programmingLanguage }
       : {}),
-    fileNote: createFileNoteFromAiAnalysis(analysis.file),
-    sectionNotes: createSectionNotesFromAiAnalysis(analysis.sections, sourceLines),
-    lineNotes: createLineNotesFromAiBatchAnalysis(lineAnalyses, sourceLines),
+    fileNote: createFileNoteFromAiAnalysis(result.file),
+    sectionNotes: createSectionNotesFromAiAnalysis(result.sections, sourceLines),
+    lineNotes: createLineNotesFromAiBatchAnalysis(result.lines, sourceLines),
     now: input.now,
   });
 
@@ -213,7 +200,10 @@ export async function generateAllNotesForResource(
   context: vscode.ExtensionContext,
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
-  options?: { allowBatching?: boolean },
+  options?: {
+    allowBatching?: boolean;
+    onProgress?: (progress: AllNotesProgress) => void | Promise<void>;
+  },
 ): Promise<boolean> {
   const aiConfig = await getAiRequestConfigOrShowError(context, uri);
 
@@ -250,7 +240,9 @@ export async function generateAllNotesForResource(
     modelMaxOutputTokens: modelDefinition.maxOutputTokens,
     maxCandidateLines: settings.ai.maxAnalysisLines,
     allowBatching: options?.allowBatching,
-    createAiClient: (maxTokens) => createRuntimeAiClient(aiConfig, maxTokens),
+    onProgress: options?.onProgress,
+    createAiClient: (maxTokens, timeoutMs) =>
+      createRuntimeAiClient(aiConfig, maxTokens, timeoutMs),
     ...(existingSourceFile ? { existingSourceFile } : {}),
     now,
   });
@@ -270,12 +262,14 @@ export async function generateAllNotesForResource(
 function createRuntimeAiClient(
   config: NonNullable<Awaited<ReturnType<typeof getAiRequestConfigOrShowError>>>,
   maxTokens: number,
+  timeoutMs: number,
 ): AiClient {
   if (config.provider === "deepseek") {
     return createDeepSeekClient({
       apiKey: config.apiKey,
       model: config.model,
       maxTokens,
+      timeoutMs,
     });
   }
 
@@ -350,120 +344,181 @@ export class AllNotesInvalidResponseError extends Error {
   }
 }
 
-/** Runs the coordinated first batch, retrying and splitting malformed responses. */
-async function generateInitialBatchWithRecovery(
-  input: GenerateAllNotesInput,
-  sourceLineCount: number,
-  lineNumbers: readonly number[],
-  maxCandidateLines: number,
-): Promise<FileSectionLineAnalysis> {
-  try {
-    return await retryInvalidAiResponse(async () => {
-      const prompt = explainFileSectionLinePrompt({
-        sourceCode: input.sourceCode,
-        filePath: input.relativePath,
-        ...(input.programmingLanguage
-          ? { programmingLanguage: input.programmingLanguage }
-          : {}),
-        responseLanguageInstruction: input.responseLanguageInstruction,
-        lineNumbers,
-        skipDependencyDirectives:
-          AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
-      });
-      const assessment = assessBatch(
-        input,
-        prompt,
-        sourceLineCount,
-        lineNumbers.length,
-        maxCandidateLines,
-        AI_REQUEST_DEFAULTS.allNotes.baseOutputTokens,
-      );
-
-      return explainFileSectionLineService(
-        prompt,
-        input.createAiClient(assessment.recommendedMaxTokens),
-        { lineCount: sourceLineCount, requestedLineNumbers: lineNumbers },
-      );
-    });
-  } catch (error) {
-    if (!isInvalidAiResponseError(error) || lineNumbers.length < 2) {
-      throw error;
-    }
-
-    const midpoint = Math.ceil(lineNumbers.length / 2);
-    const first = await generateInitialBatchWithRecovery(
-      input,
-      sourceLineCount,
-      lineNumbers.slice(0, midpoint),
-      maxCandidateLines,
-    );
-    const remainingLines = await generateLineBatchWithRecovery(
-      input,
-      sourceLineCount,
-      lineNumbers.slice(midpoint),
-      maxCandidateLines,
-    );
-
-    return { ...first, lines: [...first.lines, ...remainingLines] };
+/** Terminal failure after a minimum-sized request times out twice. */
+export class AllNotesBatchTimeoutError extends Error {
+  constructor(options?: { cause?: unknown }) {
+    super("An AI batch timed out after recovery. No notes were changed.", options);
+    this.name = "AllNotesBatchTimeoutError";
   }
 }
 
-/** Runs one line-only batch, recursively halving malformed responses. */
-async function generateLineBatchWithRecovery(
+/** Terminal failure when the configured total task deadline is reached. */
+export class AllNotesTaskTimeoutError extends Error {
+  constructor() {
+    super("All Notes reached the total task timeout. No notes were changed.");
+    this.name = "AllNotesTaskTimeoutError";
+  }
+}
+
+type AllNotesBatchJob = {
+  lineNumbers: number[];
+  mode: "complete" | "lines";
+  retryCount: number;
+};
+
+/** Executes a bounded batch queue with one split level and atomic aggregation. */
+async function executeBatchPlan(
   input: GenerateAllNotesInput,
   sourceLineCount: number,
-  lineNumbers: readonly number[],
+  batches: readonly number[][],
   maxCandidateLines: number,
-): Promise<LineAnalysisEntry[]> {
-  try {
-    return await retryInvalidAiResponse(async () => {
-      const prompt = explainAllNotesLineBatchPrompt({
-        sourceCode: input.sourceCode,
-        filePath: input.relativePath,
-        ...(input.programmingLanguage
-          ? { programmingLanguage: input.programmingLanguage }
-          : {}),
-        responseLanguageInstruction: input.responseLanguageInstruction,
-        lineNumbers,
-        skipDependencyDirectives:
-          AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
-      });
-      const assessment = assessBatch(
-        input,
-        prompt,
-        sourceLineCount,
-        lineNumbers.length,
-        maxCandidateLines,
-        0,
-      );
+): Promise<FileSectionLineAnalysis> {
+  const params = validateBatchParams();
+  const deadline = Date.now() + secondsToMilliseconds(params.taskTimeoutSeconds);
+  const queue: AllNotesBatchJob[] = batches.map((lineNumbers, index) => ({
+    lineNumbers,
+    mode: index === 0 ? "complete" : "lines",
+    retryCount: 0,
+  }));
+  const totalLines = batches.reduce((count, batch) => count + batch.length, 0);
+  const lineAnalyses: LineAnalysisEntry[] = [];
+  let completeAnalysis: FileSectionLineAnalysis | undefined;
+  let completedBatches = 0;
+  let completedLines = 0;
+  let totalBatches = queue.length;
 
-      return explainLineBatchService(
-        prompt,
-        input.createAiClient(assessment.recommendedMaxTokens),
-        { requestedLineNumbers: lineNumbers },
-      );
+  while (queue.length > 0) {
+    assertTaskWithinDeadline(deadline);
+    const job = queue.shift()!;
+    await input.onProgress?.({
+      currentBatch: completedBatches + 1,
+      totalBatches,
+      completedLines,
+      totalLines,
     });
-  } catch (error) {
-    if (!isInvalidAiResponseError(error) || lineNumbers.length < 2) {
-      throw error;
-    }
 
-    const midpoint = Math.ceil(lineNumbers.length / 2);
-    return [
-      ...(await generateLineBatchWithRecovery(
+    try {
+      const result = await executeBatchJob(
         input,
         sourceLineCount,
-        lineNumbers.slice(0, midpoint),
+        job,
         maxCandidateLines,
-      )),
-      ...(await generateLineBatchWithRecovery(
-        input,
-        sourceLineCount,
-        lineNumbers.slice(midpoint),
-        maxCandidateLines,
-      )),
-    ];
+        deadline,
+      );
+
+      if (job.mode === "complete") {
+        completeAnalysis = result as FileSectionLineAnalysis;
+        lineAnalyses.push(...completeAnalysis.lines);
+      } else {
+        lineAnalyses.push(...(result as LineAnalysisEntry[]));
+      }
+      completedBatches += 1;
+      completedLines += job.lineNumbers.length;
+    } catch (error) {
+      if (Date.now() >= deadline) {
+        throw new AllNotesTaskTimeoutError();
+      }
+      if (!isRecoverableBatchError(error)) {
+        throw error;
+      }
+
+      const split = splitFailedBatch(job, params.minimumSplitLineCount);
+
+      if (split) {
+        queue.unshift(...split);
+        totalBatches += 1;
+        continue;
+      }
+      if (job.retryCount === 0) {
+        queue.unshift({ ...job, retryCount: 1 });
+        continue;
+      }
+
+      throwTerminalBatchError(error);
+    }
   }
+
+  if (!completeAnalysis) {
+    throw new Error("All Notes batch plan completed without file analysis.");
+  }
+
+  await input.onProgress?.({
+    currentBatch: totalBatches,
+    totalBatches,
+    completedLines,
+    totalLines,
+  });
+  return { ...completeAnalysis, lines: lineAnalyses };
+}
+
+/** Executes one complete or line-only batch within the remaining task time. */
+async function executeBatchJob(
+  input: GenerateAllNotesInput,
+  sourceLineCount: number,
+  job: AllNotesBatchJob,
+  maxCandidateLines: number,
+  deadline: number,
+): Promise<FileSectionLineAnalysis | LineAnalysisEntry[]> {
+  const timeoutMs = Math.min(
+    secondsToMilliseconds(
+      AI_REQUEST_DEFAULTS.allNotes.batchParams.requestTimeoutSeconds,
+    ),
+    Math.max(1, deadline - Date.now()),
+  );
+
+  if (job.mode === "complete") {
+    const prompt = explainFileSectionLinePrompt({
+      sourceCode: input.sourceCode,
+      filePath: input.relativePath,
+      ...(input.programmingLanguage
+        ? { programmingLanguage: input.programmingLanguage }
+        : {}),
+      responseLanguageInstruction: input.responseLanguageInstruction,
+      lineNumbers: job.lineNumbers,
+      skipDependencyDirectives:
+        AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
+    });
+    const assessment = assessBatch(
+      input,
+      prompt,
+      sourceLineCount,
+      job.lineNumbers.length,
+      maxCandidateLines,
+      AI_REQUEST_DEFAULTS.allNotes.baseOutputTokens,
+    );
+
+    return explainFileSectionLineService(
+      prompt,
+      input.createAiClient(assessment.recommendedMaxTokens, timeoutMs),
+      { lineCount: sourceLineCount, requestedLineNumbers: job.lineNumbers },
+    );
+  }
+
+  const prompt = explainAllNotesLineBatchPrompt({
+    sourceCode: input.sourceCode,
+    filePath: input.relativePath,
+    ...(input.programmingLanguage
+      ? { programmingLanguage: input.programmingLanguage }
+      : {}),
+    responseLanguageInstruction: input.responseLanguageInstruction,
+    lineNumbers: job.lineNumbers,
+    skipDependencyDirectives:
+      AI_REQUEST_DEFAULTS.lineAnalysis.skipDependencyDirectives.enabled,
+  });
+  const assessment = assessBatch(
+    input,
+    prompt,
+    sourceLineCount,
+    job.lineNumbers.length,
+    maxCandidateLines,
+    0,
+  );
+
+  return explainLineBatchService(
+    prompt,
+    input.createAiClient(assessment.recommendedMaxTokens, timeoutMs),
+    { requestedLineNumbers: job.lineNumbers },
+  );
 }
 
 /** Assesses one planned batch against both the reliability target and model capability. */
@@ -483,35 +538,16 @@ function assessBatch(
     modelMaxOutputTokens: input.modelMaxOutputTokens,
     limits: {
       maxCandidateLines,
-      maxRequestOutputTokens: resolveBatchOutputLimit(input.modelMaxOutputTokens),
+      maxRequestOutputTokens: Math.min(
+        AI_REQUEST_DEFAULTS.allNotes.maxRequestOutputTokens,
+        input.modelMaxOutputTokens,
+      ),
       baseOutputTokens,
     },
   });
 
   assertRequestAllowed(assessment, maxCandidateLines);
   return assessment;
-}
-
-/** Retries only malformed or structurally invalid AI responses. */
-async function retryInvalidAiResponse<T>(operation: () => Promise<T>): Promise<T> {
-  let lastError: unknown;
-
-  for (
-    let attempt = 0;
-    attempt < AI_REQUEST_DEFAULTS.allNotes.invalidResponseAttempts;
-    attempt += 1
-  ) {
-    try {
-      return await operation();
-    } catch (error) {
-      if (!isInvalidAiResponseError(error)) {
-        throw error;
-      }
-      lastError = error;
-    }
-  }
-
-  throw lastError;
 }
 
 /** Identifies response syntax and DTO validation failures safe to retry. */
@@ -522,54 +558,94 @@ function isInvalidAiResponseError(error: unknown): boolean {
   );
 }
 
-/** Converts only exhausted malformed responses into a stable user-facing error. */
-function throwInvalidAiResponseError(error: unknown): never {
+/** Treats invalid JSON/DTOs and provider aborts as bounded recovery candidates. */
+function isRecoverableBatchError(error: unknown): boolean {
+  return (
+    isInvalidAiResponseError(error) ||
+    (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError"))
+  );
+}
+
+/** Splits only when both children meet the configured minimum size. */
+function splitFailedBatch(
+  job: AllNotesBatchJob,
+  minimumSplitLineCount: number,
+): AllNotesBatchJob[] | undefined {
+  const midpoint = Math.ceil(job.lineNumbers.length / 2);
+
+  if (
+    midpoint < minimumSplitLineCount ||
+    job.lineNumbers.length - midpoint < minimumSplitLineCount
+  ) {
+    return undefined;
+  }
+
+  return [
+    {
+      lineNumbers: job.lineNumbers.slice(0, midpoint),
+      mode: job.mode,
+      retryCount: 0,
+    },
+    {
+      lineNumbers: job.lineNumbers.slice(midpoint),
+      mode: "lines",
+      retryCount: 0,
+    },
+  ];
+}
+
+/** Converts an exhausted recoverable failure into a stable user-facing error. */
+function throwTerminalBatchError(error: unknown): never {
   if (isInvalidAiResponseError(error)) {
     throw new AllNotesInvalidResponseError({ cause: error });
   }
-  throw error;
+  throw new AllNotesBatchTimeoutError({ cause: error });
 }
 
-/** Resolves the practical JSON batch target without exceeding hard or model limits. */
-function resolveBatchOutputLimit(modelMaxOutputTokens: number): number {
-  const limits = AI_REQUEST_DEFAULTS.allNotes;
-  return Math.min(
-    limits.targetBatchOutputTokens,
-    limits.maxRequestOutputTokens,
-    modelMaxOutputTokens,
-  );
+/** Creates fixed-size batches from developer-configured line-count policy. */
+function createLineNumberBatches(lineNumbers: readonly number[]): number[][] {
+  const { regularLineCount } = validateBatchParams();
+  const batches: number[][] = [];
+
+  for (let offset = 0; offset < lineNumbers.length; offset += regularLineCount) {
+    batches.push(Array.from(lineNumbers.slice(offset, offset + regularLineCount)));
+  }
+
+  return batches.length > 0 ? batches : [[]];
 }
 
-/** Splits target lines using the smaller of the CZaza and selected-model limits. */
-function createLineNumberBatches(
-  lineNumbers: readonly number[],
-  modelMaxOutputTokens: number,
-): number[][] {
-  const limits = AI_REQUEST_DEFAULTS.allNotes;
-  const effectiveOutputLimit = resolveBatchOutputLimit(modelMaxOutputTokens);
-  const firstBatchCapacity = Math.floor(
-    (effectiveOutputLimit / limits.outputSafetyMultiplier - limits.baseOutputTokens) /
-      limits.tokensPerLineNote,
-  );
-  const lineOnlyBatchCapacity = Math.floor(
-    effectiveOutputLimit /
-      limits.outputSafetyMultiplier /
-      limits.tokensPerLineNote,
-  );
+/** Validates manually adjustable batching constants before planning requests. */
+function validateBatchParams(): typeof AI_REQUEST_DEFAULTS.allNotes.batchParams {
+  const params = AI_REQUEST_DEFAULTS.allNotes.batchParams;
+  const values = Object.values(params);
 
-  if (firstBatchCapacity < 0 || (lineNumbers.length > 0 && firstBatchCapacity < 1)) {
-    return [Array.from(lineNumbers)];
+  if (values.some((value) => !Number.isInteger(value) || value < 1)) {
+    throw new RangeError("All Notes batch parameters must be positive integers.");
+  }
+  if (params.regularLineCount < params.minimumSplitLineCount * 2) {
+    throw new RangeError(
+      "All Notes regularLineCount must be at least twice minimumSplitLineCount.",
+    );
+  }
+  if (params.taskTimeoutSeconds < params.requestTimeoutSeconds) {
+    throw new RangeError(
+      "All Notes taskTimeoutSeconds must be greater than or equal to requestTimeoutSeconds.",
+    );
   }
 
-  const batches = [Array.from(lineNumbers.slice(0, firstBatchCapacity))];
-  let offset = firstBatchCapacity;
+  return params;
+}
 
-  while (offset < lineNumbers.length) {
-    batches.push(Array.from(lineNumbers.slice(offset, offset + lineOnlyBatchCapacity)));
-    offset += lineOnlyBatchCapacity;
+/** Converts developer-facing timeout seconds to runtime milliseconds. */
+function secondsToMilliseconds(seconds: number): number {
+  return seconds * 1000;
+}
+
+/** Stops request planning once the configured total task deadline is reached. */
+function assertTaskWithinDeadline(deadline: number): void {
+  if (Date.now() >= deadline) {
+    throw new AllNotesTaskTimeoutError();
   }
-
-  return batches;
 }
 
 /** Merges generated line notes after reusing file-and-section merge behavior. */

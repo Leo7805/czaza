@@ -3,6 +3,7 @@
  */
 
 import type { ReactNode } from "react";
+import type { AllNotesBatchProgress } from "../types";
 
 import { ResourceHeader } from "./ResourceHeader";
 
@@ -35,6 +36,7 @@ export function NotesPanel({
   headerActionLabel = "Generate",
   isHeaderActionRunning = false,
   isAnyAiActionRunning = false,
+  batchProgress,
   onGenerateFileSection,
   onGenerateAll,
   children,
@@ -46,6 +48,7 @@ export function NotesPanel({
   headerActionLabel?: "Generate" | "Regenerate";
   isHeaderActionRunning?: boolean;
   isAnyAiActionRunning?: boolean;
+  batchProgress?: AllNotesBatchProgress;
   onGenerateFileSection?: () => void;
   onGenerateAll?: () => void;
   children: ReactNode;
@@ -60,6 +63,7 @@ export function NotesPanel({
         actionLabel={headerActionLabel}
         isActionRunning={isHeaderActionRunning}
         isAnyActionRunning={isAnyAiActionRunning}
+        batchProgress={batchProgress}
         onGenerateFileSection={onGenerateFileSection}
         onGenerateAll={onGenerateAll}
       />

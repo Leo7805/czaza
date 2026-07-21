@@ -633,7 +633,9 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
 
     expect(mocks.showWarningMessage).not.toHaveBeenCalled();
-    expect(generateAllNotes).toHaveBeenCalledWith(uri);
+    expect(generateAllNotes).toHaveBeenCalledWith(uri, {
+      onProgress: expect.any(Function),
+    });
     expect(mocks.postMessage).toHaveBeenLastCalledWith({
       type: "resourceNotes",
       payload: expect.objectContaining({
@@ -754,8 +756,13 @@ describe("NotesViewProvider", () => {
       action: "confirmBatchedAllNotes",
     });
     await vi.waitFor(() => expect(generateAllNotes).toHaveBeenCalledTimes(2));
-    expect(generateAllNotes).toHaveBeenNthCalledWith(1, uri);
-    expect(generateAllNotes).toHaveBeenNthCalledWith(2, uri, { allowBatching: true });
+    expect(generateAllNotes).toHaveBeenNthCalledWith(1, uri, {
+      onProgress: expect.any(Function),
+    });
+    expect(generateAllNotes).toHaveBeenNthCalledWith(2, uri, {
+      allowBatching: true,
+      onProgress: expect.any(Function),
+    });
 
     provider.dispose();
   });

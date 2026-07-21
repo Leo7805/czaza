@@ -1,0 +1,26 @@
+{
+  "source": {
+    "sourceHash": "sha256:8866d0d7275a700e070f9237b5a5c6fdf6d954b19cc2a3f379382444ed42f544",
+    "programmingLanguage": "typescript"
+  },
+  "sectionNotes": [
+    {
+      "id": "section:user:43-55",
+      "title": "",
+      "range": {
+        "startLine": 43,
+        "endLine": 55
+      },
+      "anchorHash": "sha256:ab9bf7c213c1207a63f2408e731083a257d74e637bf1122fe59d868fad72f9e3",
+      "status": {
+        "content": "current",
+        "anchor": "confirmed"
+      },
+      "createdBy": "user",
+      "createdAt": "2026-07-21T03:37:16.772Z",
+      "updatedAt": "2026-07-21T03:41:15.008Z",
+      "userNote": "regularLineCount             常规情况下，每个 All Notes 批次最多分析的有效代码行数。\nminimumSplitLineCount  批次失败后进行二分时，每个子批次允许包含的最少有效代码行数。\nrequestTimeoutSeconds 单次 All Notes AI 请求允许执行的最长时间，单位为秒。\ntaskTimeoutSeconds       整个 All Notes 多批次任务允许执行的最长总时间，单位为秒。"
+    }
+  ],
+  "lineNotes": []
+}

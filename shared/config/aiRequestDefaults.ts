@@ -39,11 +39,20 @@ export const AI_REQUEST_DEFAULTS = {
     /** Maximum output-token cap CZaza may send in one All Notes request. */
     maxRequestOutputTokens: 192_000,
 
-    /** Reliability-oriented output target used when planning each JSON batch. */
-    targetBatchOutputTokens: 64_000,
+    /** Developer-tunable batching and timeout policy for All Notes generation. */
+    batchParams: {
+      /** Maximum number of eligible source lines in one normal batch. */
+      regularLineCount: 150,
 
-    /** Attempts made before a malformed AI response batch is split in half. */
-    invalidResponseAttempts: 2,
+      /** Smallest batch permitted when one failed normal batch is split. */
+      minimumSplitLineCount: 75,
+
+      /** Maximum duration of one All Notes provider request, in seconds. */
+      requestTimeoutSeconds: 180,
+
+      /** Maximum duration of the complete multi-request All Notes task, in seconds. */
+      taskTimeoutSeconds: 15 * 60,
+    },
 
     /** Estimated output tokens reserved for file-level and section-level notes. */
     baseOutputTokens: 8_000,

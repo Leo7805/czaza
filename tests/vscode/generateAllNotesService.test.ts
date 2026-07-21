@@ -77,7 +77,7 @@ describe("generateAllNotesService()", () => {
     });
 
     expect(createAiClient).toHaveBeenCalledOnce();
-    expect(createAiClient).toHaveBeenCalledWith(9_960);
+    expect(createAiClient).toHaveBeenCalledWith(9_960, 180_000);
     expect(complete).toHaveBeenCalledOnce();
     expect(complete.mock.calls[0]?.[0]).toContain("Target line numbers: [2,3]");
     expect(result.fileNote?.aiExplanation?.summary).toBe("Adds two numbers.");
@@ -180,138 +180,112 @@ describe("generateAllNotesService()", () => {
     expect(createAiClient).not.toHaveBeenCalled();
   });
 
-  it("requires confirmation before a model-limited request is split into batches", async () => {
+  it("requires confirmation before more than 150 candidate lines are batched", async () => {
     const createAiClient = vi.fn<(maxTokens: number) => AiClient>();
+    const sourceCode = createConstantSource(151);
 
     await expect(
       generateAllNotesService({
-        sourceCode: ["const one = 1;", "const two = 2;", "const three = 3;"].join("\n"),
+        sourceCode,
         relativePath: "src/batched.ts",
         programmingLanguage: "typescript",
         responseLanguageInstruction: "Respond in English.",
-        modelContextWindowTokens: 1_000_000,
-        modelMaxOutputTokens: 10_000,
-        maxCandidateLines: 10,
+        ...modelLimits,
+        maxCandidateLines: 200,
         createAiClient,
         now,
       }),
     ).rejects.toEqual(
       expect.objectContaining<Partial<AllNotesBatchRequiredError>>({
         name: "AllNotesBatchRequiredError",
-        candidateLineCount: 3,
+        candidateLineCount: 151,
         batchCount: 2,
-        effectiveOutputLimit: 10_000,
+        effectiveOutputLimit: 192_000,
       }),
     );
     expect(createAiClient).not.toHaveBeenCalled();
   });
 
   it("generates confirmed batches and merges line-only follow-up results", async () => {
+    const sourceCode = createConstantSource(151);
     const responses = [
-      {
-        file: { summary: "Defines values.", detail: "Defines three constants." },
-        sections: [
-          {
-            title: "Values",
-            kind: "declarations",
-            range: { startLine: 1, endLine: 3 },
-            summary: "Declares values.",
-            detail: "Contains constant declarations.",
-          },
-        ],
-        lines: [
-          { lineNumber: 1, summary: "Defines one.", detail: "Declares the first value." },
-          { lineNumber: 2, summary: "Defines two.", detail: "Declares the second value." },
-        ],
-      },
-      {
-        lines: [
-          { lineNumber: 3, summary: "Defines three.", detail: "Declares the third value." },
-        ],
-      },
+      createBatchAiResponse(1, 150, true),
+      createBatchAiResponse(151, 151, false),
     ];
     const complete = vi.fn().mockImplementation(async () => JSON.stringify(responses.shift()));
     const createAiClient = vi.fn<(maxTokens: number) => AiClient>(() => ({ complete }));
+    const onProgress = vi.fn();
 
     const result = await generateAllNotesService({
-      sourceCode: ["const one = 1;", "const two = 2;", "const three = 3;"].join("\n"),
+      sourceCode,
       relativePath: "src/batched.ts",
       programmingLanguage: "typescript",
       responseLanguageInstruction: "Respond in English.",
-      modelContextWindowTokens: 1_000_000,
-      modelMaxOutputTokens: 10_000,
-      maxCandidateLines: 10,
+      ...modelLimits,
+      maxCandidateLines: 200,
       allowBatching: true,
+      onProgress,
       createAiClient,
       now,
     });
 
     expect(createAiClient).toHaveBeenCalledTimes(2);
-    expect(createAiClient.mock.calls.map(([maxTokens]) => maxTokens)).toEqual([9_960, 180]);
+    expect(createAiClient.mock.calls.map(([maxTokens]) => maxTokens)).toEqual([36_600, 180]);
     expect(complete.mock.calls[0]?.[0]).toContain("Analyze the file, its meaningful sections");
     expect(complete.mock.calls[1]?.[0]).toContain("return line analysis only");
-    expect(result.lineNotes.map((note) => note.line)).toEqual([1, 2, 3]);
+    expect(result.lineNotes).toHaveLength(151);
+    expect(result.lineNotes.at(-1)?.line).toBe(151);
+    expect(onProgress.mock.calls.map(([progress]) => progress)).toEqual([
+      { currentBatch: 1, totalBatches: 2, completedLines: 0, totalLines: 151 },
+      { currentBatch: 2, totalBatches: 2, completedLines: 150, totalLines: 151 },
+      { currentBatch: 2, totalBatches: 2, completedLines: 151, totalLines: 151 },
+    ]);
   });
 
-  it("retries malformed JSON then splits the failed batch and assembles every line", async () => {
+  it("splits one malformed 150-line batch into two 75-line batches", async () => {
+    const sourceCode = createConstantSource(150);
     const responses = [
       "{\"file\":",
-      "{\"file\":",
-      JSON.stringify({
-        file: { summary: "Defines values.", detail: "Defines three constants." },
-        sections: [
-          {
-            title: "Values",
-            kind: "declarations",
-            range: { startLine: 1, endLine: 3 },
-            summary: "Declares values.",
-            detail: "Contains constant declarations.",
-          },
-        ],
-        lines: [
-          { lineNumber: 1, summary: "Defines one.", detail: "Declares the first value." },
-        ],
-      }),
-      JSON.stringify({
-        lines: [
-          { lineNumber: 2, summary: "Defines two.", detail: "Declares the second value." },
-        ],
-      }),
-      JSON.stringify({
-        lines: [
-          { lineNumber: 3, summary: "Defines three.", detail: "Declares the third value." },
-        ],
-      }),
+      JSON.stringify(createBatchAiResponse(1, 75, true)),
+      JSON.stringify(createBatchAiResponse(76, 150, false)),
     ];
     const complete = vi.fn().mockImplementation(async () => responses.shift() ?? "{}");
+    const onProgress = vi.fn();
 
     const result = await generateAllNotesService({
-      sourceCode: ["const one = 1;", "const two = 2;", "const three = 3;"].join("\n"),
+      sourceCode,
       relativePath: "src/recovered.ts",
       programmingLanguage: "typescript",
       responseLanguageInstruction: "Respond in English.",
-      modelContextWindowTokens: 1_000_000,
-      modelMaxOutputTokens: 10_000,
-      maxCandidateLines: 10,
-      allowBatching: true,
+      ...modelLimits,
+      maxCandidateLines: 200,
+      onProgress,
       createAiClient: () => ({ complete }),
       now,
     });
 
-    expect(complete).toHaveBeenCalledTimes(5);
-    expect(result.lineNotes.map((note) => note.line)).toEqual([1, 2, 3]);
+    expect(complete).toHaveBeenCalledTimes(3);
+    expect(result.lineNotes).toHaveLength(150);
+    expect(result.lineNotes.at(-1)?.line).toBe(150);
+    expect(onProgress.mock.calls.map(([progress]) => progress)).toEqual([
+      { currentBatch: 1, totalBatches: 1, completedLines: 0, totalLines: 150 },
+      { currentBatch: 1, totalBatches: 2, completedLines: 0, totalLines: 150 },
+      { currentBatch: 2, totalBatches: 2, completedLines: 75, totalLines: 150 },
+      { currentBatch: 2, totalBatches: 2, completedLines: 150, totalLines: 150 },
+    ]);
   });
 
-  it("surfaces a stable error when a single-line malformed response cannot recover", async () => {
+  it("retries one minimum-sized malformed batch once and then stops", async () => {
     const complete = vi.fn().mockResolvedValue("{\"file\":");
 
     await expect(
       generateAllNotesService({
-        sourceCode: "const value = 1;",
+        sourceCode: createConstantSource(75),
         relativePath: "src/invalid.ts",
         programmingLanguage: "typescript",
         responseLanguageInstruction: "Respond in English.",
         ...modelLimits,
+        maxCandidateLines: 100,
         createAiClient: () => ({ complete }),
         now,
       }),
@@ -369,6 +343,7 @@ describe("generateAllNotesForResource()", () => {
       apiKey: "test-api-key",
       model: "deepseek-v4-flash",
       maxTokens: 9_960,
+      timeoutMs: 180_000,
     });
     expect(complete).toHaveBeenCalledOnce();
     expect(saveSourceFile).toHaveBeenCalledOnce();
@@ -412,6 +387,48 @@ describe("generateAllNotesForResource()", () => {
     expect(saveSourceFile).not.toHaveBeenCalled();
   });
 });
+
+/** Creates a source fixture with the requested number of meaningful lines. */
+function createConstantSource(lineCount: number): string {
+  return Array.from(
+    { length: lineCount },
+    (_, index) => `const value${index + 1} = ${index + 1};`,
+  ).join("\n");
+}
+
+/** Creates a complete or line-only response covering an inclusive line range. */
+function createBatchAiResponse(
+  startLine: number,
+  endLine: number,
+  includeFileSections: boolean,
+): Record<string, unknown> {
+  const lines = Array.from({ length: endLine - startLine + 1 }, (_, index) => {
+    const lineNumber = startLine + index;
+    return {
+      lineNumber,
+      summary: `Defines value ${lineNumber}.`,
+      detail: `Declares constant value ${lineNumber}.`,
+    };
+  });
+
+  if (!includeFileSections) {
+    return { lines };
+  }
+
+  return {
+    file: { summary: "Defines values.", detail: "Defines a sequence of constants." },
+    sections: [
+      {
+        title: "Values",
+        kind: "declarations",
+        range: { startLine: 1, endLine },
+        summary: "Declares values.",
+        detail: "Contains constant declarations.",
+      },
+    ],
+    lines,
+  };
+}
 
 /** Creates a valid combined response for the filtered source fixture. */
 function createAiResponse(): Record<string, unknown> {

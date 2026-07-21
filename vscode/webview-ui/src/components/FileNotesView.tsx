@@ -129,6 +129,7 @@ export function FileNotesView({
       headerActionLabel={notes.aiAction === "regenerate" ? "Regenerate" : "Generate"}
       isHeaderActionRunning={runningScope === "fileSection" || runningScope === "all"}
       isAnyAiActionRunning={isAnyAiActionRunning}
+      batchProgress={notes.aiBatchProgress}
       onGenerateFileSection={generateFileNotes}
       onGenerateAll={() => setShowAllNotesConfirm(true)}
     >

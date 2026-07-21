@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AiGenerationMenu } from "./AiGenerationMenu";
 import { Tooltip } from "./Tooltip";
+import type { AllNotesBatchProgress } from "../types";
 
 /**
  * Renders a shared resource header for file and directory notes.
@@ -39,6 +40,7 @@ export function ResourceHeader({
   actionLabel = "Generate",
   isActionRunning = false,
   isAnyActionRunning = false,
+  batchProgress,
   onGenerateFileSection,
   onGenerateAll,
 }: {
@@ -49,14 +51,24 @@ export function ResourceHeader({
   actionLabel?: "Generate" | "Regenerate";
   isActionRunning?: boolean;
   isAnyActionRunning?: boolean;
+  batchProgress?: AllNotesBatchProgress;
   onGenerateFileSection?: () => void;
   onGenerateAll?: () => void;
 }) {
   const startedAtRef = useRef<number | undefined>(undefined);
+  const lastBatchProgressRef = useRef<AllNotesBatchProgress | undefined>(batchProgress);
   const [timer, setTimer] = useState({
     visible: isAnyActionRunning,
     seconds: 0,
   });
+  useEffect(() => {
+    if (batchProgress) {
+      lastBatchProgressRef.current = batchProgress;
+    }
+  }, [batchProgress]);
+  useEffect(() => {
+    lastBatchProgressRef.current = undefined;
+  }, [relativePath]);
   useEffect(() => {
     if (isAnyActionRunning) {
       const startedAt = Date.now();
@@ -107,7 +119,9 @@ export function ResourceHeader({
           <div className="resource-header__actions">
             {timer.visible ? (
               <span className="resource-header__timer" aria-live="polite">
-                {timer.seconds}s
+                {lastBatchProgressRef.current
+                  ? `${isAnyActionRunning ? "Batch" : "Completed"} ${lastBatchProgressRef.current.currentBatch}/${lastBatchProgressRef.current.totalBatches} · ${formatElapsedTime(timer.seconds)}`
+                  : formatElapsedTime(timer.seconds)}
               </span>
             ) : null}
             <AiGenerationMenu
@@ -122,4 +136,17 @@ export function ResourceHeader({
       </div>
     </header>
   );
+}
+
+/** Formats total generation time compactly for the resource header. */
+function formatElapsedTime(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }

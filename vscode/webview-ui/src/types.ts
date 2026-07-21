@@ -97,6 +97,14 @@ export type ResourceAiExplanation = {
 /** AI generation scope currently running for one resource. */
 export type ResourceAiActionScope = "fileSection" | "all" | "section" | "line";
 
+/** Progress for a multi-request All Notes generation task. */
+export type AllNotesBatchProgress = {
+  currentBatch: number;
+  totalBatches: number;
+  completedLines: number;
+  totalLines: number;
+};
+
 /**
  * File, section, or line target accepted by the shared user-note editor.
  *
@@ -189,6 +197,8 @@ export type ResourceNotesViewModel =
       isAiActionRunning?: boolean;
       /** Whether this resource is currently generating AI notes. */
       aiActionRunningScope?: ResourceAiActionScope;
+      /** Current All Notes batch progress while generation is running. */
+      aiBatchProgress?: AllNotesBatchProgress;
       revealAiNotes?: "fileSection" | "all" | "section" | "line";
       /** Optional target that should open directly in User Note edit mode. */
       editTarget?: UserNoteTarget;

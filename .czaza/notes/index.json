@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-19T11:54:26.066Z",
+  "updatedAt": "2026-07-21T03:41:15.008Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -31,6 +31,12 @@
       "sourceHash": "sha256:2aed8ae7c03f33936662eedb1b8dbdb85aa7dd91d46b2fe6991dd933b2375d9f",
       "programmingLanguage": "typescript",
       "updatedAt": "2026-07-19T11:53:04.656Z"
+    },
+    "shared/config/aiRequestDefaults.ts": {
+      "noteFile": "files/1d49241b584e-82d60598.json",
+      "sourceHash": "sha256:8866d0d7275a700e070f9237b5a5c6fdf6d954b19cc2a3f379382444ed42f544",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-21T03:41:15.008Z"
     }
   }
 }

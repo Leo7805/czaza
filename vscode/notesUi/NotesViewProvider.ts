@@ -32,8 +32,11 @@ import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavig
 import { relocateNavigatorFileNoteService } from "@vscode/services/relocateNavigatorFileNoteService";
 import {
   AllNotesBatchRequiredError,
+  AllNotesBatchTimeoutError,
   AllNotesInvalidResponseError,
   AllNotesLineLimitError,
+  AllNotesTaskTimeoutError,
+  type AllNotesProgress,
 } from "@vscode/services/generateAllNotesService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
 
@@ -213,6 +216,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private isNavigatorRelocatePathSyncActive = false;
   private requestVersion = 0;
   private readonly generatingResources = new Map<string, AiActionScope>();
+  private readonly allNotesProgress = new Map<string, AllNotesProgress>();
   private readonly sectionDecorationType = vscode.window.createTextEditorDecorationType({
     isWholeLine: true,
     backgroundColor: "rgba(78, 161, 255, 0.10)",
@@ -222,7 +226,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
   private readonly generateAllNotes?: (
     uri: vscode.Uri,
-    options?: { allowBatching?: boolean },
+    options?: {
+      allowBatching?: boolean;
+      onProgress?: (progress: AllNotesProgress) => void | Promise<void>;
+    },
   ) => Promise<boolean>;
   private readonly generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>;
   private readonly generateLineBatchNotes?: (
@@ -258,7 +265,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     saveUserNote: (uri: vscode.Uri, target: UserNoteTarget, userNote: string) => Promise<void>,
     generateAllNotes?: (
       uri: vscode.Uri,
-      options?: { allowBatching?: boolean },
+      options?: {
+        allowBatching?: boolean;
+        onProgress?: (progress: AllNotesProgress) => void | Promise<void>;
+      },
     ) => Promise<boolean>,
     generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
     generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>,
@@ -640,6 +650,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
                     aiActionRunningScope: this.generatingResources.get(
                       this.currentResourceUri.toString(),
                     ),
+                    ...(this.allNotesProgress.get(this.currentResourceUri.toString())
+                      ? {
+                          aiBatchProgress: this.allNotesProgress.get(
+                            this.currentResourceUri.toString(),
+                          ),
+                        }
+                      : {}),
                   }
                 : {}),
               ...(revealAiNotes ? { revealAiNotes } : {}),
@@ -892,8 +909,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     try {
       const saved =
-        scope === "all" && allowBatching
-          ? await this.generateAllNotes?.(uri, { allowBatching: true })
+        scope === "all"
+          ? await this.generateAllNotes?.(uri, {
+              ...(allowBatching ? { allowBatching: true } : {}),
+              onProgress: async (progress) => {
+                this.allNotesProgress.set(resourceKey, progress);
+                if (this.currentResourceUri?.toString() === resourceKey) {
+                  await this.postCurrentResourceNotes();
+                }
+              },
+            })
           : await generateNotes(uri);
       revealAiNotes = saved ? scope : undefined;
 
@@ -905,7 +930,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.postNotice({
           tone: "info",
           title: "Batch AI Analysis Required",
-          message: `This file contains ${error.sourceLineCount} lines, of which ${error.candidateLineCount} require AI analysis. The selected model and CZaza allow ${error.effectiveOutputLimit.toLocaleString("en-US")} output tokens per request, so CZaza will use ${error.batchCount} sequential batches and merge them after every batch succeeds.`,
+          message: `This file contains ${error.sourceLineCount} lines, of which ${error.candidateLineCount} require AI analysis. CZaza will use ${error.batchCount} sequential batches and merge them after every batch succeeds.`,
           actions: [
             {
               label: "Continue",
@@ -919,6 +944,15 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.postNotice({
           tone: "error",
           title: "AI Response Could Not Be Recovered",
+          message: error.message,
+        });
+      } else if (
+        error instanceof AllNotesBatchTimeoutError ||
+        error instanceof AllNotesTaskTimeoutError
+      ) {
+        await this.postNotice({
+          tone: "error",
+          title: "AI Analysis Timed Out",
           message: error.message,
         });
       } else if (error instanceof AllNotesLineLimitError) {
@@ -941,6 +975,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       }
     } finally {
       this.generatingResources.delete(resourceKey);
+      this.allNotesProgress.delete(resourceKey);
 
       if (this.currentResourceUri?.toString() === resourceKey) {
         await this.postCurrentResourceNotes(revealAiNotes);
