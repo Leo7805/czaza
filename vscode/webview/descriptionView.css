@@ -545,8 +545,8 @@ body {
   border-radius: 4px;
   color: var(--vscode-input-foreground);
   background: var(--vscode-input-background);
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-size: var(--vscode-editor-font-size, 13px);
+  font-family: var(--czaza-notes-font-family, var(--vscode-editor-font-family, monospace));
+  font-size: var(--czaza-notes-font-size, 12px);
   font-weight: var(--vscode-editor-font-weight, normal);
   font-variant-ligatures: none;
   line-height: 1.5;
@@ -602,8 +602,8 @@ body {
 }
 
 .description-note-view .description-card__body:not(.description-card__body--muted) {
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-size: var(--vscode-editor-font-size, 13px);
+  font-family: var(--czaza-notes-font-family, var(--vscode-editor-font-family, monospace));
+  font-size: var(--czaza-notes-font-size, 12px);
   font-weight: var(--vscode-editor-font-weight, normal);
   font-variant-ligatures: none;
   tab-size: 4;

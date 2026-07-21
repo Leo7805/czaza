@@ -37,4 +37,36 @@ describe("getCzazaSettings()", () => {
 
     expect(getCzazaSettings().ai.maxAnalysisLines).toBe(300);
   });
+
+  it("uses compact editor typography defaults for notes", () => {
+    expect(getCzazaSettings().notes).toEqual({
+      fontFamily: "editor",
+      fontSize: 12,
+    });
+  });
+
+  it.each(["editor", "ui", "monospace"])("accepts the %s notes font family", (fontFamily) => {
+    mocks.values.set("notes.fontFamily", fontFamily);
+
+    expect(getCzazaSettings().notes.fontFamily).toBe(fontFamily);
+  });
+
+  it.each([0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])(
+    "accepts the %d notes font size",
+    (fontSize) => {
+      mocks.values.set("notes.fontSize", fontSize);
+
+      expect(getCzazaSettings().notes.fontSize).toBe(fontSize);
+    },
+  );
+
+  it("falls back when notes typography settings are unsupported", () => {
+    mocks.values.set("notes.fontFamily", "comic-sans");
+    mocks.values.set("notes.fontSize", 24);
+
+    expect(getCzazaSettings().notes).toEqual({
+      fontFamily: "editor",
+      fontSize: 12,
+    });
+  });
 });

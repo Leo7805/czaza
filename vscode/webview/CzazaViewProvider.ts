@@ -11,6 +11,7 @@ import type { StructureUnit } from "@shared/types/structureUnit";
 import { ExplanationCache } from "../explanations/ExplanationCache";
 import { ExplanationStore } from "../explanations/ExplanationStore";
 import { getWebviewHtml } from "./getWebviewHtml";
+import { getCzazaSettings } from "../config/czazaSettings";
 
 const FILE_DESCRIPTION_STORE_KEY = "czaza.fileDescriptions";
 
@@ -135,7 +136,10 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
     };
 
     // The HTML shell reads native webview assets from the extension root.
-    webviewView.webview.html = getWebviewHtml(this.extensionUri.fsPath);
+    webviewView.webview.html = getWebviewHtml(
+      this.extensionUri.fsPath,
+      getCzazaSettings(this.currentResourceUri),
+    );
 
     this.viewDisposables.push(
       webviewView.webview.onDidReceiveMessage(async (message: unknown) => {

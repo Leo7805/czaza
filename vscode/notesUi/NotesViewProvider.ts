@@ -8,6 +8,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
+import { getNotesTypographyStyle } from "@vscode/config/notesTypography";
 import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
@@ -221,6 +222,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     isWholeLine: true,
     backgroundColor: "rgba(78, 161, 255, 0.10)",
   });
+  private readonly notesTypographyConfigurationListener: vscode.Disposable;
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
   private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
@@ -282,6 +284,21 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.generateLineNote = generateLineNote;
     this.generateSectionNote = generateSectionNote;
     this.generateLineBatchNotes = generateLineBatchNotes;
+    this.notesTypographyConfigurationListener = vscode.workspace.onDidChangeConfiguration?.(
+      (event) => {
+        if (
+          this.view &&
+          (event.affectsConfiguration("czaza.notes.fontFamily") ||
+            event.affectsConfiguration("czaza.notes.fontSize"))
+        ) {
+          void this.getReactWebviewHtml(this.view.webview).then((html) => {
+            if (this.view) {
+              this.view.webview.html = html;
+            }
+          });
+        }
+      },
+    ) ?? { dispose() {} };
   }
 
   /**
@@ -581,6 +598,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    */
   dispose(): void {
     this.clearSectionHighlight();
+    this.notesTypographyConfigurationListener.dispose();
     this.sectionDecorationType.dispose();
   }
 
@@ -1405,12 +1423,17 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     const indexUri = vscode.Uri.joinPath(webviewRoot, "index.html");
     const rawHtml = await readFile(indexUri.fsPath, "utf-8");
 
-    return rawHtml.replace(
+    const htmlWithAssets = rawHtml.replace(
       /(src|href)="\.\/([^"]+)"/g,
       (_match, attribute: string, assetPath: string) => {
         const assetUri = vscode.Uri.joinPath(webviewRoot, ...assetPath.split("/"));
         return `${attribute}="${webview.asWebviewUri(assetUri).toString()}"`;
       },
+    );
+
+    return htmlWithAssets.replace(
+      "</head>",
+      `${getNotesTypographyStyle(getCzazaSettings(this.currentResourceUri))}</head>`,
     );
   }
 }

@@ -6,12 +6,14 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import type { CzazaSettings } from "../config/czazaSettings";
+import { getNotesTypographyStyle } from "../config/notesTypography";
 
 /**
  * Reads the description view assets from the extension root and injects them
  * into VS Code's required single HTML string.
  */
-export function getWebviewHtml(extensionRootPath: string) {
+export function getWebviewHtml(extensionRootPath: string, settings: CzazaSettings) {
   const styles = readWebviewFile(extensionRootPath, "descriptionView.css");
   const markup = readWebviewFile(extensionRootPath, "descriptionView.html");
   const script = readWebviewFile(extensionRootPath, "descriptionView.js");
@@ -23,6 +25,7 @@ export function getWebviewHtml(extensionRootPath: string) {
   <style>
 ${styles}
   </style>
+  ${getNotesTypographyStyle(settings)}
 </head>
 <body>
 ${markup}

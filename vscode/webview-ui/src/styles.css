@@ -1318,8 +1318,8 @@ textarea {
 
 .user-note-view .notes-content,
 .user-note-editor__input {
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-size: var(--vscode-editor-font-size, 13px);
+  font-family: var(--czaza-notes-font-family, var(--vscode-editor-font-family, monospace));
+  font-size: var(--czaza-notes-font-size, 12px);
   font-weight: var(--vscode-editor-font-weight, normal);
   font-variant-ligatures: none;
   tab-size: 4;

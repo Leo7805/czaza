@@ -22,6 +22,13 @@ const DEFAULT_AI_PROVIDER: AiProvider = "deepseek";
 const DEFAULT_RESPONSE_LANGUAGE: AiResponseLanguage = "en";
 const DEFAULT_OUTPUT_DIRECTORY = ".czaza";
 const DEFAULT_ROOT_DIRECTORY = "";
+const DEFAULT_NOTES_FONT_FAMILY: NotesFontFamily = "editor";
+const DEFAULT_NOTES_FONT_SIZE = 12;
+
+export type NotesFontFamily = "editor" | "ui" | "monospace";
+
+const SUPPORTED_NOTES_FONT_FAMILIES: readonly NotesFontFamily[] = ["editor", "ui", "monospace"];
+const SUPPORTED_NOTES_FONT_SIZES = [0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 
 /**
  * Validated, non-sensitive CZaza settings used by the extension.
@@ -38,6 +45,10 @@ export type CzazaSettings = {
     model: AiModel;
     responseLanguage: AiResponseLanguage;
     maxAnalysisLines: number;
+  };
+  notes: {
+    fontFamily: NotesFontFamily;
+    fontSize: number;
   };
   rootDirectory: string;
   outputDirectory: string;
@@ -96,12 +107,33 @@ export function getCzazaSettings(resource?: vscode.Uri): CzazaSettings {
   // Empty root directory means the active VS Code workspace folder is used.
   const rootDirectory = config.get<string>("rootDirectory", DEFAULT_ROOT_DIRECTORY).trim();
 
+  const configuredNotesFontFamily = config.get<string>(
+    "notes.fontFamily",
+    DEFAULT_NOTES_FONT_FAMILY,
+  );
+  const fontFamily = SUPPORTED_NOTES_FONT_FAMILIES.includes(
+    configuredNotesFontFamily as NotesFontFamily,
+  )
+    ? (configuredNotesFontFamily as NotesFontFamily)
+    : DEFAULT_NOTES_FONT_FAMILY;
+
+  const configuredNotesFontSize = config.get<number>("notes.fontSize", DEFAULT_NOTES_FONT_SIZE);
+  const fontSize = SUPPORTED_NOTES_FONT_SIZES.includes(
+    configuredNotesFontSize as (typeof SUPPORTED_NOTES_FONT_SIZES)[number],
+  )
+    ? configuredNotesFontSize
+    : DEFAULT_NOTES_FONT_SIZE;
+
   return {
     ai: {
       provider,
       model,
       responseLanguage,
       maxAnalysisLines,
+    },
+    notes: {
+      fontFamily,
+      fontSize,
     },
     rootDirectory,
     outputDirectory,
