@@ -1316,6 +1316,17 @@ textarea {
   line-height: 1.5;
 }
 
+.user-note-view .notes-content,
+.user-note-editor__input {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 13px);
+  font-weight: var(--vscode-editor-font-weight, normal);
+  font-variant-ligatures: none;
+  tab-size: 4;
+  overflow-wrap: normal;
+  white-space: pre-wrap;
+}
+
 .user-note-view {
   position: relative;
   min-height: 28px;
@@ -1377,8 +1388,8 @@ textarea {
   border-radius: 4px;
   color: var(--vscode-input-foreground, var(--vscode-foreground));
   background: var(--vscode-input-background, var(--vscode-editor-background));
-  font: inherit;
   line-height: 1.5;
+  overflow-x: auto;
   resize: vertical;
 }
 

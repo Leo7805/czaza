@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-21T03:41:15.008Z",
+  "updatedAt": "2026-07-21T04:49:43.696Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -8,11 +8,6 @@
       "sourceHash": "sha256:f681f10f71c2b9f2378293cfccfe4be5b1a51ed93728909618a29b71cbac0112",
       "programmingLanguage": "xml",
       "updatedAt": "2026-07-19T02:57:33.523Z"
-    },
-    "dist/czaza-0.5.1.vsix": {
-      "noteFile": "files/91574402d711-be0ceee8.json",
-      "sourceHash": "metadata-sha256:dbda00ded6c757562b122eaefd56d420173a33b30158d7983bbc1cb10e761f84",
-      "updatedAt": "2026-07-19T11:54:26.066Z"
     },
     "vscode/webview-ui/src/components/AiGenerationMenu.tsx": {
       "noteFile": "files/c76175225f86-64414ec0.json",
