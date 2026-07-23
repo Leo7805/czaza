@@ -9,6 +9,7 @@ import {
   parseAiJsonObject,
   toRecord,
 } from "@shared/services/normalizers/aiResponseNormalizer";
+import { completeStructuredAiResponse } from "@shared/services/structuredAiResponseService";
 
 /**
  * Optional validation context for batch line analysis.
@@ -36,11 +37,16 @@ export async function explainLineBatchService(
   aiClient: AiClient,
   context?: ExplainLineBatchServiceContext,
 ): Promise<LineAnalysisEntry[]> {
-  const responseText = await aiClient.complete(prompt);
-  const record = toRecord(parseAiJsonObject(responseText));
-
-  return normalizeLineAnalysisEntries(record.lines, {
+  return completeStructuredAiResponse({
+    prompt,
+    aiClient,
     responseName: "line batch analysis",
-    requestedLineNumbers: context?.requestedLineNumbers,
+    parseAndValidate(responseText) {
+      const record = toRecord(parseAiJsonObject(responseText));
+      return normalizeLineAnalysisEntries(record.lines, {
+        responseName: "line batch analysis",
+        requestedLineNumbers: context?.requestedLineNumbers,
+      });
+    },
   });
 }

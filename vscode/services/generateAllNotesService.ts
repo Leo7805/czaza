@@ -28,6 +28,7 @@ import {
 } from "@shared/services/explainFileSectionLineService";
 import { explainLineBatchService } from "@shared/services/explainLineBatchService";
 import { selectLineAnalysisCandidates } from "@shared/services/lineAnalysisCandidateService";
+import { StructuredAiResponseError } from "@shared/services/structuredAiResponseService";
 import { getAiRequestConfigOrShowError } from "@vscode/ai/getAiRequestConfigOrShowError";
 import { AI_CATALOG } from "@vscode/config/aiCatalog";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
@@ -429,11 +430,10 @@ async function executeBatchPlan(
         totalBatches += 1;
         continue;
       }
-      if (job.retryCount === 0) {
+      if (!(error instanceof StructuredAiResponseError) && job.retryCount === 0) {
         queue.unshift({ ...job, retryCount: 1 });
         continue;
       }
-
       throwTerminalBatchError(error);
     }
   }
@@ -553,6 +553,7 @@ function assessBatch(
 /** Identifies response syntax and DTO validation failures safe to retry. */
 function isInvalidAiResponseError(error: unknown): boolean {
   return (
+    error instanceof StructuredAiResponseError ||
     error instanceof SyntaxError ||
     (error instanceof Error && /^Invalid .* response:/.test(error.message))
   );

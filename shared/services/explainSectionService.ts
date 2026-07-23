@@ -9,6 +9,7 @@ import {
   parseAiJsonObject,
   toRecord,
 } from "@shared/services/normalizers/aiResponseNormalizer";
+import { completeStructuredAiResponse } from "@shared/services/structuredAiResponseService";
 
 /**
  * Validation context for section-level AI analysis.
@@ -36,11 +37,16 @@ export async function explainSectionService(
   aiClient: AiClient,
   context?: ExplainSectionServiceContext,
 ): Promise<SectionAnalysis[]> {
-  const responseText = await aiClient.complete(prompt);
-  const record = toRecord(parseAiJsonObject(responseText));
-
-  return normalizeSectionAnalyses(record.sections, {
+  return completeStructuredAiResponse({
+    prompt,
+    aiClient,
     responseName: "section analysis",
-    lineCount: context?.lineCount,
+    parseAndValidate(responseText) {
+      const record = toRecord(parseAiJsonObject(responseText));
+      return normalizeSectionAnalyses(record.sections, {
+        responseName: "section analysis",
+        lineCount: context?.lineCount,
+      });
+    },
   });
 }

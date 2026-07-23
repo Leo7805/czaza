@@ -6,6 +6,7 @@ import type { AiClient } from "@shared/ai/aiClient";
 import type { SectionAnalysis } from "@shared/models/ai/section";
 import { normalizeSectionAnalyses } from "@shared/services/normalizers/aiAnalysisNormalizer";
 import { parseAiJsonObject, toRecord } from "@shared/services/normalizers/aiResponseNormalizer";
+import { completeStructuredAiResponse } from "@shared/services/structuredAiResponseService";
 
 /** Validation context for one selected-section response. */
 export type ExplainSelectedSectionServiceContext = {
@@ -34,16 +35,22 @@ export async function explainSelectedSectionService(
   aiClient: AiClient,
   context: ExplainSelectedSectionServiceContext,
 ): Promise<SectionAnalysis> {
-  const responseText = await aiClient.complete(prompt);
-  const record = toRecord(parseAiJsonObject(responseText));
-  const sections = normalizeSectionAnalyses(record.sections, {
+  return completeStructuredAiResponse({
+    prompt,
+    aiClient,
     responseName: "selected section analysis",
-    lineCount: context.lineCount,
+    parseAndValidate(responseText) {
+      const record = toRecord(parseAiJsonObject(responseText));
+      const sections = normalizeSectionAnalyses(record.sections, {
+        responseName: "selected section analysis",
+        lineCount: context.lineCount,
+      });
+
+      if (sections.length !== 1 || !sections[0]) {
+        throw new Error("Invalid selected section analysis response: exactly one section is required.");
+      }
+
+      return sections[0];
+    },
   });
-
-  if (sections.length !== 1 || !sections[0]) {
-    throw new Error("Invalid selected section analysis response: exactly one section is required.");
-  }
-
-  return sections[0];
 }

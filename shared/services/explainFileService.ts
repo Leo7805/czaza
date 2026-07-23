@@ -6,6 +6,7 @@ import type { AiClient } from "@shared/ai/aiClient";
 import type { FileAnalysis } from "@shared/models/ai/file";
 import { normalizeFileAnalysis } from "@shared/services/normalizers/aiAnalysisNormalizer";
 import { parseAiJsonObject } from "@shared/services/normalizers/aiResponseNormalizer";
+import { completeStructuredAiResponse } from "@shared/services/structuredAiResponseService";
 
 /**
  * Requests and normalizes file-level AI analysis.
@@ -21,8 +22,10 @@ export async function explainFileService(
   prompt: string,
   aiClient: AiClient,
 ): Promise<FileAnalysis> {
-  const responseText = await aiClient.complete(prompt);
-  const parsedResponse = parseAiJsonObject(responseText);
-
-  return normalizeFileAnalysis(parsedResponse);
+  return completeStructuredAiResponse({
+    prompt,
+    aiClient,
+    responseName: "file analysis",
+    parseAndValidate: (responseText) => normalizeFileAnalysis(parseAiJsonObject(responseText)),
+  });
 }

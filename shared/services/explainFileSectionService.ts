@@ -13,6 +13,7 @@ import {
   parseAiJsonObject,
   toRecord,
 } from "@shared/services/normalizers/aiResponseNormalizer";
+import { completeStructuredAiResponse } from "@shared/services/structuredAiResponseService";
 
 /**
  * Combined AI analysis for one source file.
@@ -69,17 +70,22 @@ export async function explainFileSectionService(
   aiClient: AiClient,
   context?: ExplainFileSectionServiceContext,
 ): Promise<FileSectionAnalysis> {
-  const responseText = await aiClient.complete(prompt);
-  const record = toRecord(parseAiJsonObject(responseText));
-
-  return {
-    file: normalizeFileAnalysis(record.file, {
-      responseName: "file section analysis",
-      fieldName: "file",
-    }),
-    sections: normalizeSectionAnalyses(record.sections, {
-      responseName: "file section analysis",
-      lineCount: context?.lineCount,
-    }),
-  };
+  return completeStructuredAiResponse({
+    prompt,
+    aiClient,
+    responseName: "file section analysis",
+    parseAndValidate(responseText) {
+      const record = toRecord(parseAiJsonObject(responseText));
+      return {
+        file: normalizeFileAnalysis(record.file, {
+          responseName: "file section analysis",
+          fieldName: "file",
+        }),
+        sections: normalizeSectionAnalyses(record.sections, {
+          responseName: "file section analysis",
+          lineCount: context?.lineCount,
+        }),
+      };
+    },
+  });
 }

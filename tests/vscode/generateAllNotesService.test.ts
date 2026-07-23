@@ -246,6 +246,7 @@ describe("generateAllNotesService()", () => {
     const sourceCode = createConstantSource(150);
     const responses = [
       "{\"file\":",
+      "{\"file\":",
       JSON.stringify(createBatchAiResponse(1, 75, true)),
       JSON.stringify(createBatchAiResponse(76, 150, false)),
     ];
@@ -264,7 +265,8 @@ describe("generateAllNotesService()", () => {
       now,
     });
 
-    expect(complete).toHaveBeenCalledTimes(3);
+    expect(complete).toHaveBeenCalledTimes(4);
+    expect(complete.mock.calls[1]?.[0]).toContain("CORRECTION REQUIRED");
     expect(result.lineNotes).toHaveLength(150);
     expect(result.lineNotes.at(-1)?.line).toBe(150);
     expect(onProgress.mock.calls.map(([progress]) => progress)).toEqual([

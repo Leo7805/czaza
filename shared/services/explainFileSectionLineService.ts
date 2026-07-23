@@ -15,6 +15,7 @@ import {
   parseAiJsonObject,
   toRecord,
 } from "@shared/services/normalizers/aiResponseNormalizer";
+import { completeStructuredAiResponse } from "@shared/services/structuredAiResponseService";
 
 /**
  * Coordinated AI analysis for all three source-code levels.
@@ -73,23 +74,28 @@ export async function explainFileSectionLineService(
 ): Promise<FileSectionLineAnalysis> {
   validateContext(context);
 
-  const responseText = await aiClient.complete(prompt);
-  const record = toRecord(parseAiJsonObject(responseText));
-
-  return {
-    file: normalizeFileAnalysis(record.file, {
-      responseName: "file section line analysis",
-      fieldName: "file",
-    }),
-    sections: normalizeSectionAnalyses(record.sections, {
-      responseName: "file section line analysis",
-      lineCount: context.lineCount,
-    }),
-    lines: normalizeLineAnalysisEntries(record.lines, {
-      responseName: "file section line analysis",
-      requestedLineNumbers: context.requestedLineNumbers,
-    }),
-  };
+  return completeStructuredAiResponse({
+    prompt,
+    aiClient,
+    responseName: "file section line analysis",
+    parseAndValidate(responseText) {
+      const record = toRecord(parseAiJsonObject(responseText));
+      return {
+        file: normalizeFileAnalysis(record.file, {
+          responseName: "file section line analysis",
+          fieldName: "file",
+        }),
+        sections: normalizeSectionAnalyses(record.sections, {
+          responseName: "file section line analysis",
+          lineCount: context.lineCount,
+        }),
+        lines: normalizeLineAnalysisEntries(record.lines, {
+          responseName: "file section line analysis",
+          requestedLineNumbers: context.requestedLineNumbers,
+        }),
+      };
+    },
+  });
 }
 
 /** Validates source constraints before spending an AI request. */
