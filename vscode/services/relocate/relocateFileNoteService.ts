@@ -5,6 +5,7 @@
 import * as path from "node:path";
 
 import type { NoteStatus } from "@shared/models/domain/common";
+import { isCzazaManagedRelativePath } from "@shared/utils/managedOutputPath";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
@@ -47,6 +48,11 @@ export async function relocateFileNoteService(
 
   const { rootDirectory } = resolveCzazaRootDirectory(input.currentUri);
   const settings = getCzazaSettings(input.currentUri);
+
+  if (isCzazaManagedRelativePath(rootDirectory, settings.outputDirectory, toRelativePath)) {
+    throw new Error("CZaza-managed output files cannot be used as File Note targets.");
+  }
+
   const targetUri = vscode.Uri.file(path.join(rootDirectory, ...toRelativePath.split("/")));
 
   try {
@@ -108,6 +114,10 @@ export async function relocateFileNoteService(
 
   if (result.kind === "conflict") {
     throw new Error(`${toRelativePath} already has stored notes.`);
+  }
+
+  if (result.kind === "protectedPath") {
+    throw new Error("CZaza-managed output files cannot be used as File Note targets.");
   }
 
   return {

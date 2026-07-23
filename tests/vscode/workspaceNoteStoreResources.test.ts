@@ -92,6 +92,35 @@ describe("workspaceNoteStoreResources", () => {
     });
   });
 
+  it("rejects moving a source entry into the managed output directory", async () => {
+    const root = await createTempWorkspaceRoot();
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
+
+    await notes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/old.ts",
+      createStoredSourceFile({ anchor: "confirmed" }),
+      createdAt,
+    );
+
+    const result = await notes.resources.moveSourceFileEntry(
+      root,
+      outputDirectory,
+      "src/old.ts",
+      ".caca/notes/index.json",
+      now,
+    );
+
+    expect(result).toEqual({
+      kind: "protectedPath",
+      nextRelativePath: ".caca/notes/index.json",
+    });
+    expect(
+      await notes.cache.getSourceFile(root, outputDirectory, "src/old.ts"),
+    ).toBeDefined();
+  });
+
   it("returns conflict without moving when the target path already has notes", async () => {
     const root = await createTempWorkspaceRoot();
     const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));

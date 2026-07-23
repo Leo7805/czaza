@@ -187,6 +187,29 @@ describe("registerNotesContentEvents()", () => {
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 
+  it("ignores saves and watcher changes inside the managed output directory", async () => {
+    vi.useFakeTimers();
+
+    const workspaceRoot = await createTempWorkspaceRoot("managed-output");
+    const notes = createNotes(createStoredSourceFile("{}\n"));
+    const notesProvider = createNotesProvider();
+    const document = createDocument(
+      path.join(workspaceRoot, ".caca/notes/index.json"),
+      '{"updatedAt":"later"}\n',
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(createExtensionContext(), notes.value, notesProvider.value);
+    mocks.saveListeners[0]?.(document);
+    mocks.changeListeners[0]?.(document.uri);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(mocks.openTextDocument).not.toHaveBeenCalled();
+    expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
+  });
+
   it("checks externally changed files after a debounce", async () => {
     vi.useFakeTimers();
 

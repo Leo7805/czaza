@@ -3,6 +3,7 @@
  */
 
 import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
+import { isCzazaManagedRelativePath } from "@shared/utils/managedOutputPath";
 import {
   applyFileNoteResourceDeleted,
   applyFileNoteResourceMoved,
@@ -25,6 +26,10 @@ export type MoveSourceFileEntryResult =
     }
   | {
       kind: "conflict";
+      nextRelativePath: string;
+    }
+  | {
+      kind: "protectedPath";
       nextRelativePath: string;
     };
 
@@ -161,6 +166,19 @@ export async function moveSourceFileEntry(input: {
   nextRelativePath: string;
   now: string;
 }): Promise<MoveSourceFileEntryResult> {
+  if (
+    isCzazaManagedRelativePath(
+      input.workspaceRoot,
+      input.outputDirectory,
+      input.nextRelativePath,
+    )
+  ) {
+    return {
+      kind: "protectedPath",
+      nextRelativePath: input.nextRelativePath,
+    };
+  }
+
   const index = await input.cache.loadIndex(input.workspaceRoot, input.outputDirectory);
   const previousEntry = index?.files[input.previousRelativePath];
 

@@ -21,6 +21,7 @@ import {
   classifyTextDocumentContentChange,
   type ClassifiedTextDocumentChange,
 } from "@vscode/services/textDocumentChanges/classifyTextDocumentChangeService";
+import { isCzazaManagedRelativePath } from "@shared/utils/managedOutputPath";
 import * as vscode from "vscode";
 
 const EXTERNAL_CHANGE_DEBOUNCE_MS = 800;
@@ -114,7 +115,10 @@ async function handleTextDocumentChange(
   documentChangeQueues: DocumentChangeQueue,
 ): Promise<void> {
   try {
-    if (event.document.uri.scheme !== "file") {
+    if (
+      event.document.uri.scheme !== "file" ||
+      isCzazaManagedResource(event.document.uri)
+    ) {
       return;
     }
 
@@ -176,6 +180,10 @@ async function handleSavedDocument(
   pendingDocumentChanges: Map<string, PendingDocumentChangeState>,
   documentChangeQueues: DocumentChangeQueue,
 ): Promise<void> {
+  if (isCzazaManagedResource(document.uri)) {
+    return;
+  }
+
   const key = document.uri.toString();
 
   await documentChangeQueues.get(key);
@@ -302,7 +310,11 @@ function scheduleExternalChangeCheck(
   externalChangeTimers: Map<string, ReturnType<typeof setTimeout>>,
   recentlySavedTimers: Map<string, ReturnType<typeof setTimeout>>,
 ): void {
-  if (uri.scheme !== "file" || recentlySavedTimers.has(uri.toString())) {
+  if (
+    uri.scheme !== "file" ||
+    isCzazaManagedResource(uri) ||
+    recentlySavedTimers.has(uri.toString())
+  ) {
     return;
   }
 
@@ -320,6 +332,26 @@ function scheduleExternalChangeCheck(
       void handleExternalChange(notes, uri, notesProvider);
     }, EXTERNAL_CHANGE_DEBOUNCE_MS),
   );
+}
+
+function isCzazaManagedResource(uri: vscode.Uri): boolean {
+  if (uri.scheme !== "file") {
+    return false;
+  }
+
+  try {
+    const { rootDirectory } = resolveCzazaRootDirectory(uri);
+    const settings = getCzazaSettings(uri);
+    const relativePath = getCzazaRelativePath(uri, rootDirectory);
+
+    return isCzazaManagedRelativePath(
+      rootDirectory,
+      settings.outputDirectory,
+      relativePath,
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function handleExternalChange(

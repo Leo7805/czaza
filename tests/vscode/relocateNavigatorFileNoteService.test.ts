@@ -119,6 +119,27 @@ describe("relocateFileNoteService()", () => {
     ).rejects.toThrow("src/missing.ts does not exist.");
   });
 
+  it("rejects files inside the configured CZaza output directory", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("managed-output");
+    const notes = await createStoreWithSourceFile(workspaceRoot, "src/old.ts");
+
+    await writeSourceFile(workspaceRoot, ".caca/notes/index.json");
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+
+    await expect(
+      relocateFileNoteService({
+        currentUri: createUri(path.join(workspaceRoot, "src/old.ts")),
+        notes,
+        fromRelativePath: "src/old.ts",
+        toRelativePath: ".caca/notes/index.json",
+      }),
+    ).rejects.toThrow("CZaza-managed output files cannot be used as File Note targets.");
+
+    expect(
+      await notes.cache.getSourceFile(workspaceRoot, ".caca", "src/old.ts"),
+    ).toBeDefined();
+  });
+
   it("confirms an orphaned file note when relocating to its current path", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("self-orphaned");
     const notes = await createStoreWithSourceFile(workspaceRoot, "src/index.ts", "orphaned");
