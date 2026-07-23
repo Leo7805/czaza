@@ -211,7 +211,7 @@ describe("NotesViewProvider", () => {
     mocks.activeTextEditor = undefined;
   });
 
-  it("highlights the first section and switches highlight from a webview selection", async () => {
+  it("switches section highlight while the webview owns focus", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
@@ -256,6 +256,9 @@ describe("NotesViewProvider", () => {
       endLine: 19,
       endCharacter: 20,
     });
+
+    // Interacting with a Webview can temporarily clear VS Code's activeTextEditor.
+    mocks.activeTextEditor = undefined;
 
     mocks.messageListeners[0]?.({
       type: "selectSection",

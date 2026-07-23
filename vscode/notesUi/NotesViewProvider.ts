@@ -1380,7 +1380,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   private updateSectionHighlight(): void {
-    const editor = vscode.window.activeTextEditor;
+    const editor = this.getCurrentResourceEditor();
     const section = getSelectedSection(this.currentPayload, this.selectedSectionId);
 
     if (
@@ -1411,6 +1411,22 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     this.highlightedEditor = editor;
     editor.setDecorations(this.sectionDecorationType, [range]);
+  }
+
+  /** Keeps section highlighting attached to the source editor while the Webview has focus. */
+  private getCurrentResourceEditor(): vscode.TextEditor | undefined {
+    if (!this.currentResourceUri) {
+      return undefined;
+    }
+
+    const resourceKey = this.currentResourceUri.toString();
+    const candidates = [
+      vscode.window.activeTextEditor,
+      this.highlightedEditor,
+      ...(vscode.window.visibleTextEditors ?? []),
+    ];
+
+    return candidates.find((editor) => editor?.document.uri.toString() === resourceKey);
   }
 
   private clearSectionHighlight(): void {
