@@ -1,0 +1,15 @@
+{
+  "source": {
+    "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T06:20:18.111Z",
+    "updatedAt": "2026-07-23T06:20:18.111Z"
+  },
+  "fileNote": {
+    "userNote": "笔记重定位相关功能，例如：\n1. File Notes 重定位到某个文件\n2. Section Notes or Line Notes 重定位到行",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

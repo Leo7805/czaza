@@ -116,6 +116,14 @@ export type UserNoteTarget =
   | { level: "section"; sectionId: string }
   | { level: "line"; line: number };
 
+export type NoteRelocateTarget =
+  | { level: "section"; sectionId: string; startLine: number; endLine: number }
+  | { level: "line"; lineId: string; line: number };
+
+export type NoteRelocateSuggestion =
+  | { level: "section"; startLine: number; endLine: number }
+  | { level: "line"; line: number; preview: string };
+
 /**
  * Section note matched to the active source line.
  *
@@ -311,6 +319,24 @@ export type ExtensionToWebviewMessage =
       type: "navigatorRelocateTargetPath";
       relativePath: string;
     }
+  | {
+      /** Opens a Section/Line Note relocation modal. */
+      type: "openNoteRelocate";
+      target: NoteRelocateTarget;
+    }
+  | {
+      /** Suggests a target from the active editor cursor or selection. */
+      type: "noteRelocateSuggestion";
+      suggestion: NoteRelocateSuggestion;
+    }
+  | {
+      /** Confirms that a Section/Line Note relocation completed. */
+      type: "noteRelocated";
+    }
+  | {
+      /** Closes relocation because its source resource is no longer active. */
+      type: "closeNoteRelocate";
+    }
 	  | {
 	      /** Opens the emoji picker for the last focused note editor. */
 	      type: "openEmojiPicker";
@@ -472,6 +498,28 @@ export type WebviewToExtensionMessage =
       type: "openNavigatorLine";
 
       /** One-based source line number. */
+      line: number;
+    }
+  | {
+      /** Opens a Section/Line Note relocation session. */
+      type: "startNoteRelocate";
+      target: NoteRelocateTarget;
+    }
+  | {
+      /** Stops the active Section/Line Note relocation session. */
+      type: "stopNoteRelocate";
+    }
+  | {
+      /** Relocates a Section Note to a new source range. */
+      type: "relocateSectionNote";
+      sectionId: string;
+      startLine: number;
+      endLine: number;
+    }
+  | {
+      /** Relocates a Line Note to a new source line. */
+      type: "relocateLineNote";
+      lineId: string;
       line: number;
     }
   | {

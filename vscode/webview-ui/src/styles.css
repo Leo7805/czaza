@@ -1217,6 +1217,29 @@ textarea {
   outline: none;
 }
 
+.relocate-modal__range-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.relocate-modal__label .relocate-modal__input {
+  display: block;
+  margin-top: 4px;
+}
+
+.relocate-modal__preview {
+  max-height: 96px;
+  margin: 0;
+  padding: 7px 8px;
+  overflow: auto;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  background: var(--vscode-editor-background);
+  font-family: var(--vscode-editor-font-family, monospace);
+  white-space: pre-wrap;
+}
+
 .relocate-modal__hint,
 .relocate-modal__error {
   margin: 0;
@@ -1234,6 +1257,7 @@ textarea {
 
 .relocate-modal__actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;

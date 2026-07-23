@@ -94,6 +94,7 @@ export function NoteCard({
   status,
   statusTarget,
   onClearStaleStatus,
+  onRelocate,
   showTabs = true,
   defaultTab = "user",
   activeTab,
@@ -118,6 +119,7 @@ export function NoteCard({
   status?: NoteStatus;
   statusTarget?: UserNoteTarget;
   onClearStaleStatus?: (target: UserNoteTarget) => void;
+  onRelocate?: () => void;
   showTabs?: boolean;
   defaultTab?: "user" | "ai";
   activeTab?: "user" | "ai";
@@ -314,6 +316,11 @@ export function NoteCard({
     onClearStaleStatus?.(statusTarget);
   };
 
+  const relocate = (): void => {
+    setContextMenuState(null);
+    onRelocate?.();
+  };
+
   const handleCardContextMenu = (event: MouseEvent<HTMLElement>): void => {
     const isUserNote = selectedTab === "user";
 
@@ -419,6 +426,7 @@ export function NoteCard({
             Boolean(statusTarget && onClearStaleStatus),
             clearStale,
             statusScope,
+            onRelocate ? relocate : undefined,
           )}
         />
       ) : null}
@@ -459,14 +467,11 @@ function getStatusMenuItems(
   canClearStaleStatus: boolean,
   onClearStaleStatus: () => void,
   scope: NoteStatusBadgeScope,
+  onRelocate?: () => void,
 ): UserNoteContextMenuItem[] {
-  if (!status) {
-    return [];
-  }
-
   const items: UserNoteContextMenuItem[] = [];
 
-  if (status.content === "stale") {
+  if (status?.content === "stale") {
     items.push({
       id: "clearStale",
       label: getClearContentStaleMenuLabel(scope),
@@ -475,11 +480,11 @@ function getStatusMenuItems(
     });
   }
 
-  if (status.anchor === "needsConfirmation") {
+  if (onRelocate && (scope === "section" || scope === "line")) {
     items.push({
       id: "relocate",
-      label: getLocationReviewMenuLabel(scope),
-      disabled: true,
+      label: getRelocateMenuLabel(scope),
+      onSelect: onRelocate,
     });
   }
 
@@ -510,17 +515,17 @@ function getClearContentStaleMenuLabel(scope: NoteStatusBadgeScope): string {
   return "Clear Stale Status: Content Reviewed";
 }
 
-function getLocationReviewMenuLabel(scope: NoteStatusBadgeScope): string {
+function getRelocateMenuLabel(scope: NoteStatusBadgeScope): string {
   if (scope === "section") {
-    return "Location Review: Relocate Section...";
+    return "Relocate Section Note...";
   }
 
   if (scope === "line") {
-    return "Location Review: Relocate Line...";
+    return "Relocate Line Note...";
   }
 
   if (scope === "file") {
-    return "Location Review: Relocate File...";
+    return "Relocate File Note...";
   }
 
   return "Resolve Anchor: Relocate...";

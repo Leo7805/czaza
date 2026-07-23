@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   deleteNavigatorSectionNoteService: vi.fn(),
   markNavigatorFileNoteOrphanedService: vi.fn(),
   relocateNavigatorFileNoteService: vi.fn(),
+  relocateSectionNoteService: vi.fn(),
+  relocateLineNoteService: vi.fn(),
   ensureFileNoteResourceAvailability: vi.fn(),
   postMessage: vi.fn().mockResolvedValue(true),
   setDecorations: vi.fn(),
@@ -73,6 +75,10 @@ vi.mock("@vscode/services/markNavigatorFileNoteOrphanedService", () => ({
 
 vi.mock("@vscode/services/relocateNavigatorFileNoteService", () => ({
   relocateNavigatorFileNoteService: mocks.relocateNavigatorFileNoteService,
+}));
+vi.mock("@vscode/services/relocate", () => ({
+  relocateSectionNoteService: mocks.relocateSectionNoteService,
+  relocateLineNoteService: mocks.relocateLineNoteService,
 }));
 
 vi.mock("vscode", () => ({
@@ -201,6 +207,8 @@ describe("NotesViewProvider", () => {
     mocks.getStoredNavigatorFileNotes.mockReset();
     mocks.markNavigatorFileNoteOrphanedService.mockReset();
     mocks.relocateNavigatorFileNoteService.mockReset();
+    mocks.relocateSectionNoteService.mockReset();
+    mocks.relocateLineNoteService.mockReset();
     mocks.ensureFileNoteResourceAvailability.mockReset();
     mocks.getNavigatorNotes.mockReset();
     mocks.fsStat.mockReset();
@@ -355,6 +363,81 @@ describe("NotesViewProvider", () => {
 
     await provider.showActiveDocumentNotes(uri, 42);
     expect(getLastDecorationRange()).toMatchObject({ startLine: 39, endLine: 44 });
+
+    provider.dispose();
+  });
+
+  it("opens a Section Note relocate session from the editor selection and saves the range", async () => {
+    const uri = createUri("/workspace/src/relocate.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    const editor = createEditor(uri);
+    editor.selection = {
+      anchor: { line: 19, character: 2 },
+      active: { line: 30, character: 0 },
+      start: { line: 19, character: 2 },
+      end: { line: 30, character: 0 },
+      isEmpty: false,
+    } as vscodeTypes.Selection;
+    mocks.activeTextEditor = editor;
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "relocate.ts",
+      relativePath: "src/relocate.ts",
+      aiAction: "generate",
+      sectionNotes: [
+        {
+          id: "section:one",
+          title: "One",
+          startLine: 2,
+          endLine: 8,
+        },
+      ],
+    });
+    mocks.relocateSectionNoteService.mockResolvedValue(undefined);
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 20);
+    mocks.messageListeners[0]?.({
+      type: "startNoteRelocate",
+      target: {
+        level: "section",
+        sectionId: "section:one",
+        startLine: 2,
+        endLine: 8,
+      },
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "noteRelocateSuggestion",
+        suggestion: { level: "section", startLine: 20, endLine: 30 },
+      }),
+    );
+    mocks.messageListeners[0]?.({
+      type: "relocateSectionNote",
+      sectionId: "section:one",
+      startLine: 20,
+      endLine: 30,
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.relocateSectionNoteService).toHaveBeenCalledWith({
+        uri,
+        notes: {},
+        sectionId: "section:one",
+        startLine: 20,
+        endLine: 30,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({ type: "noteRelocated" }),
+    );
 
     provider.dispose();
   });
@@ -1826,7 +1909,11 @@ function createEditor(uri: vscodeTypes.Uri): vscodeTypes.TextEditor {
       lineAt: (line: number) => ({ text: "x".repeat(line + 1) }),
     },
     selection: {
+      anchor: { line: 11, character: 0 },
       active: { line: 11, character: 0 },
+      start: { line: 11, character: 0 },
+      end: { line: 11, character: 0 },
+      isEmpty: true,
     },
     revealRange: mocks.revealRange,
     setDecorations: mocks.setDecorations,

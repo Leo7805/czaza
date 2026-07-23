@@ -70,6 +70,7 @@ export function registerNotesPreviewEvents(
     vscode.window.onDidChangeActiveTextEditor(followEditor),
     vscode.window.onDidChangeTextEditorSelection((event) => {
       if (event.textEditor === vscode.window.activeTextEditor) {
+        void provider.syncRelocateTargetFromEditor?.(event.textEditor);
         followEditor(event.textEditor);
       }
     }),

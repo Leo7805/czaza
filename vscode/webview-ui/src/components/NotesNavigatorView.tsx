@@ -603,6 +603,23 @@ function NavigatorList({
       lineId,
     });
   };
+  const startSectionRelocate = (section: NavigatorSectionItem): void => {
+    getVsCodeApi()?.postMessage({
+      type: "startNoteRelocate",
+      target: {
+        level: "section",
+        sectionId: section.id,
+        startLine: section.startLine,
+        endLine: section.endLine,
+      },
+    });
+  };
+  const startLineRelocate = (line: NavigatorLineItem): void => {
+    getVsCodeApi()?.postMessage({
+      type: "startNoteRelocate",
+      target: { level: "line", lineId: line.id, line: line.line },
+    });
+  };
 
   return (
     <>
@@ -772,6 +789,10 @@ function NavigatorList({
             () => openNavigatorSection(sectionContextMenu.item),
             () => clearNavigatorSectionStaleStatus(sectionContextMenu.item.id),
             () => {
+              startSectionRelocate(sectionContextMenu.item);
+              setSectionContextMenu(null);
+            },
+            () => {
               setDeleteSectionModal({
                 sectionId: sectionContextMenu.item.id,
                 title: sectionContextMenu.item.title || "Untitled section",
@@ -789,6 +810,10 @@ function NavigatorList({
             lineContextMenu.item.status,
             () => openNavigatorLine(lineContextMenu.item.line),
             () => clearNavigatorLineStaleStatus(lineContextMenu.item.line),
+            () => {
+              startLineRelocate(lineContextMenu.item);
+              setLineContextMenu(null);
+            },
             () => {
               setDeleteLineModal({
                 lineId: lineContextMenu.item.id,
@@ -956,6 +981,7 @@ function getSectionContextMenuItems(
   status: NoteStatus | undefined,
   onViewNotes: () => void,
   onClearStaleStatus: () => void,
+  onRelocate: () => void,
   onDeleteNote: () => void,
 ): NavigatorItemContextMenuItem[] {
   return [
@@ -974,6 +1000,11 @@ function getSectionContextMenuItems(
         ]
       : []),
     {
+      id: "relocate",
+      label: "Relocate Section Note...",
+      onSelect: onRelocate,
+    },
+    {
       id: "delete",
       label: "Delete Section Note...",
       onSelect: onDeleteNote,
@@ -985,6 +1016,7 @@ function getLineContextMenuItems(
   status: NoteStatus | undefined,
   onViewNotes: () => void,
   onClearStaleStatus: () => void,
+  onRelocate: () => void,
   onDeleteNote: () => void,
 ): NavigatorItemContextMenuItem[] {
   return [
@@ -1002,6 +1034,11 @@ function getLineContextMenuItems(
           },
         ]
       : []),
+    {
+      id: "relocate",
+      label: "Relocate Line Note...",
+      onSelect: onRelocate,
+    },
     {
       id: "delete",
       label: "Delete Line Note...",

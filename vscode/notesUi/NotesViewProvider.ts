@@ -41,6 +41,10 @@ import {
   type AllNotesProgress,
 } from "@vscode/services/generateAllNotesService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
+import {
+  relocateLineNoteService,
+  relocateSectionNoteService,
+} from "@vscode/services/relocate";
 
 /**
  * Message posted by the React notes webview.
@@ -185,6 +189,30 @@ type NotesWebviewMessage =
       line: number;
     }
   | {
+      /** Opens a Section/Line Note relocation session. */
+      type: "startNoteRelocate";
+      target:
+        | { level: "section"; sectionId: string; startLine: number; endLine: number }
+        | { level: "line"; lineId: string; line: number };
+    }
+  | {
+      /** Stops the active Section/Line Note relocation session. */
+      type: "stopNoteRelocate";
+    }
+  | {
+      /** Confirms a new Section Note source range. */
+      type: "relocateSectionNote";
+      sectionId: string;
+      startLine: number;
+      endLine: number;
+    }
+  | {
+      /** Confirms a new Line Note source line. */
+      type: "relocateLineNote";
+      lineId: string;
+      line: number;
+    }
+  | {
       /** Indicates that the user selected a matched section in the webview. */
       type: "selectSection";
 
@@ -193,6 +221,12 @@ type NotesWebviewMessage =
     };
 
 type AiActionScope = "fileSection" | "all" | "section" | "line";
+type NoteRelocateSession = {
+  uri: vscode.Uri;
+  target:
+    | { level: "section"; sectionId: string; startLine: number; endLine: number }
+    | { level: "line"; lineId: string; line: number };
+};
 
 /** Mode selected by the VS Code notes View Toolbar. */
 export type NotesViewMode = "detail" | "navigator";
@@ -217,6 +251,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private pendingEditTarget?: UserNoteTarget;
   private highlightedEditor?: vscode.TextEditor;
   private isNavigatorRelocatePathSyncActive = false;
+  private noteRelocateSession?: NoteRelocateSession;
   private requestVersion = 0;
   private readonly generatingResources = new Map<string, AiActionScope>();
   private readonly allNotesProgress = new Map<string, AllNotesProgress>();
@@ -429,6 +464,30 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         return;
       }
 
+      if (message.type === "startNoteRelocate") {
+        void this.startNoteRelocate(message.target);
+        return;
+      }
+
+      if (message.type === "stopNoteRelocate") {
+        this.noteRelocateSession = undefined;
+        return;
+      }
+
+      if (message.type === "relocateSectionNote") {
+        void this.runRelocateSectionNote(
+          message.sectionId,
+          message.startLine,
+          message.endLine,
+        );
+        return;
+      }
+
+      if (message.type === "relocateLineNote") {
+        void this.runRelocateLineNote(message.lineId, message.line);
+        return;
+      }
+
       if (message.type === "openNavigatorResource") {
         void this.openNavigatorResource(message.relativePath);
         return;
@@ -449,6 +508,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     webviewView.onDidDispose(() => {
       this.clearSectionHighlight();
+      this.noteRelocateSession = undefined;
 
       if (this.view === webviewView) {
         this.view = undefined;
@@ -546,6 +606,44 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     await this.loadResourceNotes(uri, true, activeLine);
     await this.postActiveNavigatorRelocateTargetPath(uri);
+    await this.syncRelocateTargetFromEditor(vscode.window.activeTextEditor);
+  }
+
+  /** Sends live cursor/selection suggestions while a Section/Line relocate modal is open. */
+  async syncRelocateTargetFromEditor(editor: vscode.TextEditor | undefined): Promise<void> {
+    const session = this.noteRelocateSession;
+
+    if (
+      !session ||
+      !this.view ||
+      !editor ||
+      editor.document.uri.toString() !== session.uri.toString()
+    ) {
+      return;
+    }
+
+    if (session.target.level === "line") {
+      const line = editor.selection.active.line + 1;
+      await this.view.webview.postMessage({
+        type: "noteRelocateSuggestion",
+        suggestion: {
+          level: "line",
+          line,
+          preview: editor.document.lineAt(line - 1).text,
+        },
+      });
+      return;
+    }
+
+    const { startLine, endLine } = getSelectedEditorLineRange(editor.selection);
+    await this.view.webview.postMessage({
+      type: "noteRelocateSuggestion",
+      suggestion: {
+        level: "section",
+        startLine,
+        endLine,
+      },
+    });
   }
 
   /**
@@ -605,6 +703,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    */
   dispose(): void {
     this.clearSectionHighlight();
+    this.noteRelocateSession = undefined;
     this.notesTypographyConfigurationListener.dispose();
     this.sectionDecorationType.dispose();
   }
@@ -632,6 +731,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     const resourceChanged = this.currentResourceUri?.toString() !== uri.toString();
+    if (resourceChanged && this.noteRelocateSession) {
+      this.noteRelocateSession = undefined;
+      await this.view?.webview.postMessage({ type: "closeNoteRelocate" });
+    }
     this.currentResourceUri = uri;
     this.currentPayload = payload;
     if (resourceChanged) {
@@ -1257,6 +1360,84 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
+  private async startNoteRelocate(
+    target: NoteRelocateSession["target"],
+  ): Promise<void> {
+    const uri = this.currentResourceUri;
+
+    if (!uri || !this.view || this.currentPayload?.kind !== "file") {
+      return;
+    }
+
+    this.noteRelocateSession = { uri, target };
+    await this.view.webview.postMessage({
+      type: "openNoteRelocate",
+      target,
+    });
+    await this.syncRelocateTargetFromEditor(this.getCurrentResourceEditor());
+  }
+
+  private async runRelocateSectionNote(
+    sectionId: string,
+    startLine: number,
+    endLine: number,
+  ): Promise<void> {
+    const session = this.noteRelocateSession;
+
+    if (
+      !session ||
+      session.target.level !== "section" ||
+      session.target.sectionId !== sectionId
+    ) {
+      return;
+    }
+
+    try {
+      await relocateSectionNoteService({
+        uri: session.uri,
+        notes: this.notes,
+        sectionId,
+        startLine,
+        endLine,
+      });
+      this.noteRelocateSession = undefined;
+      await this.loadResourceNotes(session.uri, false, getActiveLine(session.uri));
+      await this.view?.webview.postMessage({ type: "noteRelocated" });
+    } catch (error) {
+      await this.postNotice({
+        tone: "error",
+        title: "Relocate Section Note Failed",
+        message: error instanceof Error ? error.message : "Unknown error.",
+      });
+    }
+  }
+
+  private async runRelocateLineNote(lineId: string, line: number): Promise<void> {
+    const session = this.noteRelocateSession;
+
+    if (!session || session.target.level !== "line" || session.target.lineId !== lineId) {
+      return;
+    }
+
+    try {
+      await relocateLineNoteService({
+        uri: session.uri,
+        notes: this.notes,
+        lineId,
+        line,
+      });
+      this.noteRelocateSession = undefined;
+      await this.loadResourceNotes(session.uri, false, getActiveLine(session.uri));
+      await this.view?.webview.postMessage({ type: "noteRelocated" });
+    } catch (error) {
+      await this.postNotice({
+        tone: "error",
+        title: "Relocate Line Note Failed",
+        message: error instanceof Error ? error.message : "Unknown error.",
+      });
+    }
+  }
+
   private async runMarkNavigatorFileNoteOrphaned(relativePath: string): Promise<void> {
     const currentUri = this.currentResourceUri;
 
@@ -1534,6 +1715,17 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     (candidate.type === "openNavigatorLine" &&
       Number.isInteger(candidate.line) &&
       isPositiveLine(Number(candidate.line))) ||
+    (candidate.type === "startNoteRelocate" && isNoteRelocateTarget(candidate.target)) ||
+    candidate.type === "stopNoteRelocate" ||
+    (candidate.type === "relocateSectionNote" &&
+      typeof candidate.sectionId === "string" &&
+      Number.isInteger(candidate.startLine) &&
+      Number.isInteger(candidate.endLine) &&
+      isValidLineRange(Number(candidate.startLine), Number(candidate.endLine))) ||
+    (candidate.type === "relocateLineNote" &&
+      typeof candidate.lineId === "string" &&
+      Number.isInteger(candidate.line) &&
+      isPositiveLine(Number(candidate.line))) ||
     (candidate.type === "selectSection" && typeof candidate.sectionId === "string")
   );
 }
@@ -1553,6 +1745,33 @@ function isUserNoteTarget(value: unknown): value is UserNoteTarget {
     target.level === "file" ||
     (target.level === "section" && typeof target.sectionId === "string") ||
     (target.level === "line" && Number.isInteger(target.line) && Number(target.line) > 0)
+  );
+}
+
+function isNoteRelocateTarget(value: unknown): value is NoteRelocateSession["target"] {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const target = value as {
+    level?: unknown;
+    sectionId?: unknown;
+    lineId?: unknown;
+    startLine?: unknown;
+    endLine?: unknown;
+    line?: unknown;
+  };
+
+  return (
+    (target.level === "section" &&
+      typeof target.sectionId === "string" &&
+      Number.isInteger(target.startLine) &&
+      Number.isInteger(target.endLine) &&
+      isValidLineRange(Number(target.startLine), Number(target.endLine))) ||
+    (target.level === "line" &&
+      typeof target.lineId === "string" &&
+      Number.isInteger(target.line) &&
+      isPositiveLine(Number(target.line)))
   );
 }
 
@@ -1604,6 +1823,21 @@ function isSafeRelativePath(relativePath: string): boolean {
 
 function isValidLineRange(startLine: number, endLine: number): boolean {
   return Number.isInteger(startLine) && Number.isInteger(endLine) && startLine > 0 && endLine >= startLine;
+}
+
+function getSelectedEditorLineRange(selection: vscode.Selection): {
+  startLine: number;
+  endLine: number;
+} {
+  const startLine = selection.start.line + 1;
+  const excludesTrailingEmptyLine =
+    selection.end.line > selection.start.line && selection.end.character === 0;
+  const endLine = excludesTrailingEmptyLine ? selection.end.line : selection.end.line + 1;
+
+  return {
+    startLine,
+    endLine: Math.max(startLine, endLine),
+  };
 }
 
 function isPositiveLine(line: number): boolean {

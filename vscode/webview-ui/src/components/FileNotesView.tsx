@@ -134,6 +134,35 @@ export function FileNotesView({
     getVsCodeApi()?.postMessage({ type: "clearNoteStaleStatus", target });
   };
 
+  const startSectionRelocate = (): void => {
+    if (!selectedSection) {
+      return;
+    }
+    getVsCodeApi()?.postMessage({
+      type: "startNoteRelocate",
+      target: {
+        level: "section",
+        sectionId: selectedSection.id,
+        startLine: selectedSection.startLine,
+        endLine: selectedSection.endLine,
+      },
+    });
+  };
+
+  const startLineRelocate = (): void => {
+    if (!notes.lineNote) {
+      return;
+    }
+    getVsCodeApi()?.postMessage({
+      type: "startNoteRelocate",
+      target: {
+        level: "line",
+        lineId: notes.lineNote.id,
+        line: notes.lineNote.line,
+      },
+    });
+  };
+
   return (
       <NotesPanel
         kind="file"
@@ -177,6 +206,7 @@ export function FileNotesView({
           selectedSection ? { level: "section", sectionId: selectedSection.id } : undefined
         }
         onClearStaleStatus={clearStale}
+        onRelocate={selectedSection ? startSectionRelocate : undefined}
         editKey={selectedSection ? `section:${selectedSection.id}` : undefined}
         startInEditMode={shouldEditSection}
         onSaveUserNote={
@@ -221,6 +251,7 @@ export function FileNotesView({
         status={notes.lineNote?.status}
         statusTarget={notes.activeLine ? { level: "line", line: notes.activeLine } : undefined}
         onClearStaleStatus={clearStale}
+        onRelocate={notes.lineNote ? startLineRelocate : undefined}
         editKey={notes.activeLine ? `line:${notes.activeLine}` : undefined}
         startInEditMode={shouldEditLine}
         onSaveUserNote={

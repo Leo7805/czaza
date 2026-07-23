@@ -7,10 +7,13 @@ import { useEffect, useMemo, useState } from "react";
 import { ResourceNotesView } from "./components/ResourceNotesView";
 import { NotesNavigatorView } from "./components/NotesNavigatorView";
 import { NoticeModal } from "./components/NoticeModal";
+import { RelocateNoteModal } from "./components/RelocateNoteModal";
 import type {
   ExtensionToWebviewMessage,
   NotesViewMode,
   NavigatorNotesViewModel,
+  NoteRelocateSuggestion,
+  NoteRelocateTarget,
   ResourceNotesViewModel,
   WebviewNotice,
 } from "./types";
@@ -46,6 +49,9 @@ export function App() {
   const [notice, setNotice] = useState<WebviewNotice | undefined>();
   const [relocatedFileNote, setRelocatedFileNote] = useState<RelocatedFileNote | undefined>();
   const [relocateTargetPath, setRelocateTargetPath] = useState<string | undefined>();
+  const [noteRelocateTarget, setNoteRelocateTarget] = useState<NoteRelocateTarget>();
+  const [noteRelocateSuggestion, setNoteRelocateSuggestion] =
+    useState<NoteRelocateSuggestion>();
   const vscode = useMemo(() => getVsCodeApi(), []);
 
   useEffect(() => {
@@ -99,6 +105,23 @@ export function App() {
 
       if (message.type === "navigatorRelocateTargetPath") {
         setRelocateTargetPath(message.relativePath);
+        return;
+      }
+
+      if (message.type === "openNoteRelocate") {
+        setNoteRelocateTarget(message.target);
+        setNoteRelocateSuggestion(undefined);
+        return;
+      }
+
+      if (message.type === "noteRelocateSuggestion") {
+        setNoteRelocateSuggestion(message.suggestion);
+        return;
+      }
+
+      if (message.type === "noteRelocated" || message.type === "closeNoteRelocate") {
+        setNoteRelocateTarget(undefined);
+        setNoteRelocateSuggestion(undefined);
       }
     };
 
@@ -146,6 +169,24 @@ export function App() {
             },
           }))}
           onDismiss={() => setNotice(undefined)}
+        />
+      ) : null}
+      {noteRelocateTarget ? (
+        <RelocateNoteModal
+          target={noteRelocateTarget}
+          suggestion={noteRelocateSuggestion}
+          onCancel={() => {
+            vscode?.postMessage({ type: "stopNoteRelocate" });
+            setNoteRelocateTarget(undefined);
+            setNoteRelocateSuggestion(undefined);
+          }}
+          onSubmit={(target) => {
+            if (target.level === "section") {
+              vscode?.postMessage({ type: "relocateSectionNote", ...target });
+            } else {
+              vscode?.postMessage({ type: "relocateLineNote", ...target });
+            }
+          }}
         />
       ) : null}
     </main>
