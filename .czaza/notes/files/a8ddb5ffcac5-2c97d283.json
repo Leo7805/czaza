@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:f36ee5b9ac948fdb3522f0188ca7d4451bc5a27ed26beba94fa6a58b31758984",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T13:00:12.743Z",
+    "updatedAt": "2026-07-23T13:00:52.729Z"
+  },
+  "fileNote": {
+    "userNote": "当前负责监听 VS Code 文档变化、保存和外部文件变化，并安排 Notes 更新。\n\nhandleTextDocumentChange：从“逐个 content change 入队”改成“整个事件作为一个 batch 入队”。\n\n现在一个多变化事件只会保存一次并刷新一次；连续的两个独立 VS Code 事件仍会保存两次。\n\n",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

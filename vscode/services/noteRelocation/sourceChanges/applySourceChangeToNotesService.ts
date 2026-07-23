@@ -11,10 +11,13 @@ import {
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import * as vscode from "vscode";
 import {
-  applyDeterministicRelocation,
-  type ApplyDeterministicRelocationResult,
-} from "./applyDeterministicRelocationService";
-import type { ClassifiedSourceChange } from "./classifySourceChangeService";
+  applySourceChangeBatch,
+  type ApplySourceChangeBatchResult,
+} from "./applySourceChangeBatchService";
+import type {
+  ClassifiedSourceChange,
+  ClassifiedSourceChangeBatch,
+} from "./classifySourceChangeService";
 
 /** Minimal document shape required by deterministic text-change application. */
 export type TextDocumentChangeNotesDocument = {
@@ -33,8 +36,8 @@ export type ApplySourceChangeToNotesInput = {
   /** Current source document after the text change. */
   document: TextDocumentChangeNotesDocument;
 
-  /** Classified text change. */
-  change: ClassifiedSourceChange;
+  /** Classified single change or atomic source-change batch. */
+  change: ClassifiedSourceChange | ClassifiedSourceChangeBatch;
 
   /** Shared workspace note store. */
   notes: WorkspaceNoteStore;
@@ -51,19 +54,21 @@ export type ApplySourceChangeToNotesResult =
       relativePath: string;
       sourceFile: StoredSourceFile;
       updatedSourceFile: StoredSourceFile;
-      applyResult: ApplyDeterministicRelocationResult;
+      applyResult: ApplySourceChangeBatchResult;
     }
   | {
       /** The change was deterministic, but no stored note data changed. */
       kind: "unchanged";
       relativePath: string;
       sourceFile: StoredSourceFile;
-      applyResult: ApplyDeterministicRelocationResult;
+      applyResult: ApplySourceChangeBatchResult;
     }
   | {
       /** The change cannot be applied deterministically. */
       kind: "unsupported";
-      reason: Extract<ClassifiedSourceChange, { kind: "unsupported" }>["reason"];
+      reason:
+        | Extract<ClassifiedSourceChange, { kind: "unsupported" }>["reason"]
+        | Extract<ClassifiedSourceChangeBatch, { kind: "unsupported" }>["reason"];
     }
   | {
       /** The URI was not a local file. */
@@ -120,9 +125,9 @@ export async function applySourceChangeToNotesService(
     };
   }
 
-  const applyResult = applyDeterministicRelocation({
+  const applyResult = applySourceChangeBatch({
     sourceFile,
-    change,
+    batch: normalizeSourceChangeBatch(change),
     currentSourceText: document.getText(),
     programmingLanguage: document.languageId,
     now,
@@ -151,5 +156,25 @@ export async function applySourceChangeToNotesService(
     sourceFile,
     updatedSourceFile: applyResult.sourceFile,
     applyResult,
+  };
+}
+
+/**
+ * Wraps a supported single splice in the atomic batch contract.
+ *
+ * @param change - Supported single change or pre-classified batch.
+ * @returns Atomic source-change batch.
+ */
+function normalizeSourceChangeBatch(
+  change: Exclude<ClassifiedSourceChange, { kind: "unsupported" }> | ClassifiedSourceChangeBatch,
+): ClassifiedSourceChangeBatch {
+  if (change.kind !== "splice") {
+    return change;
+  }
+
+  return {
+    kind: "splices",
+    splices: [change.splice],
+    requiresConfirmation: false,
   };
 }

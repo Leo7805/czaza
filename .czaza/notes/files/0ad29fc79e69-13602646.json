@@ -1,0 +1,21 @@
+{
+  "source": {
+    "sourceHash": "sha256:cc15adaf5d0acd33cbd5d665cfc0443f02c6af63c9b8925f545049a2b107f02b",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:14:15.739Z",
+    "updatedAt": "2026-07-23T12:47:22.480Z"
+  },
+  "fileNote": {
+    "userNote": "当前只负责计算单个 splice 对 Section 和 Line 锚点的影响。\n\n1. fullyCoversSection：判断变更是否确定完整删除了 Section。\n2. fullyDeletesLine：判断变更是否确定完整删除了 Line Note 所在行。\n3. getTouchedEndLine：计算替换范围实际影响的最后一行。\n4. isInsertion：判断 splice 是否为纯插入。\n5. isLineNeutralReplacement：判断是否只修改内容而不改变行数。\n6. shiftSectionRange：按行数增量整体移动 Section 范围。\n7. transformLineAnchor：计算 Line Note 应保持、移动、内容变化、待确认还是失效。\n8. transformSectionAnchor：计算 Section 应保持、移动、改变范围、待确认还是失效。\n\n\n\n\n",
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

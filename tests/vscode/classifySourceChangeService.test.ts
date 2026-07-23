@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifySourceChange,
+  classifySourceChangeBatch,
   type TextDocumentContentChange,
 } from "@vscode/services/noteRelocation/sourceChanges/classifySourceChangeService";
 
@@ -24,9 +25,16 @@ describe("classifySourceChange()", () => {
         ],
       }),
     ).toEqual({
-      kind: "insertLines",
-      startLine: 5,
-      lineCount: 2,
+      kind: "splice",
+      splice: {
+        startLine: 4,
+        startCharacter: 0,
+        endLine: 4,
+        endCharacter: 0,
+        insertedLineCount: 2,
+        deletedLineCount: 0,
+        lineDelta: 2,
+      },
     });
   });
 
@@ -45,10 +53,16 @@ describe("classifySourceChange()", () => {
         ],
       }),
     ).toEqual({
-      kind: "deleteLines",
-      startLine: 3,
-      endLine: 5,
-      lineCount: 3,
+      kind: "splice",
+      splice: {
+        startLine: 2,
+        startCharacter: 0,
+        endLine: 5,
+        endCharacter: 0,
+        insertedLineCount: 0,
+        deletedLineCount: 3,
+        lineDelta: -3,
+      },
     });
   });
 
@@ -67,8 +81,16 @@ describe("classifySourceChange()", () => {
         ],
       }),
     ).toEqual({
-      kind: "editLine",
-      line: 8,
+      kind: "splice",
+      splice: {
+        startLine: 7,
+        startCharacter: 10,
+        endLine: 7,
+        endCharacter: 14,
+        insertedLineCount: 0,
+        deletedLineCount: 0,
+        lineDelta: 0,
+      },
     });
   });
 
@@ -93,7 +115,7 @@ describe("classifySourceChange()", () => {
     });
   });
 
-  it("reports no-op line-neutral changes as unsupported", () => {
+  it("reports no-op changes as unsupported", () => {
     expect(
       classifySourceChange({
         contentChanges: [
@@ -109,11 +131,11 @@ describe("classifySourceChange()", () => {
       }),
     ).toEqual({
       kind: "unsupported",
-      reason: "noLineChange",
+      reason: "emptyChange",
     });
   });
 
-  it("reports mixed multi-line replacements as unsupported", () => {
+  it("normalizes a Copilot-style replacement that inserts multiple lines", () => {
     expect(
       classifySourceChange({
         contentChanges: [
@@ -128,12 +150,131 @@ describe("classifySourceChange()", () => {
         ],
       }),
     ).toEqual({
-      kind: "unsupported",
-      reason: "mixedChange",
+      kind: "splice",
+      splice: {
+        startLine: 1,
+        startCharacter: 0,
+        endLine: 3,
+        endCharacter: 0,
+        insertedLineCount: 2,
+        deletedLineCount: 2,
+        lineDelta: 0,
+      },
     });
   });
 });
 
+describe("classifySourceChangeBatch()", () => {
+  it("normalizes and sorts independent changes as one atomic batch", () => {
+    const result = classifySourceChangeBatch({
+      contentChanges: [
+        createChange({
+          startLine: 2,
+          endLine: 2,
+          rangeLength: 0,
+          text: "first\n",
+        }),
+        createChange({
+          startLine: 10,
+          startCharacter: 4,
+          endLine: 10,
+          endCharacter: 8,
+          rangeLength: 4,
+          text: "replacement\nwith lines\n",
+        }),
+      ],
+    });
+
+    expect(result.kind).toBe("splices");
+    if (result.kind !== "splices") {
+      return;
+    }
+
+    expect(result.splices.map((splice) => splice.startLine)).toEqual([10, 2]);
+    expect(result.requiresConfirmation).toBe(false);
+  });
+
+  it("marks same-position insertions as requiring confirmation", () => {
+    const result = classifySourceChangeBatch({
+      contentChanges: [
+        createChange({
+          startLine: 5,
+          startCharacter: 3,
+          endLine: 5,
+          endCharacter: 3,
+          rangeLength: 0,
+          text: "first",
+        }),
+        createChange({
+          startLine: 5,
+          startCharacter: 3,
+          endLine: 5,
+          endCharacter: 3,
+          rangeLength: 0,
+          text: "second\n",
+        }),
+      ],
+    });
+
+    expect(result).toMatchObject({
+      kind: "splices",
+      requiresConfirmation: true,
+    });
+  });
+
+  it("rejects overlapping replacements for the whole batch", () => {
+    expect(
+      classifySourceChangeBatch({
+        contentChanges: [
+          createChange({
+            startLine: 2,
+            startCharacter: 2,
+            endLine: 4,
+            endCharacter: 8,
+            rangeLength: 20,
+            text: "first",
+          }),
+          createChange({
+            startLine: 4,
+            startCharacter: 7,
+            endLine: 5,
+            endCharacter: 3,
+            rangeLength: 8,
+            text: "second",
+          }),
+        ],
+      }),
+    ).toEqual({
+      kind: "unsupported",
+      reason: "overlappingChanges",
+    });
+  });
+
+  it("rejects invalid coordinates for the whole batch", () => {
+    expect(
+      classifySourceChangeBatch({
+        contentChanges: [
+          createChange({
+            startLine: 4,
+            endLine: 2,
+            rangeLength: 4,
+            text: "invalid",
+          }),
+        ],
+      }),
+    ).toEqual({
+      kind: "unsupported",
+      reason: "invalidChange",
+    });
+  });
+});
+
+/**
+ * Creates a minimal VS Code content change for classification tests.
+ *
+ * @param input - Source range, replaced length, and replacement text.
+ * @returns Complete text document content change.
+ */
 function createChange({
   startLine,
   startCharacter = 0,

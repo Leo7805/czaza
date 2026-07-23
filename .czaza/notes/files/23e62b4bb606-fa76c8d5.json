@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:00c7469614561d85e9612de2d997838c63cf54c59f9115f856ef1845f5aab0ec",
+    "sourceHash": "sha256:8bee21ba1e54a3cdb1c308fe9a553407dd444348cad5b70e7064700a75ba3c31",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-23T12:01:08.599Z",
-    "updatedAt": "2026-07-23T12:01:08.599Z"
+    "updatedAt": "2026-07-23T12:49:33.294Z"
   },
   "fileNote": {
-    "userNote": "统一导出源码变化分类、确定性 Relocate 和持久化服务。",
-    "createdBy": "user"
+    "userNote": "统一导出 Note relocation 的公共接口。",
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

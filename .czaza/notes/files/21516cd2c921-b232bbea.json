@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:4df838b4ca014b4777b1b8eb46e3734e6ff2fb26ce17dc67f027fa803b5daef4",
+    "sourceHash": "sha256:222abc4913f9d1c2feeb0a97d211f7edc1d6fffb3537af400948b218c27d51d6",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-23T12:01:29.910Z",
-    "updatedAt": "2026-07-23T12:01:29.910Z"
+    "updatedAt": "2026-07-23T12:42:36.109Z"
   },
   "fileNote": {
-    "userNote": "将 VS Code 文本变化分类为插入行、删除行、单行编辑或不支持的变化。",
-    "createdBy": "user"
+    "userNote": "把 VS Code 内容变化统一归一化成 source splice。\n\n1. classifySourceChange：分类一次 VS Code 文档变化事件。\n2. classifySourceChangeBatch：原子化分类一次事件中的全部变化，校验后返回倒序 splice 批次。\n3. classifySourceContentChange：将单个 content change 转换成标准 splice。\n4. countLineBreaks：统计插入文本中的换行数量。\n5. extractSourceChangeSplice：从已分类结果中安全提取 splice，并防止遗漏异常分支。\n",
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

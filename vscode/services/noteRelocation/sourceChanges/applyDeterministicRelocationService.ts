@@ -1,5 +1,5 @@
 /**
- * Applies deterministic source changes to stored Note anchors.
+ * Applies normalized source splices to stored Note anchors and statuses.
  */
 
 import type { NoteStatus } from "@shared/models/domain/common";
@@ -13,63 +13,71 @@ import {
 import { updateFileNoteStatus } from "@shared/services/notes/noteStatusService";
 import { createSourceHash } from "@shared/utils/hashUtils";
 import type { ClassifiedSourceChange } from "./classifySourceChangeService";
+import {
+  transformLineAnchor,
+  transformSectionAnchor,
+  type LineAnchorTransform,
+  type SectionAnchorTransform,
+  type SourceChangeSplice,
+} from "./sourceChangeAnchorTransform";
 
-/** Input for applying one deterministic document change. */
+/** Input for applying one normalized document change. */
 export type ApplyDeterministicRelocationInput = {
   /** Stored file note bundle before the change. */
   sourceFile: StoredSourceFile;
-
-  /** Classified deterministic text document change. */
+  /** Classified source change. */
   change: ClassifiedSourceChange;
-
   /** Current source text after the change. */
   currentSourceText: string;
-
   /** Current VS Code language id, when available. */
   programmingLanguage?: ProgrammingLanguage;
-
   /** ISO 8601 timestamp used for updatedAt. */
   now: string;
 };
 
-/** Event emitted while applying one deterministic change. */
+/** Event emitted while applying one normalized source change. */
 export type DeterministicRelocationEvent =
   | {
       type: "unsupportedChange";
       reason: Extract<ClassifiedSourceChange, { kind: "unsupported" }>["reason"];
     }
+  | { type: "fileNoteMarkedStale" }
   | {
-      type: "fileNoteMarkedStale";
-    }
-  | {
-      type: "sectionNoteMoved" | "sectionNoteChanged" | "sectionNoteOrphaned";
+      type:
+        | "sectionNoteMoved"
+        | "sectionNoteChanged"
+        | "sectionNoteNeedsConfirmation"
+        | "sectionNoteOrphaned";
       sectionId: string;
     }
   | {
-      type: "lineNoteMoved" | "lineNoteChanged" | "lineNoteOrphaned";
+      type: "lineNoteMoved" | "lineNoteChanged" | "lineNoteNeedsConfirmation" | "lineNoteOrphaned";
       lineId: string;
     };
 
-/** Result of applying one deterministic document change. */
+/** Result of applying one normalized source change. */
 export type ApplyDeterministicRelocationResult = {
   /** Updated file note bundle. */
   sourceFile: StoredSourceFile;
-
   /** Whether any stored data changed. */
   changed: boolean;
-
   /** Structured events describing applied updates. */
   events: DeterministicRelocationEvent[];
 };
 
+/** Result of applying one splice only to Section and Line Note anchors. */
+export type ApplySourceSpliceToAnchorsResult = {
+  /** Source bundle containing updated Section and Line Note anchors. */
+  sourceFile: StoredSourceFile;
+  /** Relocation events emitted for affected anchors. */
+  events: DeterministicRelocationEvent[];
+};
+
 /**
- * Applies a supported deterministic text change to stored file notes.
+ * Applies one supported source splice to stored File, Section, and Line Notes.
  *
  * @param input - Stored notes, classified change, current source text, and timestamp.
- * @returns Updated source file and emitted events.
- *
- * @example
- * const result = applyDeterministicRelocation({ sourceFile, change, currentSourceText, now });
+ * @returns Updated source file and emitted relocation events.
  */
 export function applyDeterministicRelocation(
   input: ApplyDeterministicRelocationInput,
@@ -78,311 +86,159 @@ export function applyDeterministicRelocation(
     return {
       sourceFile: input.sourceFile,
       changed: false,
-      events: [
-        {
-          type: "unsupportedChange",
-          reason: input.change.reason,
-        },
-      ],
+      events: [{ type: "unsupportedChange", reason: input.change.reason }],
     };
   }
 
+  const splice = input.change.splice;
   const events: DeterministicRelocationEvent[] = [];
   let next = updateSourceHash(input.sourceFile, createSourceHash(input.currentSourceText));
-
   next = updateProgrammingLanguage(next, input.programmingLanguage);
 
   if (next.fileNote) {
-    next = updateFileNoteStatus(next, { content: "stale", anchor: "confirmed" }, input.now);
+    next = updateFileNoteStatus(next, staleConfirmed, input.now);
     events.push({ type: "fileNoteMarkedStale" });
   }
 
-  if (input.change.kind === "insertLines") {
-    next = applyInsertLines(next, input.change.startLine, input.change.lineCount, input.now, events);
-  } else if (input.change.kind === "deleteLines") {
-    next = applyDeleteLines(
-      next,
-      input.change.startLine,
-      input.change.endLine,
-      input.change.lineCount,
-      input.now,
-      events,
-    );
-  } else {
-    next = applyEditLine(next, input.change.line, input.now, events);
-  }
+  const anchorResult = applySourceSpliceToAnchors(next, splice, input.now);
+  next = anchorResult.sourceFile;
+  events.push(...anchorResult.events);
 
   return {
     sourceFile: next,
-    changed: events.length > 0 || next !== input.sourceFile,
+    changed: next !== input.sourceFile || events.length > 0,
     events,
   };
 }
 
 /**
- * Applies a deterministic line insertion to stored Section and Line Note anchors.
+ * Applies one splice to Section and Line anchors without updating file metadata.
  *
- * @param sourceFile - Stored notes before insertion.
- * @param startLine - One-based insertion line.
- * @param lineCount - Number of inserted lines.
- * @param now - Timestamp assigned to changed notes.
- * @param events - Mutable event collection for applied changes.
- * @returns Stored notes with relocated or expanded anchors.
+ * @param sourceFile - Stored source bundle before the splice.
+ * @param splice - Normalized source splice to apply.
+ * @param now - Timestamp assigned to affected Notes.
+ * @returns Updated anchors and their relocation events.
  */
-function applyInsertLines(
+export function applySourceSpliceToAnchors(
   sourceFile: StoredSourceFile,
-  startLine: number,
-  lineCount: number,
+  splice: SourceChangeSplice,
   now: string,
-  events: DeterministicRelocationEvent[],
-): StoredSourceFile {
+): ApplySourceSpliceToAnchorsResult {
+  const events: DeterministicRelocationEvent[] = [];
+
   return {
-    ...sourceFile,
-    sectionNotes: sourceFile.sectionNotes.map((note) => {
-      if (startLine < note.range.startLine) {
-        events.push({ type: "sectionNoteMoved", sectionId: note.id });
-        return {
-          ...note,
-          range: {
-            startLine: note.range.startLine + lineCount,
-            endLine: note.range.endLine + lineCount,
-          },
-          status: confirmAnchor(note.status),
-          updatedAt: now,
-        };
-      }
-
-      if (startLine <= note.range.endLine) {
-        const nextRange = {
-          startLine: note.range.startLine,
-          endLine: note.range.endLine + lineCount,
-        };
-        events.push({ type: "sectionNoteChanged", sectionId: note.id });
-        return {
-          ...note,
-          range: nextRange,
-          status: staleConfirmed,
-          updatedAt: now,
-        };
-      }
-
-      return note;
-    }),
-    lineNotes: sourceFile.lineNotes.map((note) => {
-      if (startLine <= note.line) {
-        events.push({ type: "lineNoteMoved", lineId: note.id });
-        return {
-          ...note,
-          line: note.line + lineCount,
-          status: confirmAnchor(note.status),
-          updatedAt: now,
-        };
-      }
-
-      return note;
-    }),
+    sourceFile: {
+      ...sourceFile,
+      sectionNotes: sourceFile.sectionNotes.map((note) =>
+        applySectionTransform(note, transformSectionAnchor(note.range, splice), now, events),
+      ),
+      lineNotes: sourceFile.lineNotes.map((note) =>
+        applyLineTransform(note, transformLineAnchor(note.line, splice), now, events),
+      ),
+    },
+    events,
   };
 }
 
 /**
- * Applies a complete-line deletion to every stored Section and Line Note.
+ * Applies one pure Section anchor transformation to a stored Section Note.
  *
- * @param sourceFile - Stored notes before deletion.
- * @param startLine - First deleted one-based line.
- * @param endLine - Last deleted one-based line.
- * @param lineCount - Number of deleted lines.
- * @param now - Timestamp assigned to changed notes.
- * @param events - Mutable event collection for applied changes.
- * @returns Stored notes with relocated or orphaned anchors.
+ * @param note - Section Note before relocation.
+ * @param transform - Calculated anchor transformation.
+ * @param now - Timestamp assigned when the note changes.
+ * @param events - Mutable event collection for the relocation.
+ * @returns Original or updated Section Note.
  */
-function applyDeleteLines(
-  sourceFile: StoredSourceFile,
-  startLine: number,
-  endLine: number,
-  lineCount: number,
-  now: string,
-  events: DeterministicRelocationEvent[],
-): StoredSourceFile {
-  return {
-    ...sourceFile,
-    sectionNotes: sourceFile.sectionNotes.map((note) =>
-      applyDeleteLinesToSection(note, startLine, endLine, lineCount, now, events),
-    ),
-    lineNotes: sourceFile.lineNotes.map((note) =>
-      applyDeleteLinesToLine(note, startLine, endLine, lineCount, now, events),
-    ),
-  };
-}
-
-/**
- * Relocates, shrinks, or orphans one Section Note after line deletion.
- *
- * @param note - Section Note to update.
- * @param startLine - First deleted one-based line.
- * @param endLine - Last deleted one-based line.
- * @param lineCount - Number of deleted lines.
- * @param now - Timestamp assigned to the changed note.
- * @param events - Mutable event collection for the applied change.
- * @returns Updated Section Note.
- */
-function applyDeleteLinesToSection(
+function applySectionTransform(
   note: StoredSectionNote,
-  startLine: number,
-  endLine: number,
-  lineCount: number,
+  transform: SectionAnchorTransform,
   now: string,
   events: DeterministicRelocationEvent[],
 ): StoredSectionNote {
-  if (endLine < note.range.startLine) {
-    events.push({ type: "sectionNoteMoved", sectionId: note.id });
-    return {
-      ...note,
-      range: {
-        startLine: note.range.startLine - lineCount,
-        endLine: note.range.endLine - lineCount,
-      },
-      status: confirmAnchor(note.status),
-      updatedAt: now,
-    };
-  }
-
-  if (startLine > note.range.endLine) {
+  if (transform.kind === "unchanged") {
     return note;
   }
 
-  const deletedStart = Math.max(startLine, note.range.startLine);
-  const deletedEnd = Math.min(endLine, note.range.endLine);
-  const deletedInsideCount = deletedEnd - deletedStart + 1;
-  const remainingLineCount = note.range.endLine - note.range.startLine + 1 - deletedInsideCount;
-
-  if (remainingLineCount <= 0) {
-    events.push({ type: "sectionNoteOrphaned", sectionId: note.id });
+  if (transform.kind === "moved") {
+    events.push({ type: "sectionNoteMoved", sectionId: note.id });
     return {
       ...note,
-      status: staleOrphaned,
-      updatedAt: now,
-    };
-  }
-
-  const startShift = startLine < note.range.startLine ? Math.min(lineCount, note.range.startLine - startLine) : 0;
-  const nextRange = {
-    startLine: note.range.startLine - startShift,
-    endLine: note.range.endLine - lineCount,
-  };
-
-  events.push({ type: "sectionNoteChanged", sectionId: note.id });
-  return {
-    ...note,
-    range: nextRange,
-    status: staleConfirmed,
-    updatedAt: now,
-  };
-}
-
-/**
- * Relocates or orphans one Line Note after line deletion.
- *
- * @param note - Line Note to update.
- * @param startLine - First deleted one-based line.
- * @param endLine - Last deleted one-based line.
- * @param lineCount - Number of deleted lines.
- * @param now - Timestamp assigned to the changed note.
- * @param events - Mutable event collection for the applied change.
- * @returns Updated Line Note.
- */
-function applyDeleteLinesToLine(
-  note: StoredLineNote,
-  startLine: number,
-  endLine: number,
-  lineCount: number,
-  now: string,
-  events: DeterministicRelocationEvent[],
-): StoredLineNote {
-  if (endLine < note.line) {
-    events.push({ type: "lineNoteMoved", lineId: note.id });
-    return {
-      ...note,
-      line: note.line - lineCount,
+      range: transform.range,
       status: confirmAnchor(note.status),
       updatedAt: now,
     };
   }
 
-  if (startLine <= note.line && note.line <= endLine) {
-    events.push({ type: "lineNoteOrphaned", lineId: note.id });
+  if (transform.kind === "changed") {
+    events.push({ type: "sectionNoteChanged", sectionId: note.id });
+    return { ...note, range: transform.range, status: staleConfirmed, updatedAt: now };
+  }
+
+  if (transform.kind === "needsConfirmation") {
+    events.push({ type: "sectionNoteNeedsConfirmation", sectionId: note.id });
+    return { ...note, status: staleNeedsConfirmation, updatedAt: now };
+  }
+
+  events.push({ type: "sectionNoteOrphaned", sectionId: note.id });
+  return { ...note, status: staleOrphaned, updatedAt: now };
+}
+
+/**
+ * Applies one pure Line anchor transformation to a stored Line Note.
+ *
+ * @param note - Line Note before relocation.
+ * @param transform - Calculated anchor transformation.
+ * @param now - Timestamp assigned when the note changes.
+ * @param events - Mutable event collection for the relocation.
+ * @returns Original or updated Line Note.
+ */
+function applyLineTransform(
+  note: StoredLineNote,
+  transform: LineAnchorTransform,
+  now: string,
+  events: DeterministicRelocationEvent[],
+): StoredLineNote {
+  if (transform.kind === "unchanged") {
+    return note;
+  }
+
+  if (transform.kind === "moved") {
+    events.push({ type: "lineNoteMoved", lineId: note.id });
     return {
       ...note,
-      status: staleOrphaned,
+      line: transform.line,
+      status: confirmAnchor(note.status),
       updatedAt: now,
     };
   }
 
-  return note;
+  if (transform.kind === "changed") {
+    events.push({ type: "lineNoteChanged", lineId: note.id });
+    return { ...note, line: transform.line, status: staleConfirmed, updatedAt: now };
+  }
+
+  if (transform.kind === "needsConfirmation") {
+    events.push({ type: "lineNoteNeedsConfirmation", lineId: note.id });
+    return { ...note, status: staleNeedsConfirmation, updatedAt: now };
+  }
+
+  events.push({ type: "lineNoteOrphaned", lineId: note.id });
+  return { ...note, status: staleOrphaned, updatedAt: now };
 }
 
-/**
- * Marks notes covering an edited line as content-stale without moving anchors.
- *
- * @param sourceFile - Stored notes before the line edit.
- * @param line - Edited one-based source line.
- * @param now - Timestamp assigned to changed notes.
- * @param events - Mutable event collection for applied changes.
- * @returns Stored notes with updated content status.
- */
-function applyEditLine(
-  sourceFile: StoredSourceFile,
-  line: number,
-  now: string,
-  events: DeterministicRelocationEvent[],
-): StoredSourceFile {
-  return {
-    ...sourceFile,
-    sectionNotes: sourceFile.sectionNotes.map((note) => {
-      if (note.range.startLine <= line && line <= note.range.endLine) {
-        events.push({ type: "sectionNoteChanged", sectionId: note.id });
-        return {
-          ...note,
-          status: staleConfirmed,
-          updatedAt: now,
-        };
-      }
-
-      return note;
-    }),
-    lineNotes: sourceFile.lineNotes.map((note) => {
-      if (note.line === line) {
-        events.push({ type: "lineNoteChanged", lineId: note.id });
-        return {
-          ...note,
-          status: staleConfirmed,
-          updatedAt: now,
-        };
-      }
-
-      return note;
-    }),
-  };
-}
-
-const staleConfirmed: NoteStatus = {
+const staleConfirmed: NoteStatus = { content: "stale", anchor: "confirmed" };
+const staleNeedsConfirmation: NoteStatus = {
   content: "stale",
-  anchor: "confirmed",
+  anchor: "needsConfirmation",
 };
-
-const staleOrphaned: NoteStatus = {
-  content: "stale",
-  anchor: "orphaned",
-};
+const staleOrphaned: NoteStatus = { content: "stale", anchor: "orphaned" };
 
 /**
- * Preserves content status while confirming a deterministically relocated anchor.
+ * Preserves content status while confirming a deterministically moved anchor.
  *
  * @param status - Existing note status.
  * @returns Status with a confirmed anchor.
  */
 function confirmAnchor(status: NoteStatus): NoteStatus {
-  return {
-    content: status.content,
-    anchor: "confirmed",
-  };
+  return { content: status.content, anchor: "confirmed" };
 }

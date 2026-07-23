@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:a52a3fdb006dd76759ab8f6bacfba3172968ddc1ec375f3dce2a50f2c77d38a8",
+    "sourceHash": "sha256:09f3ffc8a53c6e312a97c0b7a4118267792d0ad0c65f8408291f807ab3fe2d5d",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-23T12:01:59.884Z",
-    "updatedAt": "2026-07-23T12:01:59.884Z"
+    "updatedAt": "2026-07-23T12:58:48.913Z"
   },
   "fileNote": {
-    "userNote": "根据确定的源码变化重新计算 Section 和 Line Note 的位置与状态。",
-    "createdBy": "user"
+    "userNote": "当前负责单个 splice 的确定性迁移，并提供可复用的纯锚点应用能力。\n\napplyDeterministicRelocation：复用新的锚点应用函数，单 splice 原有接口和行为保持兼容。\napplySourceSpliceToAnchors：只更新 Section 和 Line 锚点，不重复更新 source hash 或 File Note，供批次服务循环调用。\n",
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

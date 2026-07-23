@@ -409,7 +409,7 @@ describe("registerNotesContentEvents()", () => {
         sectionNotes: [
           expect.objectContaining({
             range: {
-              startLine: 1,
+              startLine: 3,
               endLine: 3,
             },
           }),
@@ -426,10 +426,15 @@ describe("registerNotesContentEvents()", () => {
     const previousText = "export const value = 1;\n";
     const nextText = "const first = 1;\nconst second = 2;\nexport const value = 1;\n";
     const notes = createNotes(createStoredSourceFile(previousText));
+    const notesProvider = createNotesProvider();
     const documentPath = path.join(workspaceRoot, "src/index.ts");
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(createExtensionContext(), notes.value);
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      notesProvider.value,
+    );
     mocks.textDocumentChangeListeners[0]?.({
       document: createDocument(documentPath, nextText),
       contentChanges: [
@@ -444,8 +449,8 @@ describe("registerNotesContentEvents()", () => {
         },
         {
           range: {
-            start: { line: 1, character: 0 },
-            end: { line: 1, character: 0 },
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 },
             isEmpty: true,
           },
           rangeLength: 0,
@@ -456,7 +461,7 @@ describe("registerNotesContentEvents()", () => {
 
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(notes.saveSourceFile).toHaveBeenCalledTimes(2);
+    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
       workspaceRoot,
       ".caca",
@@ -465,7 +470,7 @@ describe("registerNotesContentEvents()", () => {
         sectionNotes: [
           expect.objectContaining({
             range: {
-              startLine: 1,
+              startLine: 3,
               endLine: 3,
             },
           }),
@@ -473,6 +478,11 @@ describe("registerNotesContentEvents()", () => {
       }),
       expect.any(String),
     );
+    expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledOnce();
   });
 
   it("skips save-time full detection after deterministic-only changes", async () => {
@@ -506,7 +516,7 @@ describe("registerNotesContentEvents()", () => {
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
 
-  it("runs save-time full detection after unsupported text changes", async () => {
+  it("applies mixed multi-line replacements without save-time fallback", async () => {
     vi.useFakeTimers();
 
     const workspaceRoot = await createTempWorkspaceRoot("unsupported-save");
@@ -543,7 +553,7 @@ describe("registerNotesContentEvents()", () => {
           expect.objectContaining({
             status: {
               content: "stale",
-              anchor: "needsConfirmation",
+              anchor: "orphaned",
             },
           }),
         ],

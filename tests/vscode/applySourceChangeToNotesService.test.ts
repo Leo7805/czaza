@@ -72,10 +72,7 @@ describe("applySourceChangeToNotesService()", () => {
 
     const result = await applySourceChangeToNotesService({
       document: createDocument(path.join(workspaceRoot, "src/index.ts"), nextText),
-      change: {
-        kind: "editLine",
-        line: 1,
-      },
+      change: createSpliceChange(),
       notes: notes.value,
       now: "2026-07-18T00:00:00.000Z",
     });
@@ -105,7 +102,7 @@ describe("applySourceChangeToNotesService()", () => {
       document: createDocument(path.join(workspaceRoot, "src/index.ts"), "export const value = 2;\n"),
       change: {
         kind: "unsupported",
-        reason: "mixedChange",
+        reason: "multipleChanges",
       },
       notes: notes.value,
       now: "2026-07-18T00:00:00.000Z",
@@ -113,7 +110,7 @@ describe("applySourceChangeToNotesService()", () => {
 
     expect(result).toEqual({
       kind: "unsupported",
-      reason: "mixedChange",
+      reason: "multipleChanges",
     });
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
@@ -126,10 +123,7 @@ describe("applySourceChangeToNotesService()", () => {
 
     const result = await applySourceChangeToNotesService({
       document: createDocument(path.join(workspaceRoot, "src/index.ts"), "export const value = 2;\n"),
-      change: {
-        kind: "editLine",
-        line: 1,
-      },
+      change: createSpliceChange(),
       notes: notes.value,
       now: "2026-07-18T00:00:00.000Z",
     });
@@ -142,6 +136,32 @@ describe("applySourceChangeToNotesService()", () => {
   });
 });
 
+/**
+ * Creates a line-neutral classified splice for service integration tests.
+ *
+ * @returns Classified replacement on the first source line.
+ */
+function createSpliceChange() {
+  return {
+    kind: "splice" as const,
+    splice: {
+      startLine: 0,
+      startCharacter: 21,
+      endLine: 0,
+      endCharacter: 22,
+      insertedLineCount: 0,
+      deletedLineCount: 0,
+      lineDelta: 0,
+    },
+  };
+}
+
+/**
+ * Creates a mocked workspace Note store around an optional source bundle.
+ *
+ * @param sourceFile - Stored source bundle returned by the mock cache.
+ * @returns Mock Note store and its save spy.
+ */
 function createNotes(sourceFile: StoredSourceFile | undefined): {
   value: WorkspaceNoteStore;
   saveSourceFile: ReturnType<typeof vi.fn>;
@@ -159,6 +179,12 @@ function createNotes(sourceFile: StoredSourceFile | undefined): {
   };
 }
 
+/**
+ * Creates a stored source bundle containing File, Section, and Line Notes.
+ *
+ * @param sourceText - Source text represented by the stored bundle.
+ * @returns Stored source bundle for service tests.
+ */
 function createStoredSourceFile(sourceText: string): StoredSourceFile {
   const firstLine = sourceText.split(/\r?\n/)[0] ?? "";
 
@@ -215,6 +241,13 @@ function createStoredSourceFile(sourceText: string): StoredSourceFile {
   };
 }
 
+/**
+ * Creates the minimal VS Code text document used by the service.
+ *
+ * @param fsPath - Absolute document path.
+ * @param text - Current document text.
+ * @returns Mock VS Code text document.
+ */
 function createDocument(fsPath: string, text: string): vscodeTypes.TextDocument {
   return {
     uri: createUri(fsPath),
@@ -223,6 +256,12 @@ function createDocument(fsPath: string, text: string): vscodeTypes.TextDocument 
   } as vscodeTypes.TextDocument;
 }
 
+/**
+ * Creates a mock VS Code workspace folder.
+ *
+ * @param fsPath - Absolute workspace folder path.
+ * @returns Mock workspace folder.
+ */
 function createWorkspaceFolder(fsPath: string): MockWorkspaceFolder {
   return {
     uri: createUri(fsPath),
@@ -231,6 +270,12 @@ function createWorkspaceFolder(fsPath: string): MockWorkspaceFolder {
   };
 }
 
+/**
+ * Creates a minimal file URI for VS Code service tests.
+ *
+ * @param fsPath - Absolute filesystem path.
+ * @returns Mock VS Code file URI.
+ */
 function createUri(fsPath: string): vscodeTypes.Uri {
   return {
     scheme: "file",
@@ -239,6 +284,12 @@ function createUri(fsPath: string): vscodeTypes.Uri {
   } as vscodeTypes.Uri;
 }
 
+/**
+ * Creates an isolated temporary workspace root.
+ *
+ * @param name - Suffix identifying the test scenario.
+ * @returns Absolute path to the temporary workspace.
+ */
 async function createTempWorkspaceRoot(name: string): Promise<string> {
   return mkdtemp(path.join(tmpdir(), `czaza-apply-change-to-notes-${name}-`));
 }

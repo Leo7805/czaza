@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:7f3478f3b2e63bca0e113af33add4ef2bb9f3f348b5ca51675a60b65f47bbdd4",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:54:29.153Z",
+    "updatedAt": "2026-07-23T12:55:28.590Z"
+  },
+  "fileNote": {
+    "userNote": "原子化应用一个 source-change batch，并统一更新 Notes、source hash 和事件。\n\n1. applySourceChangeBatch：依次应用整批 splice，最后只更新一次文件元数据并返回去重事件。\n2. areSamePositionInsertions：判断两个 splice 是否为相同位置的纯插入。\n3. combineSamePositionInsertions：合并相同位置的多个插入，避免相同旧坐标被重复应用。\n4. deduplicateRelocationEvents：删除同一批次中重复产生的 relocation event。\n5. requireConfirmationForAffectedAnchors：将同位置多插入影响的锚点统一标记为待确认。\n6. requireLineConfirmation：将受歧义插入影响的 Line Note 标记为 needsConfirmation。\n7. requireSectionConfirmation：将受歧义插入影响的 Section Note 标记为 needsConfirmation。\n\n",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

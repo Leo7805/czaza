@@ -41,30 +41,40 @@ export type TextDocumentChangeInput = {
   contentChanges: readonly TextDocumentContentChange[];
 };
 
-/** Deterministic document changes currently supported by CZaza. */
+import {
+  findOverlappingSourceChanges,
+  hasSamePositionInsertions,
+  isValidSourceChangeSplice,
+  sortSourceChangesForApplication,
+} from "./sourceChangeBatchAnalysis";
+import type { SourceChangeSplice } from "./sourceChangeAnchorTransform";
+
+/** Normalized document changes currently supported by CZaza. */
 export type ClassifiedSourceChange =
   | {
-      /** Whole-line insertion that does not replace existing text. */
-      kind: "insertLines";
-      startLine: number;
-      lineCount: number;
+      /** One replacement normalized into its pre-change source coordinates. */
+      kind: "splice";
+      splice: SourceChangeSplice;
     }
   | {
-      /** Whole-line deletion. */
-      kind: "deleteLines";
-      startLine: number;
-      endLine: number;
-      lineCount: number;
-    }
-  | {
-      /** Single-line edit that does not change document line count. */
-      kind: "editLine";
-      line: number;
-    }
-  | {
-      /** Change cannot be handled deterministically by the first pass. */
+      /** Change cannot yet be applied as one deterministic splice. */
       kind: "unsupported";
-      reason: "emptyChange" | "multipleChanges" | "mixedChange" | "noLineChange";
+      reason: "emptyChange" | "multipleChanges";
+    };
+
+/** Atomic classification for every content change in one VS Code event. */
+export type ClassifiedSourceChangeBatch =
+  | {
+      /** Valid non-overlapping splices ordered for deterministic application. */
+      kind: "splices";
+      splices: SourceChangeSplice[];
+      /** Whether same-position insertions require conservative anchor review. */
+      requiresConfirmation: boolean;
+    }
+  | {
+      /** The complete event must fall back to the recovery mechanism. */
+      kind: "unsupported";
+      reason: "emptyChange" | "invalidChange" | "overlappingChanges";
     };
 
 /**
@@ -99,6 +109,45 @@ export function classifySourceChange(
 }
 
 /**
+ * Classifies all content changes from one VS Code event as an atomic batch.
+ *
+ * @param input - Minimal VS Code text document change event.
+ * @returns Sorted splice batch, or one unsupported result for the whole event.
+ *
+ * @example
+ * const batch = classifySourceChangeBatch({ contentChanges: event.contentChanges });
+ */
+export function classifySourceChangeBatch(
+  input: TextDocumentChangeInput,
+): ClassifiedSourceChangeBatch {
+  if (input.contentChanges.length === 0) {
+    return { kind: "unsupported", reason: "emptyChange" };
+  }
+
+  const classified = input.contentChanges.map(classifySourceContentChange);
+
+  if (classified.some((change) => change.kind === "unsupported")) {
+    return { kind: "unsupported", reason: "emptyChange" };
+  }
+
+  const splices = classified.map(extractSourceChangeSplice);
+
+  if (splices.some((splice) => !isValidSourceChangeSplice(splice))) {
+    return { kind: "unsupported", reason: "invalidChange" };
+  }
+
+  if (findOverlappingSourceChanges(splices)) {
+    return { kind: "unsupported", reason: "overlappingChanges" };
+  }
+
+  return {
+    kind: "splices",
+    splices: sortSourceChangesForApplication(splices),
+    requiresConfirmation: hasSamePositionInsertions(splices),
+  };
+}
+
+/**
  * Classifies one VS Code text content change.
  *
  * @param change - Single content change from a VS Code text document event.
@@ -110,111 +159,25 @@ export function classifySourceContentChange(
   const insertedLineCount = countLineBreaks(change.text);
   const deletedLineCount = change.range.end.line - change.range.start.line;
 
-  if (isPureLineInsertion(change, insertedLineCount)) {
-    return {
-      kind: "insertLines",
-      startLine: change.range.start.line + 1,
-      lineCount: insertedLineCount,
-    };
-  }
-
-  if (isPureLineDeletion(change, deletedLineCount)) {
-    return {
-      kind: "deleteLines",
-      startLine: change.range.start.line + 1,
-      endLine: change.range.end.line,
-      lineCount: deletedLineCount,
-    };
-  }
-
-  if (isSingleLineEdit(change, insertedLineCount, deletedLineCount)) {
-    return {
-      kind: "editLine",
-      line: change.range.start.line + 1,
-    };
-  }
-
-  if (insertedLineCount === 0 && deletedLineCount === 0) {
+  if (change.rangeLength === 0 && change.text.length === 0) {
     return {
       kind: "unsupported",
-      reason: "noLineChange",
+      reason: "emptyChange",
     };
   }
 
   return {
-    kind: "unsupported",
-    reason: "mixedChange",
+    kind: "splice",
+    splice: {
+      startLine: change.range.start.line,
+      startCharacter: change.range.start.character,
+      endLine: change.range.end.line,
+      endCharacter: change.range.end.character,
+      insertedLineCount,
+      deletedLineCount,
+      lineDelta: insertedLineCount - deletedLineCount,
+    },
   };
-}
-
-/**
- * Checks whether a content change inserts one or more lines without replacing text.
- *
- * @param change - VS Code content change to inspect.
- * @param insertedLineCount - Number of inserted line boundaries.
- * @returns True when the change matches the supported line-insertion shape.
- */
-function isPureLineInsertion(
-  change: TextDocumentContentChange,
-  insertedLineCount: number,
-): boolean {
-  return (
-    insertedLineCount > 0 &&
-    change.rangeLength === 0 &&
-    isEmptyRange(change.range)
-  );
-}
-
-/**
- * Checks whether a content change removes one or more complete source lines.
- *
- * @param change - VS Code content change to inspect.
- * @param deletedLineCount - Number of line boundaries removed by the range.
- * @returns True when the change matches the supported line-deletion shape.
- */
-function isPureLineDeletion(
-  change: TextDocumentContentChange,
-  deletedLineCount: number,
-): boolean {
-  return (
-    deletedLineCount > 0 &&
-    change.text === "" &&
-    change.range.start.character === 0
-  );
-}
-
-/**
- * Checks whether a content change edits one line without changing line count.
- *
- * @param change - VS Code content change to inspect.
- * @param insertedLineCount - Number of inserted line boundaries.
- * @param deletedLineCount - Number of deleted line boundaries.
- * @returns True when the change is a supported single-line edit.
- */
-function isSingleLineEdit(
-  change: TextDocumentContentChange,
-  insertedLineCount: number,
-  deletedLineCount: number,
-): boolean {
-  return (
-    insertedLineCount === 0 &&
-    deletedLineCount === 0 &&
-    change.range.start.line === change.range.end.line &&
-    (change.rangeLength > 0 || change.text.length > 0)
-  );
-}
-
-/**
- * Checks whether a VS Code range represents an insertion point.
- *
- * @param range - Pre-change range reported by VS Code.
- * @returns True when the range has no width.
- */
-function isEmptyRange(range: TextDocumentChangeRange): boolean {
-  return (
-    range.isEmpty === true ||
-    (range.start.line === range.end.line && range.start.character === range.end.character)
-  );
 }
 
 /**
@@ -225,4 +188,18 @@ function isEmptyRange(range: TextDocumentChangeRange): boolean {
  */
 function countLineBreaks(text: string): number {
   return text.match(/\r\n|\r|\n/g)?.length ?? 0;
+}
+
+/**
+ * Enforces exhaustive handling when extracting successfully classified splices.
+ *
+ * @param change - Classification that TypeScript could not narrow in an array callback.
+ * @returns Never because unsupported entries are filtered before extraction.
+ */
+function extractSourceChangeSplice(change: ClassifiedSourceChange): SourceChangeSplice {
+  if (change.kind === "splice") {
+    return change.splice;
+  }
+
+  throw new Error(`Unexpected source change classification: ${JSON.stringify(change)}`);
 }

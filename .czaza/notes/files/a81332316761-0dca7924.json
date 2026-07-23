@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:ba2c822d96a489fc384016a10b335f28c34ae692e3ec24bb0cdf23eead8cd768",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:40:03.048Z",
+    "updatedAt": "2026-07-23T12:40:37.096Z"
+  },
+  "fileNote": {
+    "userNote": "负责验证、排序并检测同一 VS Code 事件中多个 source splice 的冲突。\n\n1. sortSourceChangesForApplication：将 splice 从后往前排序，保护所有变更前坐标。\n2. isValidSourceChangeSplice：检查坐标、删除行数和行数增量是否自洽。\n3. findOverlappingSourceChanges：查找第一对范围重叠的 splice。\n4. hasSamePositionInsertions：检测是否存在相同位置的多个纯插入。\n5. sourceChangeSplicesOverlap：判断两个 splice 是否真正重叠。\n6. positionFallsInsideRange：判断插入位置是否落在一个替换范围内部。\n7. isInsertion：判断 splice 是否为零宽度纯插入。\n8. comparePositions：比较两个 VS Code 源代码位置。\n",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

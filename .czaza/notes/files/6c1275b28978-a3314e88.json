@@ -1,0 +1,21 @@
+{
+  "source": {
+    "sourceHash": "sha256:b080bfe9fd8659ac635ef59c699a4f58cf9ca8ca90c98d5ad9b303ceedcdf6d9",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:16:44.012Z",
+    "updatedAt": "2026-07-23T12:39:01.305Z"
+  },
+  "fileNote": {
+    "userNote": "测试 Section 和 Line Note 在各种 source splice 下的纯坐标变换规则。\n\ncreateSplice：使用默认值和测试覆盖值快速创建完整的标准化 source splice。\n\n覆盖场景：\nCopilot 风格的文本替换并净增加多行。\n在 Section 起始边界前插入。\n在 Section 内插入。\n在 Section 内删除。\n在 Section 前删除并整体前移。\n变化位于 Note 后方。\n删除范围覆盖 Section 起点。\n删除范围覆盖 Section 终点。\n完整删除 Section 和 Line Note。\n在 Line Note 所在行中间插入换行。\n多个 splice 从后向前排序。",
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

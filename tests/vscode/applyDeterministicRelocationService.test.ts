@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { createSourceHash } from "@shared/utils/hashUtils";
 import { applyDeterministicRelocation } from "@vscode/services/noteRelocation/sourceChanges/applyDeterministicRelocationService";
+import type { SourceChangeSplice } from "@vscode/services/noteRelocation/sourceChanges/sourceChangeAnchorTransform";
 
 const now = "2026-07-18T00:00:00.000Z";
 const sourceText = [
@@ -28,11 +29,7 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n");
     const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
-      change: {
-        kind: "insertLines",
-        startLine: 1,
-        lineCount: 1,
-      },
+      change: createSpliceChange({ insertedLineCount: 1, lineDelta: 1 }),
       currentSourceText,
       programmingLanguage: "typescript",
       now,
@@ -69,11 +66,11 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n");
     const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
-      change: {
-        kind: "insertLines",
-        startLine: 3,
-        lineCount: 1,
-      },
+      change: createSpliceChange({
+        startLine: 2,
+        insertedLineCount: 1,
+        lineDelta: 1,
+      }),
       currentSourceText,
       now,
     });
@@ -105,11 +102,11 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n");
     const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
-      change: {
-        kind: "insertLines",
-        startLine: 3,
-        lineCount: 1,
-      },
+      change: createSpliceChange({
+        startLine: 2,
+        insertedLineCount: 1,
+        lineDelta: 1,
+      }),
       currentSourceText,
       now,
     });
@@ -139,12 +136,11 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n");
     const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
-      change: {
-        kind: "deleteLines",
-        startLine: 1,
+      change: createSpliceChange({
         endLine: 1,
-        lineCount: 1,
-      },
+        deletedLineCount: 1,
+        lineDelta: -1,
+      }),
       currentSourceText,
       now,
     });
@@ -184,11 +180,7 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n");
     const result = applyDeterministicRelocation({
       sourceFile,
-      change: {
-        kind: "insertLines",
-        startLine: 1,
-        lineCount: 1,
-      },
+      change: createSpliceChange({ insertedLineCount: 1, lineDelta: 1 }),
       currentSourceText,
       now,
     });
@@ -217,12 +209,12 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n");
     const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
-      change: {
-        kind: "deleteLines",
-        startLine: 3,
+      change: createSpliceChange({
+        startLine: 2,
         endLine: 3,
-        lineCount: 1,
-      },
+        deletedLineCount: 1,
+        lineDelta: -1,
+      }),
       currentSourceText,
       now,
     });
@@ -240,12 +232,12 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n");
     const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
-      change: {
-        kind: "deleteLines",
-        startLine: 2,
+      change: createSpliceChange({
+        startLine: 1,
         endLine: 4,
-        lineCount: 3,
-      },
+        deletedLineCount: 3,
+        lineDelta: -3,
+      }),
       currentSourceText,
       now,
     });
@@ -266,10 +258,12 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n");
     const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
-      change: {
-        kind: "editLine",
-        line: 3,
-      },
+      change: createSpliceChange({
+        startLine: 2,
+        startCharacter: 14,
+        endLine: 2,
+        endCharacter: 15,
+      }),
       currentSourceText,
       now,
     });
@@ -298,7 +292,7 @@ describe("applyDeterministicRelocation()", () => {
       sourceFile,
       change: {
         kind: "unsupported",
-        reason: "mixedChange",
+        reason: "multipleChanges",
       },
       currentSourceText: sourceText,
       now,
@@ -309,12 +303,70 @@ describe("applyDeterministicRelocation()", () => {
     expect(result.events).toEqual([
       {
         type: "unsupportedChange",
-        reason: "mixedChange",
+        reason: "multipleChanges",
       },
     ]);
   });
+
+  it("moves downstream notes after a Copilot-style replacement inserts lines", () => {
+    const currentSourceText = [
+      "const first = 1;",
+      "const replacement = 2;",
+      "const inserted = 20;",
+      "const extra = 21;",
+      "const second = 2;",
+      "const third = 3;",
+      "const fourth = 4;",
+      "const fifth = 5;",
+    ].join("\n");
+    const result = applyDeterministicRelocation({
+      sourceFile: createStoredSourceFile(),
+      change: createSpliceChange({
+        startLine: 0,
+        startCharacter: 6,
+        endLine: 0,
+        endCharacter: 11,
+        insertedLineCount: 3,
+        lineDelta: 3,
+      }),
+      currentSourceText,
+      now,
+    });
+
+    expect(result.sourceFile.sectionNotes[0]?.range).toEqual({
+      startLine: 5,
+      endLine: 7,
+    });
+    expect(result.sourceFile.lineNotes[0]?.line).toBe(6);
+  });
 });
 
+/**
+ * Creates a classified splice with concise overrides for relocation tests.
+ *
+ * @param overrides - Source splice fields that differ from defaults.
+ * @returns Classified normalized source splice.
+ */
+function createSpliceChange(overrides: Partial<SourceChangeSplice>) {
+  const splice: SourceChangeSplice = {
+    startLine: 0,
+    startCharacter: 0,
+    endLine: overrides.startLine ?? 0,
+    endCharacter: overrides.startCharacter ?? 0,
+    insertedLineCount: 0,
+    deletedLineCount: 0,
+    lineDelta: 0,
+    ...overrides,
+  };
+
+  return { kind: "splice" as const, splice };
+}
+
+/**
+ * Creates a stored source bundle containing representative notes.
+ *
+ * @returns Stored source bundle for deterministic relocation tests.
+ */
 function createStoredSourceFile(): StoredSourceFile {
   return {
     source: {

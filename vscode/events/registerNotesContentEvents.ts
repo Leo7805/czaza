@@ -17,9 +17,7 @@ import {
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
 import {
   applySourceChangeToNotesService,
-  classifySourceChange,
-  classifySourceContentChange,
-  type ClassifiedSourceChange,
+  classifySourceChangeBatch,
 } from "@vscode/services/noteRelocation";
 import {
   isCzazaManagedRelativePath,
@@ -108,6 +106,17 @@ export function registerNotesContentEvents(
   );
 }
 
+/**
+ * Classifies and queues one VS Code content-change event as an atomic Note update.
+ *
+ * @param notes - Shared workspace Note store.
+ * @param event - VS Code text document change event.
+ * @param notesProvider - Optional Notes view refreshed after persistence.
+ * @param pendingDocumentChanges - Per-document save fallback state.
+ * @param notesRefreshTimers - Per-document refresh debounce timers.
+ * @param documentChangeQueues - Per-document serialized update queues.
+ * @returns Promise resolved after the event has been classified and queued.
+ */
 async function handleTextDocumentChange(
   notes: WorkspaceNoteStore,
   event: vscode.TextDocumentChangeEvent,
@@ -125,54 +134,34 @@ async function handleTextDocumentChange(
     }
 
     const key = event.document.uri.toString();
-    const classifiedChanges = classifySourceChanges(event);
+    const classifiedBatch = classifySourceChangeBatch(event);
     const state = getPendingDocumentChangeState(pendingDocumentChanges, key);
 
-    if (classifiedChanges.length === 0) {
+    if (classifiedBatch.kind === "unsupported") {
       state.hasUnsupportedChange = true;
       return;
     }
 
     const document = createTextDocumentSnapshot(event.document);
 
-    for (const classifiedChange of classifiedChanges) {
-      enqueueDocumentChange(documentChangeQueues, key, async () => {
-        const result = await applySourceChangeToNotesService({
-          document,
-          change: classifiedChange,
-          notes,
-          now: new Date().toISOString(),
-        });
-
-        if (result.kind !== "updated") {
-          return;
-        }
-
-        state.hasAppliedDeterministicChange = true;
-        scheduleNotesRefresh(document.uri, notesProvider, notesRefreshTimers);
+    enqueueDocumentChange(documentChangeQueues, key, async () => {
+      const result = await applySourceChangeToNotesService({
+        document,
+        change: classifiedBatch,
+        notes,
+        now: new Date().toISOString(),
       });
-    }
+
+      if (result.kind !== "updated") {
+        return;
+      }
+
+      state.hasAppliedDeterministicChange = true;
+      scheduleNotesRefresh(document.uri, notesProvider, notesRefreshTimers);
+    });
   } catch (error) {
     console.error("Failed to apply deterministic CZaza note updates after a text change.", error);
   }
-}
-
-function classifySourceChanges(
-  event: vscode.TextDocumentChangeEvent,
-): ClassifiedSourceChange[] {
-  if (event.contentChanges.length <= 1) {
-    const classified = classifySourceChange(event);
-
-    return classified.kind === "unsupported" ? [] : [classified];
-  }
-
-  const classifiedChanges = event.contentChanges.map((change) =>
-    classifySourceContentChange(change),
-  );
-
-  return classifiedChanges.some((change) => change.kind === "unsupported")
-    ? []
-    : classifiedChanges;
 }
 
 async function handleSavedDocument(
