@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:bc16d09beab9f54c71a20dea128b21c51d9c16aa487b99122c6ccaa5dacc2278",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:02:15.571Z",
+    "updatedAt": "2026-07-23T12:02:15.571Z"
+  },
+  "fileNote": {
+    "userNote": "读取对应 Notes、应用确定性 Relocate，并将结果持久化到 Notes Store。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

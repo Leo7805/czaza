@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:91d6b958c3fce92fe8909cde89d78c42154c77c0f5e74fef045a80fb08f0cd36",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T11:59:54.831Z",
+    "updatedAt": "2026-07-23T11:59:54.831Z"
+  },
+  "fileNote": {
+    "userNote": "将整个文件的 Notes 重新关联到用户指定的目标文件。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

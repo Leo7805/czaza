@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:00c7469614561d85e9612de2d997838c63cf54c59f9115f856ef1845f5aab0ec",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:01:08.599Z",
+    "updatedAt": "2026-07-23T12:01:08.599Z"
+  },
+  "fileNote": {
+    "userNote": "统一导出源码变化分类、确定性 Relocate 和持久化服务。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

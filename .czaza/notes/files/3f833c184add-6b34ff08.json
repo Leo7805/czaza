@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:a52a3fdb006dd76759ab8f6bacfba3172968ddc1ec375f3dce2a50f2c77d38a8",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:01:59.884Z",
+    "updatedAt": "2026-07-23T12:01:59.884Z"
+  },
+  "fileNote": {
+    "userNote": "根据确定的源码变化重新计算 Section 和 Line Note 的位置与状态。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

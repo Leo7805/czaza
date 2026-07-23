@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { createSourceHash } from "@shared/utils/hashUtils";
-import { applyDeterministicTextDocumentChange } from "@vscode/services/textDocumentChanges/applyDeterministicTextDocumentChangeService";
+import { applyDeterministicRelocation } from "@vscode/services/noteRelocation/sourceChanges/applyDeterministicRelocationService";
 
 const now = "2026-07-18T00:00:00.000Z";
 const sourceText = [
@@ -16,7 +16,7 @@ const sourceText = [
   "const fifth = 5;",
 ].join("\n");
 
-describe("applyDeterministicTextDocumentChange()", () => {
+describe("applyDeterministicRelocation()", () => {
   it("moves section and line notes after inserted lines before them", () => {
     const currentSourceText = [
       "const inserted = 0;",
@@ -26,7 +26,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
       "const fourth = 4;",
       "const fifth = 5;",
     ].join("\n");
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
       change: {
         kind: "insertLines",
@@ -67,7 +67,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
       "const fourth = 4;",
       "const fifth = 5;",
     ].join("\n");
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
       change: {
         kind: "insertLines",
@@ -103,7 +103,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
       "const fourth = 4;",
       "const fifth = 5;",
     ].join("\n");
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
       change: {
         kind: "insertLines",
@@ -137,7 +137,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
       "const fourth = 4;",
       "const fifth = 5;",
     ].join("\n");
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
       change: {
         kind: "deleteLines",
@@ -182,7 +182,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
       "const fourth = 4;",
       "const fifth = 5;",
     ].join("\n");
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile,
       change: {
         kind: "insertLines",
@@ -215,7 +215,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
       "const fourth = 4;",
       "const fifth = 5;",
     ].join("\n");
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
       change: {
         kind: "deleteLines",
@@ -238,7 +238,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
       "const first = 1;",
       "const fifth = 5;",
     ].join("\n");
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
       change: {
         kind: "deleteLines",
@@ -264,7 +264,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
       "const fourth = 4;",
       "const fifth = 5;",
     ].join("\n");
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile: createStoredSourceFile(),
       change: {
         kind: "editLine",
@@ -294,7 +294,7 @@ describe("applyDeterministicTextDocumentChange()", () => {
 
   it("returns unsupported events without changing source notes", () => {
     const sourceFile = createStoredSourceFile();
-    const result = applyDeterministicTextDocumentChange({
+    const result = applyDeterministicRelocation({
       sourceFile,
       change: {
         kind: "unsupported",

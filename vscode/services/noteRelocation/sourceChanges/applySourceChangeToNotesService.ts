@@ -1,5 +1,5 @@
 /**
- * Applies a classified text document change to persisted workspace notes.
+ * Applies a classified source change to persisted workspace Notes.
  */
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
@@ -11,10 +11,10 @@ import {
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import * as vscode from "vscode";
 import {
-  applyDeterministicTextDocumentChange,
-  type ApplyDeterministicTextDocumentChangeResult,
-} from "./applyDeterministicTextDocumentChangeService";
-import type { ClassifiedTextDocumentChange } from "./classifyTextDocumentChangeService";
+  applyDeterministicRelocation,
+  type ApplyDeterministicRelocationResult,
+} from "./applyDeterministicRelocationService";
+import type { ClassifiedSourceChange } from "./classifySourceChangeService";
 
 /** Minimal document shape required by deterministic text-change application. */
 export type TextDocumentChangeNotesDocument = {
@@ -29,12 +29,12 @@ export type TextDocumentChangeNotesDocument = {
 };
 
 /** Input for applying one classified text document change to stored notes. */
-export type ApplyTextDocumentChangeToNotesInput = {
+export type ApplySourceChangeToNotesInput = {
   /** Current source document after the text change. */
   document: TextDocumentChangeNotesDocument;
 
   /** Classified text change. */
-  change: ClassifiedTextDocumentChange;
+  change: ClassifiedSourceChange;
 
   /** Shared workspace note store. */
   notes: WorkspaceNoteStore;
@@ -44,26 +44,26 @@ export type ApplyTextDocumentChangeToNotesInput = {
 };
 
 /** Result from applying one classified text document change to stored notes. */
-export type ApplyTextDocumentChangeToNotesResult =
+export type ApplySourceChangeToNotesResult =
   | {
       /** The change was deterministic and persisted. */
       kind: "updated";
       relativePath: string;
       sourceFile: StoredSourceFile;
       updatedSourceFile: StoredSourceFile;
-      applyResult: ApplyDeterministicTextDocumentChangeResult;
+      applyResult: ApplyDeterministicRelocationResult;
     }
   | {
       /** The change was deterministic, but no stored note data changed. */
       kind: "unchanged";
       relativePath: string;
       sourceFile: StoredSourceFile;
-      applyResult: ApplyDeterministicTextDocumentChangeResult;
+      applyResult: ApplyDeterministicRelocationResult;
     }
   | {
       /** The change cannot be applied deterministically. */
       kind: "unsupported";
-      reason: Extract<ClassifiedTextDocumentChange, { kind: "unsupported" }>["reason"];
+      reason: Extract<ClassifiedSourceChange, { kind: "unsupported" }>["reason"];
     }
   | {
       /** The URI was not a local file. */
@@ -83,11 +83,11 @@ export type ApplyTextDocumentChangeToNotesResult =
  * @returns Apply outcome for the document.
  *
  * @example
- * const result = await applyTextDocumentChangeToNotesService({ document, change, notes, now });
+ * const result = await applySourceChangeToNotesService({ document, change, notes, now });
  */
-export async function applyTextDocumentChangeToNotesService(
-  input: ApplyTextDocumentChangeToNotesInput,
-): Promise<ApplyTextDocumentChangeToNotesResult> {
+export async function applySourceChangeToNotesService(
+  input: ApplySourceChangeToNotesInput,
+): Promise<ApplySourceChangeToNotesResult> {
   const { document, change, notes, now } = input;
 
   if (change.kind === "unsupported") {
@@ -120,7 +120,7 @@ export async function applyTextDocumentChangeToNotesService(
     };
   }
 
-  const applyResult = applyDeterministicTextDocumentChange({
+  const applyResult = applyDeterministicRelocation({
     sourceFile,
     change,
     currentSourceText: document.getText(),

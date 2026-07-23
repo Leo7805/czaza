@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:d37a25e8630370bb231b3d91792ce52000b313695dbbd60bc4da5d9155d8348f",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T11:58:21.276Z",
+    "updatedAt": "2026-07-23T11:58:21.276Z"
+  },
+  "fileNote": {
+    "userNote": "统一导出 File、Section 和 Line Note 手动 Relocate 服务。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-23T11:42:08.516Z",
+  "updatedAt": "2026-07-23T12:02:15.571Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -43,6 +43,75 @@
       "sourceHash": "sha256:a201c7e910894d8174a2872082d5597dee1b726a00cb28ae8b3fe56f02a9e07a",
       "programmingLanguage": "typescript",
       "updatedAt": "2026-07-23T11:42:08.516Z"
+    },
+    "vscode/services/noteRelocation": {
+      "noteFile": "files/c55d85b4b236-373a617a.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-07-23T11:57:32.297Z"
+    },
+    "vscode/services/noteRelocation/index.ts": {
+      "noteFile": "files/262fcf2ab29e-117751f4.json",
+      "sourceHash": "sha256:e7dccb3fa425383aeed4393d67d36a2d42aaaced42cc7525f92e5f437ebd1855",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T11:57:53.391Z"
+    },
+    "vscode/services/noteRelocation/manual": {
+      "noteFile": "files/5a7872c8c436-9af36164.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-07-23T11:58:05.021Z"
+    },
+    "vscode/services/noteRelocation/manual/index.ts": {
+      "noteFile": "files/de2db3fd8f6d-d751f033.json",
+      "sourceHash": "sha256:d37a25e8630370bb231b3d91792ce52000b313695dbbd60bc4da5d9155d8348f",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T11:58:21.276Z"
+    },
+    "vscode/services/noteRelocation/sourceChanges": {
+      "noteFile": "files/858c294b9770-d5d420f5.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-07-23T11:58:57.107Z"
+    },
+    "vscode/services/noteRelocation/manual/relocateFileNoteService.ts": {
+      "noteFile": "files/82f09d5b59bb-d3c4f522.json",
+      "sourceHash": "sha256:91d6b958c3fce92fe8909cde89d78c42154c77c0f5e74fef045a80fb08f0cd36",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T11:59:54.831Z"
+    },
+    "vscode/services/noteRelocation/manual/relocateSectionNoteService.ts": {
+      "noteFile": "files/6d19e08e89a8-d77ae0b0.json",
+      "sourceHash": "sha256:125dbebb8d49034713603ee4f0a4f908ebec495b655d22d58117d56c72ba7b51",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T12:00:15.532Z"
+    },
+    "vscode/services/noteRelocation/manual/relocateLineNoteService.ts": {
+      "noteFile": "files/91cd4568fee6-0387dbae.json",
+      "sourceHash": "sha256:62e9aebbbab8af4fc420f87a39e2ac60170c3e8e99f71a294db1c9be57a36c79",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T12:00:28.897Z"
+    },
+    "vscode/services/noteRelocation/sourceChanges/index.ts": {
+      "noteFile": "files/23e62b4bb606-fa76c8d5.json",
+      "sourceHash": "sha256:00c7469614561d85e9612de2d997838c63cf54c59f9115f856ef1845f5aab0ec",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T12:01:08.599Z"
+    },
+    "vscode/services/noteRelocation/sourceChanges/classifySourceChangeService.ts": {
+      "noteFile": "files/21516cd2c921-b232bbea.json",
+      "sourceHash": "sha256:4df838b4ca014b4777b1b8eb46e3734e6ff2fb26ce17dc67f027fa803b5daef4",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T12:01:29.910Z"
+    },
+    "vscode/services/noteRelocation/sourceChanges/applyDeterministicRelocationService.ts": {
+      "noteFile": "files/3f833c184add-6b34ff08.json",
+      "sourceHash": "sha256:a52a3fdb006dd76759ab8f6bacfba3172968ddc1ec375f3dce2a50f2c77d38a8",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T12:01:59.884Z"
+    },
+    "vscode/services/noteRelocation/sourceChanges/applySourceChangeToNotesService.ts": {
+      "noteFile": "files/f1e4f4de1ba7-ec7a30c1.json",
+      "sourceHash": "sha256:bc16d09beab9f54c71a20dea128b21c51d9c16aa487b99122c6ccaa5dacc2278",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-23T12:02:15.571Z"
     }
   }
 }

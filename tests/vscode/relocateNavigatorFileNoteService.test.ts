@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { WorkspaceNoteStore, WorkspaceNoteStoreRepository } from "@vscode/notes";
-import { relocateFileNoteService } from "@vscode/services/relocate";
+import { relocateFileNoteService } from "@vscode/services/noteRelocation";
 
 type MockWorkspaceFolder = {
   uri: vscodeTypes.Uri;

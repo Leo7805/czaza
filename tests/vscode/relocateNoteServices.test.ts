@@ -7,7 +7,7 @@ import { createSourceHash } from "@shared/utils/hashUtils";
 import {
   relocateLineNoteService,
   relocateSectionNoteService,
-} from "@vscode/services/relocate";
+} from "@vscode/services/noteRelocation";
 
 const mocks = vi.hoisted(() => ({
   sourceFile: undefined as StoredSourceFile | undefined,

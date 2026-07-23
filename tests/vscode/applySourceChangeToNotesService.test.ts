@@ -50,10 +50,10 @@ vi.mock("vscode", () => ({
   },
 }));
 
-import { applyTextDocumentChangeToNotesService } from "@vscode/services/textDocumentChanges/applyTextDocumentChangeToNotesService";
+import { applySourceChangeToNotesService } from "@vscode/services/noteRelocation/sourceChanges/applySourceChangeToNotesService";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 
-describe("applyTextDocumentChangeToNotesService()", () => {
+describe("applySourceChangeToNotesService()", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -70,7 +70,7 @@ describe("applyTextDocumentChangeToNotesService()", () => {
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
-    const result = await applyTextDocumentChangeToNotesService({
+    const result = await applySourceChangeToNotesService({
       document: createDocument(path.join(workspaceRoot, "src/index.ts"), nextText),
       change: {
         kind: "editLine",
@@ -101,7 +101,7 @@ describe("applyTextDocumentChangeToNotesService()", () => {
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
-    const result = await applyTextDocumentChangeToNotesService({
+    const result = await applySourceChangeToNotesService({
       document: createDocument(path.join(workspaceRoot, "src/index.ts"), "export const value = 2;\n"),
       change: {
         kind: "unsupported",
@@ -124,7 +124,7 @@ describe("applyTextDocumentChangeToNotesService()", () => {
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
-    const result = await applyTextDocumentChangeToNotesService({
+    const result = await applySourceChangeToNotesService({
       document: createDocument(path.join(workspaceRoot, "src/index.ts"), "export const value = 2;\n"),
       change: {
         kind: "editLine",

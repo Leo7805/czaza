@@ -13,7 +13,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
-import { getResourceFingerprint } from "../resourceFingerprint/getResourceFingerprintService";
+import { getResourceFingerprint } from "../../resourceFingerprint/getResourceFingerprintService";
 import * as vscode from "vscode";
 
 export type RelocateLineNoteInput = {
@@ -23,7 +23,12 @@ export type RelocateLineNoteInput = {
   line: number;
 };
 
-/** Updates line, anchor text, and anchor status in one persisted transaction. */
+/**
+ * Updates a Line Note number, anchor text, and anchor status atomically.
+ *
+ * @param input - Source resource, Note store, Line Note id, and target line.
+ * @returns Promise that resolves after the relocated Note is persisted.
+ */
 export async function relocateLineNoteService(input: RelocateLineNoteInput): Promise<void> {
   const fingerprint = await getResourceFingerprint(input.uri);
 

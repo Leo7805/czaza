@@ -4,14 +4,14 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  classifyTextDocumentChange,
+  classifySourceChange,
   type TextDocumentContentChange,
-} from "@vscode/services/textDocumentChanges/classifyTextDocumentChangeService";
+} from "@vscode/services/noteRelocation/sourceChanges/classifySourceChangeService";
 
-describe("classifyTextDocumentChange()", () => {
+describe("classifySourceChange()", () => {
   it("classifies pure line insertion", () => {
     expect(
-      classifyTextDocumentChange({
+      classifySourceChange({
         contentChanges: [
           createChange({
             startLine: 4,
@@ -32,7 +32,7 @@ describe("classifyTextDocumentChange()", () => {
 
   it("classifies pure line deletion", () => {
     expect(
-      classifyTextDocumentChange({
+      classifySourceChange({
         contentChanges: [
           createChange({
             startLine: 2,
@@ -54,7 +54,7 @@ describe("classifyTextDocumentChange()", () => {
 
   it("classifies single-line edits that do not change line count", () => {
     expect(
-      classifyTextDocumentChange({
+      classifySourceChange({
         contentChanges: [
           createChange({
             startLine: 7,
@@ -73,7 +73,7 @@ describe("classifyTextDocumentChange()", () => {
   });
 
   it("reports empty changes as unsupported", () => {
-    expect(classifyTextDocumentChange({ contentChanges: [] })).toEqual({
+    expect(classifySourceChange({ contentChanges: [] })).toEqual({
       kind: "unsupported",
       reason: "emptyChange",
     });
@@ -81,7 +81,7 @@ describe("classifyTextDocumentChange()", () => {
 
   it("reports multiple changes as unsupported", () => {
     expect(
-      classifyTextDocumentChange({
+      classifySourceChange({
         contentChanges: [
           createChange({ startLine: 0, endLine: 0, text: "a", rangeLength: 0 }),
           createChange({ startLine: 1, endLine: 1, text: "b", rangeLength: 0 }),
@@ -95,7 +95,7 @@ describe("classifyTextDocumentChange()", () => {
 
   it("reports no-op line-neutral changes as unsupported", () => {
     expect(
-      classifyTextDocumentChange({
+      classifySourceChange({
         contentChanges: [
           createChange({
             startLine: 1,
@@ -115,7 +115,7 @@ describe("classifyTextDocumentChange()", () => {
 
   it("reports mixed multi-line replacements as unsupported", () => {
     expect(
-      classifyTextDocumentChange({
+      classifySourceChange({
         contentChanges: [
           createChange({
             startLine: 1,

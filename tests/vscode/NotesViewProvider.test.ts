@@ -73,7 +73,7 @@ vi.mock("@vscode/services/markNavigatorFileNoteOrphanedService", () => ({
   markNavigatorFileNoteOrphanedService: mocks.markNavigatorFileNoteOrphanedService,
 }));
 
-vi.mock("@vscode/services/relocate", () => ({
+vi.mock("@vscode/services/noteRelocation", () => ({
   relocateFileNoteService: mocks.relocateFileNoteService,
   relocateSectionNoteService: mocks.relocateSectionNoteService,
   relocateLineNoteService: mocks.relocateLineNoteService,

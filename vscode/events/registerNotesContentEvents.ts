@@ -15,13 +15,15 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
-import { applyTextDocumentChangeToNotesService } from "@vscode/services/textDocumentChanges/applyTextDocumentChangeToNotesService";
 import {
-  classifyTextDocumentChange,
-  classifyTextDocumentContentChange,
-  type ClassifiedTextDocumentChange,
-} from "@vscode/services/textDocumentChanges/classifyTextDocumentChangeService";
-import { isCzazaManagedRelativePath } from "@shared/utils/managedOutputPath";
+  applySourceChangeToNotesService,
+  classifySourceChange,
+  classifySourceContentChange,
+  type ClassifiedSourceChange,
+} from "@vscode/services/noteRelocation";
+import {
+  isCzazaManagedRelativePath,
+} from "@shared/utils/managedOutputPath";
 import * as vscode from "vscode";
 
 const EXTERNAL_CHANGE_DEBOUNCE_MS = 800;
@@ -123,7 +125,7 @@ async function handleTextDocumentChange(
     }
 
     const key = event.document.uri.toString();
-    const classifiedChanges = classifyTextDocumentChanges(event);
+    const classifiedChanges = classifySourceChanges(event);
     const state = getPendingDocumentChangeState(pendingDocumentChanges, key);
 
     if (classifiedChanges.length === 0) {
@@ -135,7 +137,7 @@ async function handleTextDocumentChange(
 
     for (const classifiedChange of classifiedChanges) {
       enqueueDocumentChange(documentChangeQueues, key, async () => {
-        const result = await applyTextDocumentChangeToNotesService({
+        const result = await applySourceChangeToNotesService({
           document,
           change: classifiedChange,
           notes,
@@ -155,17 +157,17 @@ async function handleTextDocumentChange(
   }
 }
 
-function classifyTextDocumentChanges(
+function classifySourceChanges(
   event: vscode.TextDocumentChangeEvent,
-): ClassifiedTextDocumentChange[] {
+): ClassifiedSourceChange[] {
   if (event.contentChanges.length <= 1) {
-    const classified = classifyTextDocumentChange(event);
+    const classified = classifySourceChange(event);
 
     return classified.kind === "unsupported" ? [] : [classified];
   }
 
   const classifiedChanges = event.contentChanges.map((change) =>
-    classifyTextDocumentContentChange(change),
+    classifySourceContentChange(change),
   );
 
   return classifiedChanges.some((change) => change.kind === "unsupported")

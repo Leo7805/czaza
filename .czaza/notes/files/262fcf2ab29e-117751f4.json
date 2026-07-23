@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:e7dccb3fa425383aeed4393d67d36a2d42aaaced42cc7525f92e5f437ebd1855",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T11:57:53.391Z",
+    "updatedAt": "2026-07-23T11:57:53.391Z"
+  },
+  "fileNote": {
+    "userNote": "统一导出手动和自动 Relocate 的公共 API",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -46,7 +46,7 @@ import {
   relocateFileNoteService,
   relocateLineNoteService,
   relocateSectionNoteService,
-} from "@vscode/services/relocate";
+} from "@vscode/services/noteRelocation";
 
 /**
  * Message posted by the React notes webview.

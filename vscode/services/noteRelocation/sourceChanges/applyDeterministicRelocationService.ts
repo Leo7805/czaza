@@ -1,5 +1,5 @@
 /**
- * Applies deterministic text document changes to stored file notes.
+ * Applies deterministic source changes to stored Note anchors.
  */
 
 import type { NoteStatus } from "@shared/models/domain/common";
@@ -12,15 +12,15 @@ import {
 } from "@shared/services/notes/noteAnchorService";
 import { updateFileNoteStatus } from "@shared/services/notes/noteStatusService";
 import { createSourceHash } from "@shared/utils/hashUtils";
-import type { ClassifiedTextDocumentChange } from "./classifyTextDocumentChangeService";
+import type { ClassifiedSourceChange } from "./classifySourceChangeService";
 
 /** Input for applying one deterministic document change. */
-export type ApplyDeterministicTextDocumentChangeInput = {
+export type ApplyDeterministicRelocationInput = {
   /** Stored file note bundle before the change. */
   sourceFile: StoredSourceFile;
 
   /** Classified deterministic text document change. */
-  change: ClassifiedTextDocumentChange;
+  change: ClassifiedSourceChange;
 
   /** Current source text after the change. */
   currentSourceText: string;
@@ -33,10 +33,10 @@ export type ApplyDeterministicTextDocumentChangeInput = {
 };
 
 /** Event emitted while applying one deterministic change. */
-export type DeterministicTextDocumentChangeEvent =
+export type DeterministicRelocationEvent =
   | {
       type: "unsupportedChange";
-      reason: Extract<ClassifiedTextDocumentChange, { kind: "unsupported" }>["reason"];
+      reason: Extract<ClassifiedSourceChange, { kind: "unsupported" }>["reason"];
     }
   | {
       type: "fileNoteMarkedStale";
@@ -51,7 +51,7 @@ export type DeterministicTextDocumentChangeEvent =
     };
 
 /** Result of applying one deterministic document change. */
-export type ApplyDeterministicTextDocumentChangeResult = {
+export type ApplyDeterministicRelocationResult = {
   /** Updated file note bundle. */
   sourceFile: StoredSourceFile;
 
@@ -59,7 +59,7 @@ export type ApplyDeterministicTextDocumentChangeResult = {
   changed: boolean;
 
   /** Structured events describing applied updates. */
-  events: DeterministicTextDocumentChangeEvent[];
+  events: DeterministicRelocationEvent[];
 };
 
 /**
@@ -69,11 +69,11 @@ export type ApplyDeterministicTextDocumentChangeResult = {
  * @returns Updated source file and emitted events.
  *
  * @example
- * const result = applyDeterministicTextDocumentChange({ sourceFile, change, currentSourceText, now });
+ * const result = applyDeterministicRelocation({ sourceFile, change, currentSourceText, now });
  */
-export function applyDeterministicTextDocumentChange(
-  input: ApplyDeterministicTextDocumentChangeInput,
-): ApplyDeterministicTextDocumentChangeResult {
+export function applyDeterministicRelocation(
+  input: ApplyDeterministicRelocationInput,
+): ApplyDeterministicRelocationResult {
   if (input.change.kind === "unsupported") {
     return {
       sourceFile: input.sourceFile,
@@ -87,7 +87,7 @@ export function applyDeterministicTextDocumentChange(
     };
   }
 
-  const events: DeterministicTextDocumentChangeEvent[] = [];
+  const events: DeterministicRelocationEvent[] = [];
   let next = updateSourceHash(input.sourceFile, createSourceHash(input.currentSourceText));
 
   next = updateProgrammingLanguage(next, input.programmingLanguage);
@@ -119,12 +119,22 @@ export function applyDeterministicTextDocumentChange(
   };
 }
 
+/**
+ * Applies a deterministic line insertion to stored Section and Line Note anchors.
+ *
+ * @param sourceFile - Stored notes before insertion.
+ * @param startLine - One-based insertion line.
+ * @param lineCount - Number of inserted lines.
+ * @param now - Timestamp assigned to changed notes.
+ * @param events - Mutable event collection for applied changes.
+ * @returns Stored notes with relocated or expanded anchors.
+ */
 function applyInsertLines(
   sourceFile: StoredSourceFile,
   startLine: number,
   lineCount: number,
   now: string,
-  events: DeterministicTextDocumentChangeEvent[],
+  events: DeterministicRelocationEvent[],
 ): StoredSourceFile {
   return {
     ...sourceFile,
@@ -174,13 +184,24 @@ function applyInsertLines(
   };
 }
 
+/**
+ * Applies a complete-line deletion to every stored Section and Line Note.
+ *
+ * @param sourceFile - Stored notes before deletion.
+ * @param startLine - First deleted one-based line.
+ * @param endLine - Last deleted one-based line.
+ * @param lineCount - Number of deleted lines.
+ * @param now - Timestamp assigned to changed notes.
+ * @param events - Mutable event collection for applied changes.
+ * @returns Stored notes with relocated or orphaned anchors.
+ */
 function applyDeleteLines(
   sourceFile: StoredSourceFile,
   startLine: number,
   endLine: number,
   lineCount: number,
   now: string,
-  events: DeterministicTextDocumentChangeEvent[],
+  events: DeterministicRelocationEvent[],
 ): StoredSourceFile {
   return {
     ...sourceFile,
@@ -193,13 +214,24 @@ function applyDeleteLines(
   };
 }
 
+/**
+ * Relocates, shrinks, or orphans one Section Note after line deletion.
+ *
+ * @param note - Section Note to update.
+ * @param startLine - First deleted one-based line.
+ * @param endLine - Last deleted one-based line.
+ * @param lineCount - Number of deleted lines.
+ * @param now - Timestamp assigned to the changed note.
+ * @param events - Mutable event collection for the applied change.
+ * @returns Updated Section Note.
+ */
 function applyDeleteLinesToSection(
   note: StoredSectionNote,
   startLine: number,
   endLine: number,
   lineCount: number,
   now: string,
-  events: DeterministicTextDocumentChangeEvent[],
+  events: DeterministicRelocationEvent[],
 ): StoredSectionNote {
   if (endLine < note.range.startLine) {
     events.push({ type: "sectionNoteMoved", sectionId: note.id });
@@ -247,13 +279,24 @@ function applyDeleteLinesToSection(
   };
 }
 
+/**
+ * Relocates or orphans one Line Note after line deletion.
+ *
+ * @param note - Line Note to update.
+ * @param startLine - First deleted one-based line.
+ * @param endLine - Last deleted one-based line.
+ * @param lineCount - Number of deleted lines.
+ * @param now - Timestamp assigned to the changed note.
+ * @param events - Mutable event collection for the applied change.
+ * @returns Updated Line Note.
+ */
 function applyDeleteLinesToLine(
   note: StoredLineNote,
   startLine: number,
   endLine: number,
   lineCount: number,
   now: string,
-  events: DeterministicTextDocumentChangeEvent[],
+  events: DeterministicRelocationEvent[],
 ): StoredLineNote {
   if (endLine < note.line) {
     events.push({ type: "lineNoteMoved", lineId: note.id });
@@ -277,11 +320,20 @@ function applyDeleteLinesToLine(
   return note;
 }
 
+/**
+ * Marks notes covering an edited line as content-stale without moving anchors.
+ *
+ * @param sourceFile - Stored notes before the line edit.
+ * @param line - Edited one-based source line.
+ * @param now - Timestamp assigned to changed notes.
+ * @param events - Mutable event collection for applied changes.
+ * @returns Stored notes with updated content status.
+ */
 function applyEditLine(
   sourceFile: StoredSourceFile,
   line: number,
   now: string,
-  events: DeterministicTextDocumentChangeEvent[],
+  events: DeterministicRelocationEvent[],
 ): StoredSourceFile {
   return {
     ...sourceFile,
@@ -322,6 +374,12 @@ const staleOrphaned: NoteStatus = {
   anchor: "orphaned",
 };
 
+/**
+ * Preserves content status while confirming a deterministically relocated anchor.
+ *
+ * @param status - Existing note status.
+ * @returns Status with a confirmed anchor.
+ */
 function confirmAnchor(status: NoteStatus): NoteStatus {
   return {
     content: status.content,

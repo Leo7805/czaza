@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:4df838b4ca014b4777b1b8eb46e3734e6ff2fb26ce17dc67f027fa803b5daef4",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:01:29.910Z",
+    "updatedAt": "2026-07-23T12:01:29.910Z"
+  },
+  "fileNote": {
+    "userNote": "将 VS Code 文本变化分类为插入行、删除行、单行编辑或不支持的变化。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

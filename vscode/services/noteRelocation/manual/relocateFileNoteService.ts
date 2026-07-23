@@ -138,6 +138,12 @@ export async function relocateFileNoteService(
   };
 }
 
+/**
+ * Converts an orphaned File Note status into a confirmed anchor status.
+ *
+ * @param status - Existing File Note status.
+ * @returns Confirmed status, or undefined when confirmation is not applicable.
+ */
 function getConfirmedStatus(status: NoteStatus | undefined): NoteStatus | undefined {
   if (!status || status.anchor !== "orphaned") {
     return undefined;
@@ -149,10 +155,22 @@ function getConfirmedStatus(status: NoteStatus | undefined): NoteStatus | undefi
   };
 }
 
+/**
+ * Normalizes a user-entered relative path to forward-slash separators.
+ *
+ * @param relativePath - Raw relative path entered by the user.
+ * @returns Trimmed, normalized relative path.
+ */
 function normalizeRelativePath(relativePath: string): string {
   return relativePath.trim().replaceAll("\\", "/");
 }
 
+/**
+ * Checks whether a path is a non-empty relative path without traversal segments.
+ *
+ * @param relativePath - Normalized path to validate.
+ * @returns True when the path remains inside the configured CZaza root.
+ */
 function isSafeRelativePath(relativePath: string): boolean {
   if (!relativePath || path.isAbsolute(relativePath)) {
     return false;

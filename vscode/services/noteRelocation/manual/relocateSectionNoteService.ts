@@ -14,7 +14,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
-import { getResourceFingerprint } from "../resourceFingerprint/getResourceFingerprintService";
+import { getResourceFingerprint } from "../../resourceFingerprint/getResourceFingerprintService";
 import * as vscode from "vscode";
 
 export type RelocateSectionNoteInput = {
@@ -25,7 +25,12 @@ export type RelocateSectionNoteInput = {
   endLine: number;
 };
 
-/** Updates range, anchor hash, and anchor status in one persisted transaction. */
+/**
+ * Updates a Section Note range, anchor hash, and anchor status atomically.
+ *
+ * @param input - Source resource, Note store, Section Note id, and target range.
+ * @returns Promise that resolves after the relocated Note is persisted.
+ */
 export async function relocateSectionNoteService(
   input: RelocateSectionNoteInput,
 ): Promise<void> {

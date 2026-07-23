@@ -1,5 +1,5 @@
 /**
- * Classifies simple VS Code text document changes into deterministic note updates.
+ * Classifies simple VS Code source changes into deterministic Note relocation updates.
  */
 
 /** Minimal position shape used from VS Code text ranges. */
@@ -42,7 +42,7 @@ export type TextDocumentChangeInput = {
 };
 
 /** Deterministic document changes currently supported by CZaza. */
-export type ClassifiedTextDocumentChange =
+export type ClassifiedSourceChange =
   | {
       /** Whole-line insertion that does not replace existing text. */
       kind: "insertLines";
@@ -76,11 +76,11 @@ export type ClassifiedTextDocumentChange =
  * @returns Deterministic change classification, or unsupported with a reason.
  *
  * @example
- * const change = classifyTextDocumentChange({ contentChanges: [contentChange] });
+ * const change = classifySourceChange({ contentChanges: [contentChange] });
  */
-export function classifyTextDocumentChange(
+export function classifySourceChange(
   input: TextDocumentChangeInput,
-): ClassifiedTextDocumentChange {
+): ClassifiedSourceChange {
   if (input.contentChanges.length === 0) {
     return {
       kind: "unsupported",
@@ -95,7 +95,7 @@ export function classifyTextDocumentChange(
     };
   }
 
-  return classifyTextDocumentContentChange(input.contentChanges[0]!);
+  return classifySourceContentChange(input.contentChanges[0]!);
 }
 
 /**
@@ -104,9 +104,9 @@ export function classifyTextDocumentChange(
  * @param change - Single content change from a VS Code text document event.
  * @returns Deterministic change classification, or unsupported with a reason.
  */
-export function classifyTextDocumentContentChange(
+export function classifySourceContentChange(
   change: TextDocumentContentChange,
-): ClassifiedTextDocumentChange {
+): ClassifiedSourceChange {
   const insertedLineCount = countLineBreaks(change.text);
   const deletedLineCount = change.range.end.line - change.range.start.line;
 
@@ -147,6 +147,13 @@ export function classifyTextDocumentContentChange(
   };
 }
 
+/**
+ * Checks whether a content change inserts one or more lines without replacing text.
+ *
+ * @param change - VS Code content change to inspect.
+ * @param insertedLineCount - Number of inserted line boundaries.
+ * @returns True when the change matches the supported line-insertion shape.
+ */
 function isPureLineInsertion(
   change: TextDocumentContentChange,
   insertedLineCount: number,
@@ -158,6 +165,13 @@ function isPureLineInsertion(
   );
 }
 
+/**
+ * Checks whether a content change removes one or more complete source lines.
+ *
+ * @param change - VS Code content change to inspect.
+ * @param deletedLineCount - Number of line boundaries removed by the range.
+ * @returns True when the change matches the supported line-deletion shape.
+ */
 function isPureLineDeletion(
   change: TextDocumentContentChange,
   deletedLineCount: number,
@@ -169,6 +183,14 @@ function isPureLineDeletion(
   );
 }
 
+/**
+ * Checks whether a content change edits one line without changing line count.
+ *
+ * @param change - VS Code content change to inspect.
+ * @param insertedLineCount - Number of inserted line boundaries.
+ * @param deletedLineCount - Number of deleted line boundaries.
+ * @returns True when the change is a supported single-line edit.
+ */
 function isSingleLineEdit(
   change: TextDocumentContentChange,
   insertedLineCount: number,
@@ -182,6 +204,12 @@ function isSingleLineEdit(
   );
 }
 
+/**
+ * Checks whether a VS Code range represents an insertion point.
+ *
+ * @param range - Pre-change range reported by VS Code.
+ * @returns True when the range has no width.
+ */
 function isEmptyRange(range: TextDocumentChangeRange): boolean {
   return (
     range.isEmpty === true ||
@@ -189,6 +217,12 @@ function isEmptyRange(range: TextDocumentChangeRange): boolean {
   );
 }
 
+/**
+ * Counts CRLF, CR, and LF line boundaries in inserted text.
+ *
+ * @param text - Inserted source text.
+ * @returns Number of line boundaries in the text.
+ */
 function countLineBreaks(text: string): number {
   return text.match(/\r\n|\r|\n/g)?.length ?? 0;
 }

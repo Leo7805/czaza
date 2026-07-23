@@ -1,0 +1,15 @@
+{
+  "source": {
+    "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T11:58:05.021Z",
+    "updatedAt": "2026-07-23T11:58:05.021Z"
+  },
+  "fileNote": {
+    "userNote": "存放由用户明确指定新位置的手动 Relocate 服务。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:62e9aebbbab8af4fc420f87a39e2ac60170c3e8e99f71a294db1c9be57a36c79",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T12:00:28.897Z",
+    "updatedAt": "2026-07-23T12:00:28.897Z"
+  },
+  "fileNote": {
+    "userNote": "将 Line Note 重新关联到用户指定的代码行。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
