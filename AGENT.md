@@ -61,8 +61,12 @@ Follow these rules whenever you generate or modify code.
 For all `.ts`, `.tsx`, `.js`, and `.jsx` files:
 
 - Use **JSDoc** comments.
-- Every exported function, class, interface, type, enum, and public method must include JSDoc.
-- Internal functions should include JSDoc only when their purpose, behavior, side effects, or constraints are not immediately obvious.
+- Every class, function, and method must include a concise JSDoc comment, including non-exported classes, internal functions, and private methods.
+- Class comments must describe the class responsibility and any relevant lifecycle or resource-ownership behavior.
+- Exported classes should include `@example` whenever practical.
+- Functions and methods must include `@param` and `@returns` whenever applicable.
+- Constructors only need separate JSDoc when they perform non-obvious setup or accept parameters that require explanation.
+- Simple anonymous callbacks, getters, and setters do not require separate JSDoc unless their behavior or side effects are non-obvious.
 - Include `@param`, `@returns`, and `@example` whenever applicable.
 
 Example:

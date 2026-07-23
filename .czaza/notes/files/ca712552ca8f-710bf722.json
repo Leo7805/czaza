@@ -1,0 +1,21 @@
+{
+  "source": {
+    "sourceHash": "sha256:a201c7e910894d8174a2872082d5597dee1b726a00cb28ae8b3fe56f02a9e07a",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-23T11:35:42.665Z",
+    "updatedAt": "2026-07-23T11:42:08.516Z"
+  },
+  "fileNote": {
+    "userNote": "统一管理 CZaza 在代码编辑器中的 Section 和 Line Note 高亮。\n\nupdate：根据当前文件、Notes 数据和选中 Section 更新全部高亮。\nfindEditor：查找当前资源对应的活动、可见或已被高亮的编辑器。\nclear：清除 Section 和 Line Note 的全部高亮。\ndispose：清除高亮并释放两个 VS Code decoration。\nupdateSection：计算并显示当前 Section 的淡蓝色范围高亮。\nupdateLine：在当前行存在有效 Line Note 时显示淡黄色单行高亮。\nclearSection：清除之前的 Section 高亮并解除 editor 引用。\nclearLine：清除之前的 Line Note 高亮并解除 editor 引用。\nhasVisibleLineNoteContent：判断 Line Note 是否包含非空 User Note 或 AI Explanation。",
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

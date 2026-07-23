@@ -180,7 +180,8 @@ vi.mock("vscode", () => ({
       return mocks.activeTextEditor;
     },
 
-    createTextEditorDecorationType: () => ({
+    createTextEditorDecorationType: (options: unknown) => ({
+      options,
       dispose: mocks.decorationDispose,
     }),
     showTextDocument: mocks.showTextDocument,
@@ -289,6 +290,92 @@ describe("NotesViewProvider", () => {
         }),
       }),
     );
+
+    provider.dispose();
+  });
+
+  it("highlights only current Line Notes with visible content in pale yellow", async () => {
+    const uri = createUri("/workspace/src/line-notes.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    mocks.activeTextEditor = createEditor(uri);
+    const basePayload = {
+      kind: "file" as const,
+      name: "line-notes.ts",
+      relativePath: "src/line-notes.ts",
+      aiAction: "generate" as const,
+      activeLine: 7,
+      sectionNotes: [
+        {
+          id: "section:one",
+          title: "One",
+          startLine: 5,
+          endLine: 10,
+        },
+      ],
+    };
+
+    mocks.getResourceNotes
+      .mockResolvedValueOnce({
+        ...basePayload,
+        lineNote: {
+          id: "line:7",
+          line: 7,
+          userNote: "Important line.",
+          status: { content: "current", anchor: "confirmed" },
+        },
+      })
+      .mockResolvedValueOnce({
+        ...basePayload,
+        lineNote: {
+          id: "line:7",
+          line: 7,
+          userNote: "   ",
+          status: { content: "current", anchor: "confirmed" },
+        },
+      })
+      .mockResolvedValueOnce({
+        ...basePayload,
+        lineNote: {
+          id: "line:7",
+          line: 7,
+          aiExplanation: { summary: "Important.", detail: "Explains the line." },
+          status: { content: "current", anchor: "confirmed" },
+        },
+      })
+      .mockResolvedValueOnce({
+        ...basePayload,
+        lineNote: {
+          id: "line:7",
+          line: 7,
+          userNote: "No reliable location.",
+          status: { content: "current", anchor: "orphaned" },
+        },
+      });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 7);
+    expect(getLastDecorationRangeByBackground("rgba(255, 193, 7, 0.14)")).toMatchObject({
+      startLine: 6,
+      endLine: 6,
+    });
+
+    await provider.showActiveDocumentNotes(uri, 7);
+    expect(getLastDecorationRangeByBackground("rgba(255, 193, 7, 0.14)")).toBeUndefined();
+
+    await provider.showActiveDocumentNotes(uri, 7);
+    expect(getLastDecorationRangeByBackground("rgba(255, 193, 7, 0.14)")).toMatchObject({
+      startLine: 6,
+      endLine: 6,
+    });
+
+    await provider.showActiveDocumentNotes(uri, 7);
+    expect(getLastDecorationRangeByBackground("rgba(255, 193, 7, 0.14)")).toBeUndefined();
 
     provider.dispose();
   });
@@ -1921,6 +2008,21 @@ function createUri(fsPath: string): vscodeTypes.Uri {
 function getLastDecorationRange(): Record<string, number> | undefined {
   const calls = mocks.setDecorations.mock.calls;
   const ranges = calls.at(-1)?.[1] as Array<Record<string, number>> | undefined;
+
+  return ranges?.[0];
+}
+
+function getLastDecorationRangeByBackground(
+  backgroundColor: string,
+): Record<string, number> | undefined {
+  const call = [...mocks.setDecorations.mock.calls]
+    .reverse()
+    .find(
+      ([decorationType]) =>
+        (decorationType as { options?: { backgroundColor?: string } }).options
+          ?.backgroundColor === backgroundColor,
+    );
+  const ranges = call?.[1] as Array<Record<string, number>> | undefined;
 
   return ranges?.[0];
 }

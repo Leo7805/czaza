@@ -25,6 +25,7 @@ import {
   type ResourceNotesResult,
   type ResourceSectionNoteContent,
 } from "@vscode/services/getResourceNotesService";
+import { NotesEditorHighlightController } from "@vscode/notesUi/highlights/NotesEditorHighlightController";
 import { compareSectionsForAutomaticSelection } from "@vscode/services/sectionSelection/sectionComparators";
 import { getStoredNavigatorFileNotes } from "@vscode/services/getStoredNavigatorFileNotesService";
 import { clearNoteStaleStatusService } from "@vscode/services/clearNoteStaleStatusService";
@@ -239,15 +240,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private selectedSectionId?: string;
   private isSectionSelectionManual = false;
   private pendingEditTarget?: UserNoteTarget;
-  private highlightedEditor?: vscode.TextEditor;
   private noteRelocateSession?: NoteRelocateSession;
   private requestVersion = 0;
   private readonly generatingResources = new Map<string, AiActionScope>();
   private readonly allNotesProgress = new Map<string, AllNotesProgress>();
-  private readonly sectionDecorationType = vscode.window.createTextEditorDecorationType({
-    isWholeLine: true,
-    backgroundColor: "rgba(78, 161, 255, 0.10)",
-  });
+  private readonly highlightController = new NotesEditorHighlightController();
   private readonly notesTypographyConfigurationListener: vscode.Disposable;
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
@@ -362,7 +359,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         void this.postCurrentResourceNotes();
         void this.postCurrentNavigatorNotes();
         this.postViewMode(this.viewMode);
-        this.updateSectionHighlight();
+        this.updateEditorHighlights();
         return;
       }
 
@@ -486,7 +483,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     });
 
     webviewView.onDidDispose(() => {
-      this.clearSectionHighlight();
+      this.highlightController.clear();
       this.noteRelocateSession = undefined;
 
       if (this.view === webviewView) {
@@ -535,7 +532,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.currentNavigatorPayload = { kind: "empty" };
       this.selectedSectionId = undefined;
       this.isSectionSelectionManual = false;
-      this.clearSectionHighlight();
+      this.highlightController.clear();
       await this.postCurrentResourceNotes();
       return;
     }
@@ -564,7 +561,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     await this.postCurrentResourceNotes();
-    this.updateSectionHighlight();
+    this.updateEditorHighlights();
   }
 
   /**
@@ -693,10 +690,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * provider.dispose();
    */
   dispose(): void {
-    this.clearSectionHighlight();
+    this.highlightController.clear();
     this.noteRelocateSession = undefined;
     this.notesTypographyConfigurationListener.dispose();
-    this.sectionDecorationType.dispose();
+    this.highlightController.dispose();
   }
 
   private async loadResourceNotes(
@@ -717,7 +714,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     if (ignoreOutsideRoot && payload.kind === "outsideRoot") {
       this.currentNavigatorPayload = { kind: "outsideRoot" };
-      this.clearSectionHighlight();
+      this.highlightController.clear();
       return;
     }
 
@@ -748,7 +745,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       await this.loadNavigatorNotes();
     }
     await this.postCurrentResourceNotes();
-    this.updateSectionHighlight();
+    this.updateEditorHighlights();
   }
 
   private async postCurrentResourceNotes(
@@ -1304,7 +1301,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.currentPayload = payload;
       this.selectedSectionId = selectAutomaticSectionId(payload);
       this.isSectionSelectionManual = false;
-      this.clearSectionHighlight();
+      this.highlightController.clear();
       this.postViewMode("detail");
       await this.postCurrentResourceNotes();
     } catch (error) {
@@ -1574,63 +1571,23 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     this.selectedSectionId = sectionId;
     this.isSectionSelectionManual = true;
-    this.updateSectionHighlight();
+    this.updateEditorHighlights();
     void this.postCurrentResourceNotes();
   }
 
-  private updateSectionHighlight(): void {
-    const editor = this.getCurrentResourceEditor();
-    const section = getSelectedSection(this.currentPayload, this.selectedSectionId);
-
-    if (
-      !this.view ||
-      !editor ||
-      !this.currentResourceUri ||
-      editor.document.uri.toString() !== this.currentResourceUri.toString() ||
-      !section
-    ) {
-      this.clearSectionHighlight();
-      return;
-    }
-
-    const startLine = Math.max(0, section.startLine - 1);
-    const endLine = Math.min(editor.document.lineCount - 1, section.endLine - 1);
-
-    if (startLine > endLine) {
-      this.clearSectionHighlight();
-      return;
-    }
-
-    const endCharacter = editor.document.lineAt(endLine).text.length;
-    const range = new vscode.Range(startLine, 0, endLine, endCharacter);
-
-    if (this.highlightedEditor && this.highlightedEditor !== editor) {
-      this.highlightedEditor.setDecorations(this.sectionDecorationType, []);
-    }
-
-    this.highlightedEditor = editor;
-    editor.setDecorations(this.sectionDecorationType, [range]);
+  private updateEditorHighlights(): void {
+    this.highlightController.update({
+      viewAvailable: Boolean(this.view),
+      resourceUri: this.currentResourceUri,
+      payload: this.currentPayload,
+      selectedSectionId: this.selectedSectionId,
+    });
   }
 
-  /** Keeps section highlighting attached to the source editor while the Webview has focus. */
   private getCurrentResourceEditor(): vscode.TextEditor | undefined {
-    if (!this.currentResourceUri) {
-      return undefined;
-    }
-
-    const resourceKey = this.currentResourceUri.toString();
-    const candidates = [
-      vscode.window.activeTextEditor,
-      this.highlightedEditor,
-      ...(vscode.window.visibleTextEditors ?? []),
-    ];
-
-    return candidates.find((editor) => editor?.document.uri.toString() === resourceKey);
-  }
-
-  private clearSectionHighlight(): void {
-    this.highlightedEditor?.setDecorations(this.sectionDecorationType, []);
-    this.highlightedEditor = undefined;
+    return this.currentResourceUri
+      ? this.highlightController.findEditor(this.currentResourceUri)
+      : undefined;
   }
 
   private async getReactWebviewHtml(webview: vscode.Webview): Promise<string> {
