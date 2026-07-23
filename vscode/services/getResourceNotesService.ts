@@ -16,6 +16,7 @@ import {
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { UserNoteTarget } from "./saveUserNoteService";
+import { compareSectionsForDisplay } from "./sectionSelection/sectionComparators";
 import { getResourceFingerprint } from "./resourceFingerprint/getResourceFingerprintService";
 
 /**
@@ -99,6 +100,9 @@ export type ResourceSectionNoteContent = ResourceNoteContent & {
 
   /** One-based inclusive end line. */
   endLine: number;
+
+  /** Creation time used as a deterministic overlap-selection tie-breaker. */
+  createdAt?: string;
 };
 
 /**
@@ -360,28 +364,35 @@ function getSectionNoteContents(
     return [];
   }
 
-  const seenRanges = new Set<string>();
-
   return (sourceFile?.sectionNotes ?? [])
     .map((note, index) => ({ note, index }))
     .filter(({ note }) => note.range.startLine <= activeLine && note.range.endLine >= activeLine)
-    .sort((left, right) => left.note.range.startLine - right.note.range.startLine || left.index - right.index)
-    .filter(({ note }) => {
-      const rangeKey = `${note.range.startLine}:${note.range.endLine}`;
-
-      if (seenRanges.has(rangeKey)) {
-        return false;
-      }
-
-      seenRanges.add(rangeKey);
-      return true;
-    })
+    .sort(
+      (left, right) =>
+        compareSectionsForDisplay(
+          {
+            id: left.note.id,
+            title: left.note.title,
+            startLine: left.note.range.startLine,
+            endLine: left.note.range.endLine,
+            createdAt: left.note.createdAt,
+          },
+          {
+            id: right.note.id,
+            title: right.note.title,
+            startLine: right.note.range.startLine,
+            endLine: right.note.range.endLine,
+            createdAt: right.note.createdAt,
+          },
+        ) || left.index - right.index,
+    )
     .map(({ note }) => ({
       id: note.id,
       title: note.title,
       ...(note.kind ? { kind: note.kind } : {}),
       startLine: note.range.startLine,
       endLine: note.range.endLine,
+      createdAt: note.createdAt,
       status: note.status,
       ...(getNoteContent(note.userNote, note.aiExplanation, note.status) ?? {}),
     }));

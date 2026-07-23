@@ -202,6 +202,8 @@ export type ResourceNotesViewModel =
       revealAiNotes?: "fileSection" | "all" | "section" | "line";
       /** Optional target that should open directly in User Note edit mode. */
       editTarget?: UserNoteTarget;
+      /** Section selected by the extension's automatic/manual selection policy. */
+      selectedSectionId?: string;
       sectionNotes: ResourceSectionNoteContent[];
       lineNote?: ResourceLineNoteContent;
     }

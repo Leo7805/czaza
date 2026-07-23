@@ -227,7 +227,7 @@ describe("getResourceNotes()", () => {
     });
   });
 
-  it("selects distinct section ranges and the first line note for the active line", async () => {
+  it("keeps and display-sorts overlapping sections for the active line", async () => {
     const workspaceRoot = await createTempWorkspaceRoot();
     const relativeFilePath = "src/overlap.ts";
     const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => randomId));
@@ -268,10 +268,26 @@ describe("getResourceNotes()", () => {
       activeLine: 7,
       sectionNotes: [
         {
+          id: "duplicate",
+          title: "Duplicate range",
+          startLine: 1,
+          endLine: 20,
+          createdAt,
+          aiExplanation: {
+            summary: "Duplicate range AI summary.",
+            detail: "",
+          },
+          status: {
+            content: "current",
+            anchor: "confirmed",
+          },
+        },
+        {
           id: "outer",
           title: "Outer",
           startLine: 1,
           endLine: 20,
+          createdAt,
           aiExplanation: {
             summary: "Outer AI summary.",
             detail: "",
@@ -286,6 +302,7 @@ describe("getResourceNotes()", () => {
           title: "First same start",
           startLine: 5,
           endLine: 10,
+          createdAt,
           aiExplanation: {
             summary: "First same start AI summary.",
             detail: "",
@@ -300,6 +317,7 @@ describe("getResourceNotes()", () => {
           title: "Second same start",
           startLine: 5,
           endLine: 12,
+          createdAt,
           aiExplanation: {
             summary: "Second same start AI summary.",
             detail: "",

@@ -248,13 +248,16 @@ describe("NotesViewProvider", () => {
 
     expect(mocks.postMessage).toHaveBeenCalledWith({
       type: "resourceNotes",
-      payload: expect.objectContaining({ kind: "file" }),
+      payload: expect.objectContaining({
+        kind: "file",
+        selectedSectionId: "section:second",
+      }),
     });
     expect(getLastDecorationRange()).toEqual({
-      startLine: 9,
+      startLine: 11,
       startCharacter: 0,
-      endLine: 19,
-      endCharacter: 20,
+      endLine: 14,
+      endCharacter: 15,
     });
 
     // Interacting with a Webview can temporarily clear VS Code's activeTextEditor.
@@ -262,15 +265,96 @@ describe("NotesViewProvider", () => {
 
     mocks.messageListeners[0]?.({
       type: "selectSection",
-      sectionId: "section:second",
+      sectionId: "section:first",
     });
 
     expect(getLastDecorationRange()).toEqual({
-      startLine: 11,
+      startLine: 9,
       startCharacter: 0,
-      endLine: 14,
-      endCharacter: 15,
+      endLine: 19,
+      endCharacter: 20,
     });
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "resourceNotes",
+        payload: expect.objectContaining({
+          kind: "file",
+          selectedSectionId: "section:first",
+        }),
+      }),
+    );
+
+    provider.dispose();
+  });
+
+  it("keeps a manual section while it covers the cursor and resumes automatic selection after exit", async () => {
+    const uri = createUri("/workspace/src/overlap.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    mocks.activeTextEditor = createEditor(uri);
+
+    const outer = {
+      id: "section:outer",
+      title: "Outer",
+      startLine: 10,
+      endLine: 30,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const inner = {
+      id: "section:inner",
+      title: "Inner",
+      startLine: 12,
+      endLine: 15,
+      createdAt: "2026-01-02T00:00:00.000Z",
+    };
+    const later = {
+      id: "section:later",
+      title: "Later",
+      startLine: 40,
+      endLine: 45,
+      createdAt: "2026-01-03T00:00:00.000Z",
+    };
+
+    mocks.getResourceNotes
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "overlap.ts",
+        relativePath: "src/overlap.ts",
+        aiAction: "generate",
+        sectionNotes: [outer, inner],
+      })
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "overlap.ts",
+        relativePath: "src/overlap.ts",
+        aiAction: "generate",
+        sectionNotes: [outer, inner],
+      })
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "overlap.ts",
+        relativePath: "src/overlap.ts",
+        aiAction: "generate",
+        sectionNotes: [later],
+      });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 13);
+    expect(getLastDecorationRange()).toMatchObject({ startLine: 11, endLine: 14 });
+
+    mocks.messageListeners[0]?.({ type: "selectSection", sectionId: outer.id });
+    expect(getLastDecorationRange()).toMatchObject({ startLine: 9, endLine: 29 });
+
+    await provider.showActiveDocumentNotes(uri, 14);
+    expect(getLastDecorationRange()).toMatchObject({ startLine: 9, endLine: 29 });
+
+    await provider.showActiveDocumentNotes(uri, 42);
+    expect(getLastDecorationRange()).toMatchObject({ startLine: 39, endLine: 44 });
 
     provider.dispose();
   });

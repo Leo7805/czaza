@@ -44,14 +44,20 @@ export function FileNotesView({
   const editTarget = notes.editTarget;
   const [sectionSelection, setSectionSelection] = useState({
     relativePath: notes.relativePath,
-    sectionId: firstSectionId,
+    sectionId: notes.selectedSectionId ?? firstSectionId,
   });
-  const requestedSectionId =
-    editTarget?.level === "section" && notes.sectionNotes.some((section) => section.id === editTarget.sectionId)
+  const preferredSectionId =
+    editTarget?.level === "section" &&
+    notes.sectionNotes.some((section) => section.id === editTarget.sectionId)
       ? editTarget.sectionId
-      : sectionSelection.relativePath === notes.relativePath
+      : notes.selectedSectionId &&
+          notes.sectionNotes.some((section) => section.id === notes.selectedSectionId)
+        ? notes.selectedSectionId
+        : firstSectionId;
+  const requestedSectionId =
+    sectionSelection.relativePath === notes.relativePath
       ? sectionSelection.sectionId
-      : firstSectionId;
+      : preferredSectionId;
   const selectedSection =
     notes.sectionNotes.find((section) => section.id === requestedSectionId) ??
     notes.sectionNotes[0];
@@ -66,6 +72,13 @@ export function FileNotesView({
     setSectionTab("user");
     setLineTab("user");
   }, [notes.relativePath]);
+
+  useEffect(() => {
+    setSectionSelection({
+      relativePath: notes.relativePath,
+      sectionId: preferredSectionId,
+    });
+  }, [notes.relativePath, preferredSectionId]);
 
   useEffect(() => {
     if (revealsFileSection) {

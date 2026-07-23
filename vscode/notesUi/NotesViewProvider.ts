@@ -24,6 +24,7 @@ import {
   type ResourceNotesResult,
   type ResourceSectionNoteContent,
 } from "@vscode/services/getResourceNotesService";
+import { compareSectionsForAutomaticSelection } from "@vscode/services/sectionSelection/sectionComparators";
 import { getStoredNavigatorFileNotes } from "@vscode/services/getStoredNavigatorFileNotesService";
 import { clearNoteStaleStatusService } from "@vscode/services/clearNoteStaleStatusService";
 import { deleteNavigatorFileNotesService } from "@vscode/services/deleteNavigatorFileNotesService";
@@ -212,6 +213,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private currentPayload?: ResourceNotesResult;
   private currentNavigatorPayload: NavigatorNotesResult = { kind: "empty" };
   private selectedSectionId?: string;
+  private isSectionSelectionManual = false;
   private pendingEditTarget?: UserNoteTarget;
   private highlightedEditor?: vscode.TextEditor;
   private isNavigatorRelocatePathSyncActive = false;
@@ -326,9 +328,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       }
 
       if (message.type === "ready") {
-        this.selectedSectionId = selectCurrentSectionId(this.currentPayload, undefined);
         if (this.pendingEditTarget?.level === "section") {
           this.selectedSectionId = this.pendingEditTarget.sectionId;
+          this.isSectionSelectionManual = true;
+        } else if (!getSelectedSection(this.currentPayload, this.selectedSectionId)) {
+          this.selectedSectionId = selectAutomaticSectionId(this.currentPayload);
+          this.isSectionSelectionManual = false;
         }
         void this.postCurrentResourceNotes();
         void this.postCurrentNavigatorNotes();
@@ -490,6 +495,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.currentPayload = undefined;
       this.currentNavigatorPayload = { kind: "empty" };
       this.selectedSectionId = undefined;
+      this.isSectionSelectionManual = false;
       this.clearSectionHighlight();
       await this.postCurrentResourceNotes();
       return;
@@ -515,6 +521,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     if (target.level === "section" && this.currentPayload?.kind === "file") {
       this.selectedSectionId = target.sectionId;
+      this.isSectionSelectionManual = true;
     }
 
     await this.postCurrentResourceNotes();
@@ -627,10 +634,18 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     const resourceChanged = this.currentResourceUri?.toString() !== uri.toString();
     this.currentResourceUri = uri;
     this.currentPayload = payload;
-    this.selectedSectionId = selectCurrentSectionId(
-      payload,
-      resourceChanged ? undefined : this.selectedSectionId,
-    );
+    if (resourceChanged) {
+      this.isSectionSelectionManual = false;
+    }
+
+    const manualSelectionStillApplies =
+      this.isSectionSelectionManual &&
+      Boolean(getSelectedSection(payload, this.selectedSectionId));
+
+    if (!manualSelectionStillApplies) {
+      this.isSectionSelectionManual = false;
+      this.selectedSectionId = selectAutomaticSectionId(payload);
+    }
     if (this.viewMode === "navigator") {
       await this.loadNavigatorNotes();
     }
@@ -679,6 +694,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
                 : {}),
               ...(revealAiNotes ? { revealAiNotes } : {}),
               ...(this.pendingEditTarget ? { editTarget: this.pendingEditTarget } : {}),
+              ...(this.selectedSectionId
+                ? { selectedSectionId: this.selectedSectionId }
+                : {}),
             }
           : this.currentPayload.kind === "binary" && this.pendingEditTarget?.level === "file"
             ? { ...this.currentPayload, editTarget: this.pendingEditTarget }
@@ -862,6 +880,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       editor.selection = new vscode.Selection(position, position);
       editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
       this.selectedSectionId = sectionId;
+      this.isSectionSelectionManual = true;
       await this.loadResourceNotes(uri, false, startLine);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error.";
@@ -1185,7 +1204,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
       this.currentResourceUri = targetUri;
       this.currentPayload = payload;
-      this.selectedSectionId = selectCurrentSectionId(payload, undefined);
+      this.selectedSectionId = selectAutomaticSectionId(payload);
+      this.isSectionSelectionManual = false;
       this.clearSectionHighlight();
       this.postViewMode("detail");
       await this.postCurrentResourceNotes();
@@ -1376,7 +1396,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     this.selectedSectionId = sectionId;
+    this.isSectionSelectionManual = true;
     this.updateSectionHighlight();
+    void this.postCurrentResourceNotes();
   }
 
   private updateSectionHighlight(): void {
@@ -1534,22 +1556,14 @@ function isUserNoteTarget(value: unknown): value is UserNoteTarget {
   );
 }
 
-function selectCurrentSectionId(
+function selectAutomaticSectionId(
   payload: ResourceNotesResult | undefined,
-  selectedSectionId: string | undefined,
 ): string | undefined {
   if (payload?.kind !== "file") {
     return undefined;
   }
 
-  if (
-    selectedSectionId &&
-    payload.sectionNotes.some((section) => section.id === selectedSectionId)
-  ) {
-    return selectedSectionId;
-  }
-
-  return payload.sectionNotes[0]?.id;
+  return [...payload.sectionNotes].sort(compareSectionsForAutomaticSelection)[0]?.id;
 }
 
 function getSelectedSection(
