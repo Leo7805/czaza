@@ -1,4 +1,4 @@
-/** Modal for relocating Section and Line Notes within the current text file. */
+/** Shared modal for relocating File, Section, and Line Notes. */
 
 import { useEffect, useId, useState } from "react";
 
@@ -15,6 +15,7 @@ export function RelocateNoteModal({
   onCancel: () => void;
   onSubmit: (
     target:
+      | { level: "file"; fromRelativePath: string; toRelativePath: string }
       | { level: "section"; sectionId: string; startLine: number; endLine: number }
       | { level: "line"; lineId: string; line: number },
   ) => void;
@@ -27,13 +28,18 @@ export function RelocateNoteModal({
     target.level === "section" ? String(target.endLine) : "",
   );
   const [line, setLine] = useState(target.level === "line" ? String(target.line) : "");
+  const [relativePath, setRelativePath] = useState(
+    target.level === "file" ? target.fromRelativePath : "",
+  );
   const [error, setError] = useState<string>();
   const titleId = useId();
 
   useEffect(() => {
     setFollowingEditor(true);
     setError(undefined);
-    if (target.level === "section") {
+    if (target.level === "file") {
+      setRelativePath(target.fromRelativePath);
+    } else if (target.level === "section") {
       setStartLine(String(target.startLine));
       setEndLine(String(target.endLine));
     } else {
@@ -46,7 +52,9 @@ export function RelocateNoteModal({
       return;
     }
 
-    if (suggestion.level === "section") {
+    if (suggestion.level === "file") {
+      setRelativePath(suggestion.relativePath);
+    } else if (suggestion.level === "section") {
       setStartLine(String(suggestion.startLine));
       setEndLine(String(suggestion.endLine));
     } else {
@@ -68,7 +76,9 @@ export function RelocateNoteModal({
   const useEditorTarget = (): void => {
     setFollowingEditor(true);
     setError(undefined);
-    if (suggestion?.level === "section" && target.level === "section") {
+    if (suggestion?.level === "file" && target.level === "file") {
+      setRelativePath(suggestion.relativePath);
+    } else if (suggestion?.level === "section" && target.level === "section") {
       setStartLine(String(suggestion.startLine));
       setEndLine(String(suggestion.endLine));
     } else if (suggestion?.level === "line" && target.level === "line") {
@@ -77,6 +87,16 @@ export function RelocateNoteModal({
   };
 
   const submit = (): void => {
+    if (target.level === "file") {
+      const normalizedPath = relativePath.trim().replaceAll("\\", "/");
+      if (!isSafeRelativePath(normalizedPath)) {
+        setError("Use a CZaza-root-relative path without ., .., or an absolute prefix.");
+        return;
+      }
+      onSubmit({ ...target, toRelativePath: normalizedPath });
+      return;
+    }
+
     if (target.level === "section") {
       const parsedStart = parsePositiveLine(startLine);
       const parsedEnd = parsePositiveLine(endLine);
@@ -107,7 +127,7 @@ export function RelocateNoteModal({
       <section className="relocate-modal__dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="relocate-modal__head">
           <h2 className="relocate-modal__title" id={titleId}>
-            Relocate {target.level === "section" ? "Section" : "Line"} Note
+            Relocate {target.level === "file" ? "File" : target.level === "section" ? "Section" : "Line"} Note
           </h2>
         </div>
         <div className="relocate-modal__body">
@@ -115,13 +135,31 @@ export function RelocateNoteModal({
             <div>
               <dt>Current location</dt>
               <dd>
-                {target.level === "section"
+                {target.level === "file"
+                  ? target.fromRelativePath
+                  : target.level === "section"
                   ? `L${target.startLine}–L${target.endLine}`
                   : `L${target.line}`}
               </dd>
             </div>
           </dl>
-          {target.level === "section" ? (
+          {target.level === "file" ? (
+            <label className="relocate-modal__label">
+              New file path
+              <input
+                autoFocus
+                className="relocate-modal__input"
+                value={relativePath}
+                onChange={(event) => setManualValue(setRelativePath, event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    submit();
+                  }
+                }}
+              />
+            </label>
+          ) : target.level === "section" ? (
             <div className="relocate-modal__range-inputs">
               <LineInput autoFocus label="Start line" value={startLine} onChange={(value) => setManualValue(setStartLine, value)} />
               <LineInput label="End line" value={endLine} onChange={(value) => setManualValue(setEndLine, value)} />
@@ -131,7 +169,13 @@ export function RelocateNoteModal({
           )}
           <p className="relocate-modal__hint">
             {followingEditor
-              ? `Following the current editor ${target.level === "section" ? "selection" : "cursor"}.`
+              ? `Following the current editor ${
+                  target.level === "file"
+                    ? "file path"
+                    : target.level === "section"
+                      ? "selection"
+                      : "cursor"
+                }.`
               : "Using a manually entered location."}
           </p>
           {target.level === "line" && suggestion?.level === "line" && suggestion.preview ? (
@@ -141,7 +185,7 @@ export function RelocateNoteModal({
         </div>
         <div className="relocate-modal__actions">
           <button className="relocate-modal__action relocate-modal__action--secondary" type="button" onClick={useEditorTarget}>
-            Use Current {target.level === "section" ? "Selection" : "Cursor"}
+            Use Current {target.level === "file" ? "File" : target.level === "section" ? "Selection" : "Cursor"}
           </button>
           <button className="relocate-modal__action relocate-modal__action--secondary" type="button" onClick={onCancel}>
             Cancel
@@ -186,4 +230,15 @@ function parsePositiveLine(value: string): number | undefined {
   const normalized = value.trim().replace(/^L/i, "");
   const parsed = Number(normalized);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function isSafeRelativePath(relativePath: string): boolean {
+  if (!relativePath || relativePath.startsWith("/") || /^[A-Za-z]:[\\/]/.test(relativePath)) {
+    return false;
+  }
+
+  return relativePath
+    .replaceAll("\\", "/")
+    .split("/")
+    .every((segment) => segment && segment !== "." && segment !== "..");
 }

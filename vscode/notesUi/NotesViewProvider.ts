@@ -31,7 +31,6 @@ import { deleteNavigatorFileNotesService } from "@vscode/services/deleteNavigato
 import { deleteNavigatorLineNoteService } from "@vscode/services/deleteNavigatorLineNoteService";
 import { deleteNavigatorSectionNoteService } from "@vscode/services/deleteNavigatorSectionNoteService";
 import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavigatorFileNoteOrphanedService";
-import { relocateNavigatorFileNoteService } from "@vscode/services/relocateNavigatorFileNoteService";
 import {
   AllNotesBatchRequiredError,
   AllNotesBatchTimeoutError,
@@ -42,6 +41,7 @@ import {
 } from "@vscode/services/generateAllNotesService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
 import {
+  relocateFileNoteService,
   relocateLineNoteService,
   relocateSectionNoteService,
 } from "@vscode/services/relocate";
@@ -116,22 +116,10 @@ type NotesWebviewMessage =
       anchor: "confirmed" | "needsConfirmation" | "orphaned";
     }
   | {
-      /** Relocates one Navigator file-note item to a user-confirmed source path. */
-      type: "relocateNavigatorFileNote";
-
-      /** Existing CZaza-root-relative source path. */
+      /** Relocates one File Note inside the unified relocation session. */
+      type: "relocateFileNote";
       fromRelativePath: string;
-
-      /** New CZaza-root-relative source path. */
       toRelativePath: string;
-    }
-  | {
-      /** Starts active-editor path suggestions for the Navigator relocate modal. */
-      type: "startNavigatorFileRelocatePathSync";
-    }
-  | {
-      /** Stops active-editor path suggestions for the Navigator relocate modal. */
-      type: "stopNavigatorFileRelocatePathSync";
     }
   | {
       /** Marks one Navigator file-note item as orphaned after confirmation. */
@@ -224,6 +212,7 @@ type AiActionScope = "fileSection" | "all" | "section" | "line";
 type NoteRelocateSession = {
   uri: vscode.Uri;
   target:
+    | { level: "file"; fromRelativePath: string }
     | { level: "section"; sectionId: string; startLine: number; endLine: number }
     | { level: "line"; lineId: string; line: number };
 };
@@ -250,7 +239,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private isSectionSelectionManual = false;
   private pendingEditTarget?: UserNoteTarget;
   private highlightedEditor?: vscode.TextEditor;
-  private isNavigatorRelocatePathSyncActive = false;
   private noteRelocateSession?: NoteRelocateSession;
   private requestVersion = 0;
   private readonly generatingResources = new Map<string, AiActionScope>();
@@ -429,18 +417,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         return;
       }
 
-      if (message.type === "relocateNavigatorFileNote") {
-        void this.runRelocateNavigatorFileNote(message.fromRelativePath, message.toRelativePath);
-        return;
-      }
-
-      if (message.type === "startNavigatorFileRelocatePathSync") {
-        this.isNavigatorRelocatePathSyncActive = true;
-        return;
-      }
-
-      if (message.type === "stopNavigatorFileRelocatePathSync") {
-        this.isNavigatorRelocatePathSyncActive = false;
+      if (message.type === "relocateFileNote") {
+        void this.runRelocateFileNote(message.fromRelativePath, message.toRelativePath);
         return;
       }
 
@@ -605,7 +583,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     await this.loadResourceNotes(uri, true, activeLine);
-    await this.postActiveNavigatorRelocateTargetPath(uri);
     await this.syncRelocateTargetFromEditor(vscode.window.activeTextEditor);
   }
 
@@ -613,12 +590,25 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   async syncRelocateTargetFromEditor(editor: vscode.TextEditor | undefined): Promise<void> {
     const session = this.noteRelocateSession;
 
-    if (
-      !session ||
-      !this.view ||
-      !editor ||
-      editor.document.uri.toString() !== session.uri.toString()
-    ) {
+    if (!session || !this.view || !editor) {
+      return;
+    }
+
+    if (session.target.level === "file") {
+      try {
+        const { rootDirectory } = resolveCzazaRootDirectory(session.uri);
+        const relativePath = getCzazaRelativePath(editor.document.uri, rootDirectory);
+        await this.view.webview.postMessage({
+          type: "noteRelocateSuggestion",
+          suggestion: { level: "file", relativePath },
+        });
+      } catch {
+        // Active files outside the source note's CZaza root are not valid targets.
+      }
+      return;
+    }
+
+    if (editor.document.uri.toString() !== session.uri.toString()) {
       return;
     }
 
@@ -731,7 +721,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     const resourceChanged = this.currentResourceUri?.toString() !== uri.toString();
-    if (resourceChanged && this.noteRelocateSession) {
+    if (
+      resourceChanged &&
+      this.noteRelocateSession &&
+      this.noteRelocateSession.target.level !== "file"
+    ) {
       this.noteRelocateSession = undefined;
       await this.view?.webview.postMessage({ type: "closeNoteRelocate" });
     }
@@ -1322,50 +1316,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
-  private async runRelocateNavigatorFileNote(
-    fromRelativePath: string,
-    toRelativePath: string,
-  ): Promise<void> {
-    const currentUri = this.currentResourceUri;
-
-    if (!currentUri) {
-      return;
-    }
-
-    try {
-      const result = await relocateNavigatorFileNoteService({
-        currentUri,
-        notes: this.notes,
-        fromRelativePath,
-        toRelativePath,
-      });
-
-      await this.loadNavigatorNotes();
-      await this.view?.webview.postMessage({
-        type: "navigatorFileNoteRelocated",
-        fromRelativePath: result.previousRelativePath,
-        toRelativePath: result.nextRelativePath,
-      });
-
-      const document = await vscode.workspace.openTextDocument(result.targetUri);
-      await vscode.window.showTextDocument(document, { preview: false });
-      await this.loadResourceNotes(result.targetUri, false, getActiveLine(result.targetUri));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      await this.postNotice({
-        tone: "error",
-        title: "Relocate Failed",
-        message,
-      });
-    }
-  }
-
   private async startNoteRelocate(
     target: NoteRelocateSession["target"],
   ): Promise<void> {
     const uri = this.currentResourceUri;
 
-    if (!uri || !this.view || this.currentPayload?.kind !== "file") {
+    if (
+      !uri ||
+      !this.view ||
+      (target.level !== "file" && this.currentPayload?.kind !== "file")
+    ) {
       return;
     }
 
@@ -1374,7 +1334,46 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       type: "openNoteRelocate",
       target,
     });
-    await this.syncRelocateTargetFromEditor(this.getCurrentResourceEditor());
+    await this.syncRelocateTargetFromEditor(
+      target.level === "file" ? vscode.window.activeTextEditor : this.getCurrentResourceEditor(),
+    );
+  }
+
+  private async runRelocateFileNote(
+    fromRelativePath: string,
+    toRelativePath: string,
+  ): Promise<void> {
+    const session = this.noteRelocateSession;
+
+    if (
+      !session ||
+      session.target.level !== "file" ||
+      session.target.fromRelativePath !== fromRelativePath
+    ) {
+      return;
+    }
+
+    try {
+      const result = await relocateFileNoteService({
+        currentUri: session.uri,
+        notes: this.notes,
+        fromRelativePath,
+        toRelativePath,
+      });
+      this.noteRelocateSession = undefined;
+      await this.loadNavigatorNotes();
+      await this.view?.webview.postMessage({ type: "noteRelocated" });
+
+      const document = await vscode.workspace.openTextDocument(result.targetUri);
+      await vscode.window.showTextDocument(document, { preview: false });
+      await this.loadResourceNotes(result.targetUri, false, getActiveLine(result.targetUri));
+    } catch (error) {
+      await this.postNotice({
+        tone: "error",
+        title: "Relocate File Note Failed",
+        message: error instanceof Error ? error.message : "Unknown error.",
+      });
+    }
   }
 
   private async runRelocateSectionNote(
@@ -1543,30 +1542,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
-  private async postActiveNavigatorRelocateTargetPath(uri?: vscode.Uri): Promise<void> {
-    if (!this.isNavigatorRelocatePathSyncActive || !this.view) {
-      return;
-    }
-
-    const activeUri = uri ?? vscode.window.activeTextEditor?.document.uri;
-
-    if (!activeUri || activeUri.scheme !== "file") {
-      return;
-    }
-
-    try {
-      const { rootDirectory } = resolveCzazaRootDirectory(activeUri);
-      const relativePath = getCzazaRelativePath(activeUri, rootDirectory);
-
-      await this.view.webview.postMessage({
-        type: "navigatorRelocateTargetPath",
-        relativePath,
-      });
-    } catch {
-      // Active files outside CZaza root are not valid relocation targets.
-    }
-  }
-
   private selectSection(sectionId: string): void {
     if (this.currentPayload?.kind !== "file") {
       return;
@@ -1697,11 +1672,9 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     (candidate.type === "viewNavigatorFileNotes" &&
       typeof candidate.relativePath === "string" &&
       isNoteAnchorStatus(candidate.anchor)) ||
-    (candidate.type === "relocateNavigatorFileNote" &&
+    (candidate.type === "relocateFileNote" &&
       typeof candidate.fromRelativePath === "string" &&
       typeof candidate.toRelativePath === "string") ||
-    candidate.type === "startNavigatorFileRelocatePathSync" ||
-    candidate.type === "stopNavigatorFileRelocatePathSync" ||
     (candidate.type === "markNavigatorFileNoteOrphaned" && typeof candidate.relativePath === "string") ||
     (candidate.type === "deleteNavigatorFileNotes" && typeof candidate.relativePath === "string") ||
     (candidate.type === "deleteNavigatorSectionNote" && typeof candidate.sectionId === "string") ||
@@ -1755,6 +1728,7 @@ function isNoteRelocateTarget(value: unknown): value is NoteRelocateSession["tar
 
   const target = value as {
     level?: unknown;
+    fromRelativePath?: unknown;
     sectionId?: unknown;
     lineId?: unknown;
     startLine?: unknown;
@@ -1763,6 +1737,7 @@ function isNoteRelocateTarget(value: unknown): value is NoteRelocateSession["tar
   };
 
   return (
+    (target.level === "file" && typeof target.fromRelativePath === "string") ||
     (target.level === "section" &&
       typeof target.sectionId === "string" &&
       Number.isInteger(target.startLine) &&

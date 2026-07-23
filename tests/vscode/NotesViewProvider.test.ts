@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   deleteNavigatorLineNoteService: vi.fn(),
   deleteNavigatorSectionNoteService: vi.fn(),
   markNavigatorFileNoteOrphanedService: vi.fn(),
-  relocateNavigatorFileNoteService: vi.fn(),
+  relocateFileNoteService: vi.fn(),
   relocateSectionNoteService: vi.fn(),
   relocateLineNoteService: vi.fn(),
   ensureFileNoteResourceAvailability: vi.fn(),
@@ -73,10 +73,8 @@ vi.mock("@vscode/services/markNavigatorFileNoteOrphanedService", () => ({
   markNavigatorFileNoteOrphanedService: mocks.markNavigatorFileNoteOrphanedService,
 }));
 
-vi.mock("@vscode/services/relocateNavigatorFileNoteService", () => ({
-  relocateNavigatorFileNoteService: mocks.relocateNavigatorFileNoteService,
-}));
 vi.mock("@vscode/services/relocate", () => ({
+  relocateFileNoteService: mocks.relocateFileNoteService,
   relocateSectionNoteService: mocks.relocateSectionNoteService,
   relocateLineNoteService: mocks.relocateLineNoteService,
 }));
@@ -206,7 +204,7 @@ describe("NotesViewProvider", () => {
     mocks.deleteNavigatorSectionNoteService.mockReset();
     mocks.getStoredNavigatorFileNotes.mockReset();
     mocks.markNavigatorFileNoteOrphanedService.mockReset();
-    mocks.relocateNavigatorFileNoteService.mockReset();
+    mocks.relocateFileNoteService.mockReset();
     mocks.relocateSectionNoteService.mockReset();
     mocks.relocateLineNoteService.mockReset();
     mocks.ensureFileNoteResourceAvailability.mockReset();
@@ -1341,7 +1339,7 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
-  it("relocates a Navigator file note, refreshes the list, closes the modal, and opens the target", async () => {
+  it("relocates a File Note through the unified session and opens the target", async () => {
     const workspaceRoot = "/tmp";
     const currentUri = createUri(`${workspaceRoot}/current.ts`);
     const targetUri = createUri(`${workspaceRoot}/src/new.ts`);
@@ -1354,7 +1352,7 @@ describe("NotesViewProvider", () => {
     const view = createWebviewView();
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    mocks.relocateNavigatorFileNoteService.mockResolvedValue({
+    mocks.relocateFileNoteService.mockResolvedValue({
       previousRelativePath: "src/old.ts",
       nextRelativePath: "src/new.ts",
       targetUri,
@@ -1389,21 +1387,30 @@ describe("NotesViewProvider", () => {
 
     await provider.resolveWebviewView(view);
     await provider.showActiveDocumentNotes(currentUri, 1);
+    mocks.activeTextEditor = createEditor(targetUri);
     mocks.messageListeners[0]?.({
-      type: "relocateNavigatorFileNote",
+      type: "startNoteRelocate",
+      target: { level: "file", fromRelativePath: "src/old.ts" },
+    });
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "noteRelocateSuggestion",
+        suggestion: { level: "file", relativePath: "src/new.ts" },
+      }),
+    );
+    mocks.messageListeners[0]?.({
+      type: "relocateFileNote",
       fromRelativePath: "src/old.ts",
       toRelativePath: "src/new.ts",
     });
 
-    await vi.waitFor(() => expect(mocks.relocateNavigatorFileNoteService).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.relocateFileNoteService).toHaveBeenCalledOnce());
     await vi.waitFor(() =>
       expect(mocks.postMessage).toHaveBeenCalledWith({
-        type: "navigatorFileNoteRelocated",
-        fromRelativePath: "src/old.ts",
-        toRelativePath: "src/new.ts",
+        type: "noteRelocated",
       }),
     );
-    expect(mocks.relocateNavigatorFileNoteService).toHaveBeenCalledWith({
+    expect(mocks.relocateFileNoteService).toHaveBeenCalledWith({
       currentUri,
       notes: {},
       fromRelativePath: "src/old.ts",
@@ -1420,6 +1427,7 @@ describe("NotesViewProvider", () => {
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri: targetUri,
       notes: {},
+      activeLine: 12,
     });
 
     provider.dispose();
@@ -1588,45 +1596,6 @@ describe("NotesViewProvider", () => {
         relativePath: "src/missing.ts",
       }),
     });
-
-    provider.dispose();
-  });
-
-  it("posts later active editor relative paths while Navigator file relocation is open", async () => {
-    const workspaceRoot = "/tmp";
-    const targetUri = createUri(`${workspaceRoot}/src/target.ts`);
-    const provider = new NotesViewProvider(
-      createUri("/extension"),
-      {} as never,
-      vi.fn().mockResolvedValue(true),
-      vi.fn().mockResolvedValue(undefined),
-    );
-    const view = createWebviewView();
-
-    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    mocks.getResourceNotes.mockResolvedValue({
-      kind: "file",
-      name: "target.ts",
-      relativePath: "src/target.ts",
-      aiAction: "generate",
-      sectionNotes: [],
-    });
-
-    await provider.resolveWebviewView(view);
-    mocks.messageListeners[0]?.({ type: "startNavigatorFileRelocatePathSync" });
-    expect(mocks.postMessage).not.toHaveBeenCalledWith({
-      type: "navigatorRelocateTargetPath",
-      relativePath: "src/target.ts",
-    });
-
-    mocks.activeTextEditor = createEditor(targetUri);
-    await provider.showActiveDocumentNotes(targetUri, 1);
-    await vi.waitFor(() =>
-      expect(mocks.postMessage).toHaveBeenCalledWith({
-        type: "navigatorRelocateTargetPath",
-        relativePath: "src/target.ts",
-      }),
-    );
 
     provider.dispose();
   });

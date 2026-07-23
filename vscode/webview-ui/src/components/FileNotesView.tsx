@@ -134,6 +134,13 @@ export function FileNotesView({
     getVsCodeApi()?.postMessage({ type: "clearNoteStaleStatus", target });
   };
 
+  const startFileRelocate = (): void => {
+    getVsCodeApi()?.postMessage({
+      type: "startNoteRelocate",
+      target: { level: "file", fromRelativePath: notes.relativePath },
+    });
+  };
+
   const startSectionRelocate = (): void => {
     if (!selectedSection) {
       return;
@@ -186,6 +193,7 @@ export function FileNotesView({
         status={notes.fileNote?.status}
         statusTarget={{ level: "file" }}
         onClearStaleStatus={clearStale}
+        onRelocate={notes.fileNote ? startFileRelocate : undefined}
         editKey={`file:${notes.relativePath}`}
         onSaveUserNote={(userNote) => saveUserNote({ level: "file" }, userNote)}
         emptyText="No file note yet."

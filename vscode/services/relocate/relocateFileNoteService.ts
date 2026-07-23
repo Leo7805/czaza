@@ -1,5 +1,5 @@
 /**
- * Relocates a Navigator file-note entry after the user confirms its new path.
+ * Relocates a file-note entry after the user confirms its new path.
  */
 
 import * as path from "node:path";
@@ -11,14 +11,14 @@ import type { WorkspaceNoteStore } from "@vscode/notes";
 import * as vscode from "vscode";
 
 /** Successful file-note relocation result. */
-export type RelocateNavigatorFileNoteResult = {
+export type RelocateFileNoteResult = {
   previousRelativePath: string;
   nextRelativePath: string;
   targetUri: vscode.Uri;
 };
 
 /** Input for relocating one Navigator file-note item. */
-export type RelocateNavigatorFileNoteInput = {
+export type RelocateFileNoteInput = {
   /** Current resource URI used to resolve the CZaza root. */
   currentUri: vscode.Uri;
 
@@ -35,9 +35,9 @@ export type RelocateNavigatorFileNoteInput = {
 /**
  * Validates and moves one file-note entry to a user-confirmed source path.
  */
-export async function relocateNavigatorFileNoteService(
-  input: RelocateNavigatorFileNoteInput,
-): Promise<RelocateNavigatorFileNoteResult> {
+export async function relocateFileNoteService(
+  input: RelocateFileNoteInput,
+): Promise<RelocateFileNoteResult> {
   const fromRelativePath = normalizeRelativePath(input.fromRelativePath);
   const toRelativePath = normalizeRelativePath(input.toRelativePath);
 

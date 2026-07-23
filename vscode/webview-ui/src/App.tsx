@@ -27,12 +27,6 @@ const initialNotes: ResourceNotesViewModel = {
 
 const initialNavigatorNotes: NavigatorNotesViewModel = { kind: "empty" };
 
-type RelocatedFileNote = {
-  fromRelativePath: string;
-  toRelativePath: string;
-  sequence: number;
-};
-
 /**
  * Renders notes for the currently selected VS Code resource.
  *
@@ -47,8 +41,6 @@ export function App() {
   const [navigatorNotes, setNavigatorNotes] =
     useState<NavigatorNotesViewModel>(initialNavigatorNotes);
   const [notice, setNotice] = useState<WebviewNotice | undefined>();
-  const [relocatedFileNote, setRelocatedFileNote] = useState<RelocatedFileNote | undefined>();
-  const [relocateTargetPath, setRelocateTargetPath] = useState<string | undefined>();
   const [noteRelocateTarget, setNoteRelocateTarget] = useState<NoteRelocateTarget>();
   const [noteRelocateSuggestion, setNoteRelocateSuggestion] =
     useState<NoteRelocateSuggestion>();
@@ -94,20 +86,6 @@ export function App() {
         return;
       }
 
-      if (message.type === "navigatorFileNoteRelocated") {
-        setRelocatedFileNote((previous) => ({
-          fromRelativePath: message.fromRelativePath,
-          toRelativePath: message.toRelativePath,
-          sequence: (previous?.sequence ?? 0) + 1,
-        }));
-        return;
-      }
-
-      if (message.type === "navigatorRelocateTargetPath") {
-        setRelocateTargetPath(message.relativePath);
-        return;
-      }
-
       if (message.type === "openNoteRelocate") {
         setNoteRelocateTarget(message.target);
         setNoteRelocateSuggestion(undefined);
@@ -148,11 +126,7 @@ export function App() {
       {viewMode === "detail" ? (
         <ResourceNotesView notes={notes} />
       ) : (
-        <NotesNavigatorView
-          navigatorNotes={navigatorNotes}
-          relocatedFileNote={relocatedFileNote}
-          relocateTargetPath={relocateTargetPath}
-        />
+        <NotesNavigatorView navigatorNotes={navigatorNotes} />
       )}
       {notice ? (
         <NoticeModal
@@ -181,7 +155,9 @@ export function App() {
             setNoteRelocateSuggestion(undefined);
           }}
           onSubmit={(target) => {
-            if (target.level === "section") {
+            if (target.level === "file") {
+              vscode?.postMessage({ type: "relocateFileNote", ...target });
+            } else if (target.level === "section") {
               vscode?.postMessage({ type: "relocateSectionNote", ...target });
             } else {
               vscode?.postMessage({ type: "relocateLineNote", ...target });

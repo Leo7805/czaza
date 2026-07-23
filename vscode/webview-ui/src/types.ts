@@ -117,10 +117,12 @@ export type UserNoteTarget =
   | { level: "line"; line: number };
 
 export type NoteRelocateTarget =
+  | { level: "file"; fromRelativePath: string }
   | { level: "section"; sectionId: string; startLine: number; endLine: number }
   | { level: "line"; lineId: string; line: number };
 
 export type NoteRelocateSuggestion =
+  | { level: "file"; relativePath: string }
   | { level: "section"; startLine: number; endLine: number }
   | { level: "line"; line: number; preview: string };
 
@@ -309,18 +311,7 @@ export type ExtensionToWebviewMessage =
 	      notice: WebviewNotice;
 	    }
   | {
-      /** Confirms that a Navigator file note was relocated successfully. */
-      type: "navigatorFileNoteRelocated";
-      fromRelativePath: string;
-      toRelativePath: string;
-    }
-  | {
-      /** Suggests the currently active editor path for the open relocate modal. */
-      type: "navigatorRelocateTargetPath";
-      relativePath: string;
-    }
-  | {
-      /** Opens a Section/Line Note relocation modal. */
+      /** Opens a File/Section/Line Note relocation modal. */
       type: "openNoteRelocate";
       target: NoteRelocateTarget;
     }
@@ -330,7 +321,7 @@ export type ExtensionToWebviewMessage =
       suggestion: NoteRelocateSuggestion;
     }
   | {
-      /** Confirms that a Section/Line Note relocation completed. */
+      /** Confirms that a File/Section/Line Note relocation completed. */
       type: "noteRelocated";
     }
   | {
@@ -428,24 +419,6 @@ export type WebviewToExtensionMessage =
       anchor: NoteAnchorStatus;
     }
   | {
-      /** Relocates a Navigator file-note item to a user-confirmed source path. */
-      type: "relocateNavigatorFileNote";
-
-      /** Existing CZaza-root-relative source path. */
-      fromRelativePath: string;
-
-      /** New CZaza-root-relative source path entered by the user. */
-      toRelativePath: string;
-    }
-  | {
-      /** Starts active-editor path suggestions for the Navigator relocate modal. */
-      type: "startNavigatorFileRelocatePathSync";
-    }
-  | {
-      /** Stops active-editor path suggestions for the Navigator relocate modal. */
-      type: "stopNavigatorFileRelocatePathSync";
-    }
-  | {
       /** Marks a Navigator file-note item as orphaned after confirmation. */
       type: "markNavigatorFileNoteOrphaned";
 
@@ -508,6 +481,12 @@ export type WebviewToExtensionMessage =
   | {
       /** Stops the active Section/Line Note relocation session. */
       type: "stopNoteRelocate";
+    }
+  | {
+      /** Relocates a File Note to a new source path. */
+      type: "relocateFileNote";
+      fromRelativePath: string;
+      toRelativePath: string;
     }
   | {
       /** Relocates a Section Note to a new source range. */

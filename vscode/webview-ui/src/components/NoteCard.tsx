@@ -480,7 +480,7 @@ function getStatusMenuItems(
     });
   }
 
-  if (onRelocate && (scope === "section" || scope === "line")) {
+  if (onRelocate && (scope === "file" || scope === "section" || scope === "line")) {
     items.push({
       id: "relocate",
       label: getRelocateMenuLabel(scope),

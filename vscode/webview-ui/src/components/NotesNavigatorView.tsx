@@ -1,6 +1,6 @@
 /** Renders the initial Files, Sections, and Lines navigator shell. */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type {
   NavigatorFileItem,
@@ -17,7 +17,6 @@ import {
 } from "./NavigatorItemContextMenu";
 import { NoteStatusBadges } from "./NoteStatusBadges";
 import { NoticeModal } from "./NoticeModal";
-import { RelocateFileNoteModal } from "./RelocateFileNoteModal";
 import { Tooltip } from "./Tooltip";
 import {
   defaultNavigatorSort,
@@ -45,10 +44,6 @@ type LineContextMenuState = {
   item: NavigatorLineItem;
 };
 
-type RelocateModalState = {
-  fromRelativePath: string;
-};
-
 type MarkOrphanedModalState = {
   relativePath: string;
 };
@@ -67,22 +62,10 @@ type DeleteLineModalState = {
   line: number;
 };
 
-type RelocatedFileNote = {
-  fromRelativePath: string;
-  toRelativePath: string;
-  sequence: number;
-};
-
 /** Props for the Notes Navigator view. */
 export type NotesNavigatorViewProps = {
   /** Complete list data loaded by the extension host. */
   navigatorNotes: NavigatorNotesViewModel;
-
-  /** Last successfully relocated file note, if any. */
-  relocatedFileNote?: RelocatedFileNote;
-
-  /** Active editor path suggested by the extension host for relocation. */
-  relocateTargetPath?: string;
 };
 
 /** Maps each navigator list to its corresponding detail-card accent. */
@@ -129,8 +112,6 @@ export function getNavigatorItemClassName(
  */
 export function NotesNavigatorView({
   navigatorNotes,
-  relocatedFileNote,
-  relocateTargetPath,
 }: NotesNavigatorViewProps) {
   const [activeTab, setActiveTab] = useState<NotesNavigatorTab>("files");
   const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
@@ -253,8 +234,6 @@ export function NotesNavigatorView({
           globalQuery={globalQuery}
           filterQuery={filters[activeTab]}
           sort={sorts[activeTab]}
-          relocatedFileNote={relocatedFileNote}
-          relocateTargetPath={relocateTargetPath}
         />
       </div>
     </section>
@@ -447,16 +426,12 @@ export function getNavigatorBadge(
 function NavigatorList({
   notes,
   tab,
-  relocatedFileNote,
-  relocateTargetPath,
   globalQuery,
   filterQuery,
   sort,
 }: {
   notes: NavigatorNotesViewModel;
   tab: NotesNavigatorTab;
-  relocatedFileNote?: RelocatedFileNote;
-  relocateTargetPath?: string;
   globalQuery: string;
   filterQuery: string;
   sort: NavigatorSortState;
@@ -466,39 +441,12 @@ function NavigatorList({
     null,
   );
   const [lineContextMenu, setLineContextMenu] = useState<LineContextMenuState | null>(null);
-  const [relocateModal, setRelocateModal] = useState<RelocateModalState | null>(null);
   const [markOrphanedModal, setMarkOrphanedModal] = useState<MarkOrphanedModalState | null>(null);
   const [deleteNotesModal, setDeleteNotesModal] = useState<DeleteNotesModalState | null>(null);
   const [deleteSectionModal, setDeleteSectionModal] = useState<DeleteSectionModalState | null>(
     null,
   );
   const [deleteLineModal, setDeleteLineModal] = useState<DeleteLineModalState | null>(null);
-  const handledRelocationSequence = useRef(0);
-
-  useEffect(() => {
-    if (
-      !relocatedFileNote ||
-      relocatedFileNote.sequence <= handledRelocationSequence.current ||
-      relocateModal?.fromRelativePath !== relocatedFileNote.fromRelativePath
-    ) {
-      return;
-    }
-
-    handledRelocationSequence.current = relocatedFileNote.sequence;
-    setRelocateModal(null);
-  }, [relocatedFileNote, relocateModal?.fromRelativePath]);
-
-  useEffect(() => {
-    if (!relocateModal) {
-      return;
-    }
-
-    getVsCodeApi()?.postMessage({ type: "startNavigatorFileRelocatePathSync" });
-
-    return () => {
-      getVsCodeApi()?.postMessage({ type: "stopNavigatorFileRelocatePathSync" });
-    };
-  }, [relocateModal]);
 
   const items = useMemo(
     () => {
@@ -560,11 +508,10 @@ function NavigatorList({
       relativePath,
     });
   };
-  const relocateNavigatorFileNote = (fromRelativePath: string, toRelativePath: string): void => {
+  const startFileRelocate = (fromRelativePath: string): void => {
     getVsCodeApi()?.postMessage({
-      type: "relocateNavigatorFileNote",
-      fromRelativePath,
-      toRelativePath,
+      type: "startNoteRelocate",
+      target: { level: "file", fromRelativePath },
     });
   };
   const markNavigatorFileNoteOrphaned = (relativePath: string): void => {
@@ -766,7 +713,7 @@ function NavigatorList({
               ),
             () => clearNavigatorFileStaleStatus(fileContextMenu.item.relativePath),
             () => {
-              setRelocateModal({ fromRelativePath: fileContextMenu.item.relativePath });
+              startFileRelocate(fileContextMenu.item.relativePath);
               setFileContextMenu(null);
             },
             () => {
@@ -824,16 +771,6 @@ function NavigatorList({
           )}
           position={lineContextMenu.position}
           onClose={() => setLineContextMenu(null)}
-        />
-      ) : null}
-      {relocateModal ? (
-        <RelocateFileNoteModal
-          fromRelativePath={relocateModal.fromRelativePath}
-          suggestedRelativePath={relocateTargetPath}
-          onCancel={() => setRelocateModal(null)}
-          onSubmit={(toRelativePath) =>
-            relocateNavigatorFileNote(relocateModal.fromRelativePath, toRelativePath)
-          }
         />
       ) : null}
       {markOrphanedModal ? (

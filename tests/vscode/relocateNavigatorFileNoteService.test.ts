@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { WorkspaceNoteStore, WorkspaceNoteStoreRepository } from "@vscode/notes";
-import { relocateNavigatorFileNoteService } from "@vscode/services/relocateNavigatorFileNoteService";
+import { relocateFileNoteService } from "@vscode/services/relocate";
 
 type MockWorkspaceFolder = {
   uri: vscodeTypes.Uri;
@@ -68,7 +68,7 @@ vi.mock("vscode", () => ({
 
 const createdAt = "2026-07-12T00:00:00.000Z";
 
-describe("relocateNavigatorFileNoteService()", () => {
+describe("relocateFileNoteService()", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.workspaceFolders.length = 0;
@@ -82,7 +82,7 @@ describe("relocateNavigatorFileNoteService()", () => {
     await writeSourceFile(workspaceRoot, "src/new.ts");
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
-    const result = await relocateNavigatorFileNoteService({
+    const result = await relocateFileNoteService({
       currentUri: createUri(path.join(workspaceRoot, "src/old.ts")),
       notes,
       fromRelativePath: "src/old.ts",
@@ -110,7 +110,7 @@ describe("relocateNavigatorFileNoteService()", () => {
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
     await expect(
-      relocateNavigatorFileNoteService({
+      relocateFileNoteService({
         currentUri: createUri(path.join(workspaceRoot, "src/old.ts")),
         notes,
         fromRelativePath: "src/old.ts",
@@ -126,7 +126,7 @@ describe("relocateNavigatorFileNoteService()", () => {
     await writeSourceFile(workspaceRoot, "src/index.ts");
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
-    const result = await relocateNavigatorFileNoteService({
+    const result = await relocateFileNoteService({
       currentUri: createUri(path.join(workspaceRoot, "src/index.ts")),
       notes,
       fromRelativePath: "src/index.ts",
@@ -152,7 +152,7 @@ describe("relocateNavigatorFileNoteService()", () => {
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
     await expect(
-      relocateNavigatorFileNoteService({
+      relocateFileNoteService({
         currentUri: createUri(path.join(workspaceRoot, "src/index.ts")),
         notes,
         fromRelativePath: "src/index.ts",
@@ -176,7 +176,7 @@ describe("relocateNavigatorFileNoteService()", () => {
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
     await expect(
-      relocateNavigatorFileNoteService({
+      relocateFileNoteService({
         currentUri: createUri(path.join(workspaceRoot, "src/old.ts")),
         notes,
         fromRelativePath: "src/old.ts",
@@ -192,7 +192,7 @@ describe("relocateNavigatorFileNoteService()", () => {
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
     await expect(
-      relocateNavigatorFileNoteService({
+      relocateFileNoteService({
         currentUri: createUri(path.join(workspaceRoot, "src/old.ts")),
         notes,
         fromRelativePath: "src/old.ts",
