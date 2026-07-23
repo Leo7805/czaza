@@ -33,6 +33,10 @@ export function RelocateNoteModal({
   );
   const [error, setError] = useState<string>();
   const titleId = useId();
+  const filePathError =
+    target.level === "file"
+      ? getFilePathError(relativePath, target.managedNotesRelativePath)
+      : undefined;
 
   useEffect(() => {
     setFollowingEditor(true);
@@ -89,8 +93,9 @@ export function RelocateNoteModal({
   const submit = (): void => {
     if (target.level === "file") {
       const normalizedPath = relativePath.trim().replaceAll("\\", "/");
-      if (!isSafeRelativePath(normalizedPath)) {
-        setError("Use a CZaza-root-relative path without ., .., or an absolute prefix.");
+      const pathError = getFilePathError(normalizedPath, target.managedNotesRelativePath);
+      if (pathError) {
+        setError(pathError);
         return;
       }
       onSubmit({ ...target, toRelativePath: normalizedPath });
@@ -181,7 +186,9 @@ export function RelocateNoteModal({
           {target.level === "line" && suggestion?.level === "line" && suggestion.preview ? (
             <pre className="relocate-modal__preview">{suggestion.preview}</pre>
           ) : null}
-          {error ? <p className="relocate-modal__error">{error}</p> : null}
+          {error || filePathError ? (
+            <p className="relocate-modal__error">{error ?? filePathError}</p>
+          ) : null}
         </div>
         <div className="relocate-modal__actions">
           <button className="relocate-modal__action relocate-modal__action--secondary" type="button" onClick={useEditorTarget}>
@@ -190,7 +197,12 @@ export function RelocateNoteModal({
           <button className="relocate-modal__action relocate-modal__action--secondary" type="button" onClick={onCancel}>
             Cancel
           </button>
-          <button className="relocate-modal__action relocate-modal__action--primary" type="button" onClick={submit}>
+          <button
+            className="relocate-modal__action relocate-modal__action--primary"
+            type="button"
+            disabled={target.level === "file" && Boolean(filePathError)}
+            onClick={submit}
+          >
             Relocate
           </button>
         </div>
@@ -241,4 +253,30 @@ function isSafeRelativePath(relativePath: string): boolean {
     .replaceAll("\\", "/")
     .split("/")
     .every((segment) => segment && segment !== "." && segment !== "..");
+}
+
+function getFilePathError(
+  relativePath: string,
+  managedNotesRelativePath: string | undefined,
+): string | undefined {
+  const normalizedPath = relativePath.trim().replaceAll("\\", "/");
+
+  if (!isSafeRelativePath(normalizedPath)) {
+    return "Use a CZaza-root-relative path without ., .., or an absolute prefix.";
+  }
+
+  const normalizedManagedPath = managedNotesRelativePath
+    ?.trim()
+    .replaceAll("\\", "/")
+    .replace(/\/+$/, "");
+
+  if (
+    normalizedManagedPath &&
+    (normalizedPath === normalizedManagedPath ||
+      normalizedPath.startsWith(`${normalizedManagedPath}/`))
+  ) {
+    return "CZaza-managed note files cannot be used as File Note targets.";
+  }
+
+  return undefined;
 }

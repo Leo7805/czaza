@@ -14,6 +14,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import { getWorkspaceNoteIndexPath } from "@vscode/notes/WorkspaceNoteStoreRepository";
 import { ensureFileNoteResourceAvailability } from "@vscode/services/ensureFileNoteResourceAvailabilityService";
 import {
   getNavigatorNotes,
@@ -212,7 +213,7 @@ type AiActionScope = "fileSection" | "all" | "section" | "line";
 type NoteRelocateSession = {
   uri: vscode.Uri;
   target:
-    | { level: "file"; fromRelativePath: string }
+    | { level: "file"; fromRelativePath: string; managedNotesRelativePath?: string }
     | { level: "section"; sectionId: string; startLine: number; endLine: number }
     | { level: "line"; lineId: string; line: number };
 };
@@ -1329,14 +1330,34 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
-    this.noteRelocateSession = { uri, target };
+    const sessionTarget =
+      target.level === "file"
+        ? {
+            ...target,
+            managedNotesRelativePath: this.getManagedNotesRelativePath(uri),
+          }
+        : target;
+    this.noteRelocateSession = { uri, target: sessionTarget };
     await this.view.webview.postMessage({
       type: "openNoteRelocate",
-      target,
+      target: sessionTarget,
     });
     await this.syncRelocateTargetFromEditor(
       target.level === "file" ? vscode.window.activeTextEditor : this.getCurrentResourceEditor(),
     );
+  }
+
+  private getManagedNotesRelativePath(uri: vscode.Uri): string | undefined {
+    try {
+      const { rootDirectory } = resolveCzazaRootDirectory(uri);
+      const settings = getCzazaSettings(uri);
+      const notesDirectory = path.dirname(
+        getWorkspaceNoteIndexPath(rootDirectory, settings.outputDirectory),
+      );
+      return path.relative(rootDirectory, notesDirectory).split(path.sep).join("/");
+    } catch {
+      return undefined;
+    }
   }
 
   private async runRelocateFileNote(

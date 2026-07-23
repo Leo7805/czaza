@@ -117,7 +117,7 @@ export type UserNoteTarget =
   | { level: "line"; line: number };
 
 export type NoteRelocateTarget =
-  | { level: "file"; fromRelativePath: string }
+  | { level: "file"; fromRelativePath: string; managedNotesRelativePath?: string }
   | { level: "section"; sectionId: string; startLine: number; endLine: number }
   | { level: "line"; lineId: string; line: number };
 

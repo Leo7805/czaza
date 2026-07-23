@@ -12,6 +12,7 @@ import {
   encodeSourceFileDocument,
 } from "@shared/services/sourceFileDocumentCodec";
 import { createSourceHash } from "@shared/utils/hashUtils";
+import { isCzazaManagedRelativePath } from "@shared/utils/managedOutputPath";
 
 const NOTES_DIR_NAME = "notes";
 const FILES_DIR_NAME = "files";
@@ -153,6 +154,10 @@ export class WorkspaceNoteStoreRepository {
     sourceFile: StoredSourceFile,
     now: string,
   ): Promise<void> {
+    if (isCzazaManagedRelativePath(workspaceRoot, outputDirectory, relativeFilePath)) {
+      throw new Error("CZaza-managed output files cannot be stored as source-note entries.");
+    }
+
     const existing = await this.loadIndex(workspaceRoot, outputDirectory);
     const existingEntry = existing?.files[relativeFilePath];
     const noteFile = existingEntry?.noteFile ?? createWorkspaceNoteFileName(

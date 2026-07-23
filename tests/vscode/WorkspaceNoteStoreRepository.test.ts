@@ -113,6 +113,34 @@ describe("WorkspaceNoteStoreRepository", () => {
     });
   });
 
+  it("refuses to store generated note files as source entries", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const sourceFile = createStoredSourceFile();
+
+    await expect(
+      repository.saveSourceFile(
+        root,
+        outputDirectory,
+        ".caca/notes/index.json",
+        sourceFile,
+        now,
+      ),
+    ).rejects.toThrow("CZaza-managed output files cannot be stored as source-note entries.");
+
+    await expect(
+      repository.saveSourceFile(
+        root,
+        outputDirectory,
+        ".caca/notes/files/generated.json",
+        sourceFile,
+        now,
+      ),
+    ).rejects.toThrow("CZaza-managed output files cannot be stored as source-note entries.");
+
+    expect(await repository.loadIndex(root, outputDirectory)).toBeNull();
+  });
+
   it("preserves existing source file entries when saving one file", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(createSequentialRandomId([firstRandomId, secondRandomId]));

@@ -1394,6 +1394,16 @@ describe("NotesViewProvider", () => {
     });
     await vi.waitFor(() =>
       expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "openNoteRelocate",
+        target: {
+          level: "file",
+          fromRelativePath: "src/old.ts",
+          managedNotesRelativePath: ".czaza/notes",
+        },
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
         type: "noteRelocateSuggestion",
         suggestion: { level: "file", relativePath: "src/new.ts" },
       }),

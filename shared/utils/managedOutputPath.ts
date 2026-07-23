@@ -22,3 +22,13 @@ export function isCzazaManagedRelativePath(
     (!relativeToOutput.startsWith("..") && !path.isAbsolute(relativeToOutput))
   );
 }
+
+/** Returns whether one path is equal to or contained by a directory path. */
+export function isPathInsideDirectory(candidatePath: string, directoryPath: string): boolean {
+  const relativePath = path.relative(path.resolve(directoryPath), path.resolve(candidatePath));
+
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
+  );
+}

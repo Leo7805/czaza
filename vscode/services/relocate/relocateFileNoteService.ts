@@ -5,10 +5,14 @@
 import * as path from "node:path";
 
 import type { NoteStatus } from "@shared/models/domain/common";
-import { isCzazaManagedRelativePath } from "@shared/utils/managedOutputPath";
+import {
+  isCzazaManagedRelativePath,
+  isPathInsideDirectory,
+} from "@shared/utils/managedOutputPath";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import { getWorkspaceNoteIndexPath } from "@vscode/notes/WorkspaceNoteStoreRepository";
 import * as vscode from "vscode";
 
 /** Successful file-note relocation result. */
@@ -48,12 +52,19 @@ export async function relocateFileNoteService(
 
   const { rootDirectory } = resolveCzazaRootDirectory(input.currentUri);
   const settings = getCzazaSettings(input.currentUri);
+  const targetPath = path.resolve(rootDirectory, toRelativePath);
+  const managedNotesDirectory = path.dirname(
+    getWorkspaceNoteIndexPath(rootDirectory, settings.outputDirectory),
+  );
 
-  if (isCzazaManagedRelativePath(rootDirectory, settings.outputDirectory, toRelativePath)) {
+  if (
+    isCzazaManagedRelativePath(rootDirectory, settings.outputDirectory, toRelativePath) ||
+    isPathInsideDirectory(targetPath, managedNotesDirectory)
+  ) {
     throw new Error("CZaza-managed output files cannot be used as File Note targets.");
   }
 
-  const targetUri = vscode.Uri.file(path.join(rootDirectory, ...toRelativePath.split("/")));
+  const targetUri = vscode.Uri.file(targetPath);
 
   try {
     const stat = await vscode.workspace.fs.stat(targetUri);
