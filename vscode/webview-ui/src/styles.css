@@ -1406,7 +1406,8 @@ textarea {
 .user-note-editor__input {
   box-sizing: border-box;
   width: 100%;
-  min-height: 96px;
+  min-height: 144px;
+  max-height: min(360px, 50vh);
   padding: 7px 8px;
   border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
   border-radius: 4px;
@@ -1414,6 +1415,7 @@ textarea {
   background: var(--vscode-input-background, var(--vscode-editor-background));
   line-height: 1.5;
   overflow-x: auto;
+  overflow-y: auto;
   resize: vertical;
 }
 

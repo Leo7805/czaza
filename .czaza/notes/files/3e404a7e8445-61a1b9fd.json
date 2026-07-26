@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:db31b563d76482356e73c9134ef246221a64d25282aacdbe0c19f131f9a1a9df",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-26T12:10:18.682Z",
+    "updatedAt": "2026-07-26T12:10:18.682Z"
+  },
+  "fileNote": {
+    "userNote": "计算并应用带上下限的编辑框高度。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

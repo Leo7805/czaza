@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:a610dd10fedebdf738cbaa3b67a67481348e271b6724c33a56a8c069574aada0",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescriptreact"
+  },
+  "defaults": {
+    "createdAt": "2026-07-26T12:09:42.649Z",
+    "updatedAt": "2026-07-26T12:09:42.649Z"
+  },
+  "fileNote": {
+    "userNote": "在进入编辑、内容变化和窗口尺寸变化时自动调整编辑框高度。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

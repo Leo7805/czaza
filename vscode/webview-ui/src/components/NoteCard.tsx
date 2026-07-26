@@ -24,6 +24,7 @@ import {
   replaceEditorSelection,
   type EditorSelection,
 } from "../editorTextUtils";
+import { resizeNoteEditorToContent } from "../noteEditorSizing";
 import {
   EmojiPickerPopover,
   type EmojiPickerPosition,
@@ -248,6 +249,33 @@ export function NoteCard({
     editor.setSelectionRange(pendingSelection.start, pendingSelection.end);
     editorSelectionRef.current = pendingSelection;
   }, [draft]);
+
+  useLayoutEffect(() => {
+    const editor = editorRef.current;
+
+    if (!isEditing || !editor) {
+      return;
+    }
+
+    resizeNoteEditorToContent(editor, window.innerHeight);
+  }, [draft, isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
+    const resizeEditor = (): void => {
+      const editor = editorRef.current;
+
+      if (editor) {
+        resizeNoteEditorToContent(editor, window.innerHeight);
+      }
+    };
+
+    window.addEventListener("resize", resizeEditor);
+    return () => window.removeEventListener("resize", resizeEditor);
+  }, [isEditing]);
 
   const startEditing = (): void => {
     setDraft(userNote ?? "");

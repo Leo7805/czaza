@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-26T11:58:24.239Z",
+  "updatedAt": "2026-07-26T12:10:18.682Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -166,6 +166,18 @@
       "sourceHash": "sha256:aa89e784b1236aee625bb881b7267a75ee8c8a7dc3f24b3d3e4e716e8d2ca7a4",
       "programmingLanguage": "typescript",
       "updatedAt": "2026-07-26T11:26:35.078Z"
+    },
+    "vscode/webview-ui/src/components/NoteCard.tsx": {
+      "noteFile": "files/a9334a6e6087-760dc8e6.json",
+      "sourceHash": "sha256:a610dd10fedebdf738cbaa3b67a67481348e271b6724c33a56a8c069574aada0",
+      "programmingLanguage": "typescriptreact",
+      "updatedAt": "2026-07-26T12:09:42.649Z"
+    },
+    "vscode/webview-ui/src/noteEditorSizing.ts": {
+      "noteFile": "files/3e404a7e8445-61a1b9fd.json",
+      "sourceHash": "sha256:db31b563d76482356e73c9134ef246221a64d25282aacdbe0c19f131f9a1a9df",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-26T12:10:18.682Z"
     }
   }
 }
