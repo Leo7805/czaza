@@ -1,12 +1,12 @@
 {
   "source": {
-    "sourceHash": "sha256:4fa0cf4f413e93038bb66b7bed0c3ed510a646af50b0563a194c1d0cd4cbc262",
+    "sourceHash": "sha256:81f7932e35619c513784acda6b3997ee326c9f1d3eb421b481c3bebe37d61e6a",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-23T13:00:12.743Z",
-    "updatedAt": "2026-07-26T11:26:25.622Z"
+    "updatedAt": "2026-07-26T11:58:24.239Z"
   },
   "fileNote": {
     "userNote": "当前负责监听 VS Code 文档变化、保存和外部文件变化，并安排 Notes 更新。\n\nhandleTextDocumentChange：从“逐个 content change 入队”改成“整个事件作为一个 batch 入队”。\n\n现在一个多变化事件只会保存一次并刷新一次；连续的两个独立 VS Code 事件仍会保存两次。\n\n\n---\n\n监听编辑器内容、保存和外部文件变化，并安排 Notes 检测、迁移和刷新。\nregisterNotesContentEvents — 接收 transition guard，并在 transition 开始时清除 timers、pending state 和队列引用。\nhandleTextDocumentChange — Git 切换期间忽略编辑器内容变化和 relocation。\nhandleSavedDocument — Git 切换期间忽略保存事件引发的 Notes 检测。\nscheduleExternalChangeCheck — Git 切换期间不创建 external-change timer，并延长稳定期。\nhandleExternalChange — timer 执行前再次检查 transition，防止旧 timer 在 checkout 期间写 Notes。",

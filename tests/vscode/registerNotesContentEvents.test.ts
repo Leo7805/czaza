@@ -207,6 +207,94 @@ describe("registerNotesContentEvents()", () => {
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
 
+  it("ignores clean document reloads caused by a Git checkout", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("clean-checkout-reload");
+    const previousText = createNumberedSourceLines(35);
+    const nextText = createNumberedSourceLines(6, 30);
+    const sourceFile = createStoredSourceFile(previousText);
+    sourceFile.sectionNotes[0]!.range = { startLine: 30, endLine: 30 };
+    sourceFile.lineNotes[0]!.line = 30;
+    const notes = createNotes(sourceFile);
+    const document = createDocument(
+      path.join(workspaceRoot, "src/index.ts"),
+      nextText,
+      false,
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(createExtensionContext(), notes.value);
+    mocks.textDocumentChangeListeners[0]?.({
+      document,
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 29, character: 0 },
+          },
+          rangeLength: previousText.length - nextText.length,
+          text: "",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+
+    await waitForMicrotasks();
+
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+  });
+
+  it("relocates notes for the same deletion when the document is dirty", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("dirty-user-deletion");
+    const previousText = createNumberedSourceLines(35);
+    const nextText = createNumberedSourceLines(6, 30);
+    const sourceFile = createStoredSourceFile(previousText);
+    sourceFile.sectionNotes[0]!.range = { startLine: 30, endLine: 30 };
+    sourceFile.lineNotes[0]!.line = 30;
+    const notes = createNotes(sourceFile);
+    const document = createDocument(
+      path.join(workspaceRoot, "src/index.ts"),
+      nextText,
+      true,
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(createExtensionContext(), notes.value);
+    mocks.textDocumentChangeListeners[0]?.({
+      document,
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 29, character: 0 },
+          },
+          rangeLength: previousText.length - nextText.length,
+          text: "",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+
+    await waitForMicrotasks();
+
+    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+    expect(notes.saveSourceFile).toHaveBeenCalledWith(
+      workspaceRoot,
+      ".caca",
+      "src/index.ts",
+      expect.objectContaining({
+        sectionNotes: [
+          expect.objectContaining({
+            range: { startLine: 1, endLine: 1 },
+          }),
+        ],
+        lineNotes: [
+          expect.objectContaining({
+            line: 1,
+          }),
+        ],
+      }),
+      expect.any(String),
+    );
+  });
+
   it("does not save when the source hash is unchanged", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("unchanged");
     const sourceText = "export const value = 1;\n";
@@ -717,12 +805,39 @@ function createWorkspaceFolder(fsPath: string): MockWorkspaceFolder {
   };
 }
 
-function createDocument(fsPath: string, text: string): vscodeTypes.TextDocument {
+/**
+ * Creates a minimal VS Code text document for content-event tests.
+ *
+ * @param fsPath - Absolute document path.
+ * @param text - Current document text.
+ * @param isDirty - Whether VS Code considers the document user-modified.
+ * @returns Mock VS Code text document.
+ */
+function createDocument(
+  fsPath: string,
+  text: string,
+  isDirty?: boolean,
+): vscodeTypes.TextDocument {
   return {
     uri: createUri(fsPath),
     languageId: "typescript",
+    isDirty,
     getText: () => text,
   } as vscodeTypes.TextDocument;
+}
+
+/**
+ * Creates numbered source lines for relocation boundary tests.
+ *
+ * @param lineCount - Number of lines to create.
+ * @param firstLine - One-based number assigned to the first line.
+ * @returns Source text containing numbered lines.
+ */
+function createNumberedSourceLines(lineCount: number, firstLine = 1): string {
+  return Array.from(
+    { length: lineCount },
+    (_, index) => `line ${firstLine + index}`,
+  ).join("\n");
 }
 
 function createUri(fsPath: string): vscodeTypes.Uri {

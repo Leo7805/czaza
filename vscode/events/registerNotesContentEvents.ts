@@ -149,6 +149,10 @@ async function handleTextDocumentChange(
       return;
     }
 
+    if (event.document.isDirty === false) {
+      return;
+    }
+
     if (
       event.document.uri.scheme !== "file" ||
       isCzazaManagedResource(event.document.uri)
