@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-23T13:11:46.357Z",
+  "updatedAt": "2026-07-26T11:26:35.078Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -139,9 +139,33 @@
     },
     "vscode/events/registerNotesContentEvents.ts": {
       "noteFile": "files/a8ddb5ffcac5-2c97d283.json",
-      "sourceHash": "sha256:f36ee5b9ac948fdb3522f0188ca7d4451bc5a27ed26beba94fa6a58b31758984",
+      "sourceHash": "sha256:4fa0cf4f413e93038bb66b7bed0c3ed510a646af50b0563a194c1d0cd4cbc262",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-23T13:00:52.729Z"
+      "updatedAt": "2026-07-26T11:26:25.622Z"
+    },
+    "vscode/services/workspaceTransition/GitWorkspaceTransitionGuard.ts": {
+      "noteFile": "files/22f375782ff6-cf3ddbe4.json",
+      "sourceHash": "sha256:e296c4695bef8b3043d7007a86a7e06ed499d116a967b16388161fede87b5913",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-26T11:25:42.421Z"
+    },
+    "vscode/services/workspaceTransition/registerGitWorkspaceTransition.ts": {
+      "noteFile": "files/7385efeaabf6-0687c016.json",
+      "sourceHash": "sha256:0ed3ae5dc6d3acbe7a4d920256d84c8b1de0fa54cfe1a3eb4883485e901624c8",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-26T11:25:53.075Z"
+    },
+    "vscode/services/workspaceTransition/index.ts": {
+      "noteFile": "files/db913b17eace-2e93fedf.json",
+      "sourceHash": "sha256:a5adda40621294fd3a6a231f3bde7084344e79cfe99d850d8137b2884266e1cf",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-26T11:26:04.997Z"
+    },
+    "vscode/extension.ts": {
+      "noteFile": "files/a439341dde5e-369009cb.json",
+      "sourceHash": "sha256:aa89e784b1236aee625bb881b7267a75ee8c8a7dc3f24b3d3e4e716e8d2ca7a4",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-26T11:26:35.078Z"
     }
   }
 }

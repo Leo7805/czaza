@@ -86,6 +86,7 @@ vi.mock("vscode", () => ({
 import { registerNotesContentEvents } from "@vscode/events";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
+import { GitWorkspaceTransitionGuard } from "@vscode/services/workspaceTransition";
 
 describe("registerNotesContentEvents()", () => {
   beforeEach(() => {
@@ -156,6 +157,54 @@ describe("registerNotesContentEvents()", () => {
       expect.any(String),
     );
     expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(document.uri);
+  });
+
+  it("ignores content and external changes during a Git workspace transition", async () => {
+    vi.useFakeTimers();
+    const workspaceRoot = await createTempWorkspaceRoot("git-transition");
+    const previousText = "export const value = 1;\n";
+    const nextText = "export const value = 2;\n";
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const guard = new GitWorkspaceTransitionGuard(100);
+    const document = createDocument(
+      path.join(workspaceRoot, "src/index.ts"),
+      nextText,
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      guard,
+    );
+    guard.beginTransition();
+    mocks.textDocumentChangeListeners[0]?.({
+      document,
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 21 },
+            end: { line: 0, character: 22 },
+          },
+          rangeLength: 1,
+          text: "2",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    mocks.saveListeners[0]?.(document);
+    mocks.changeListeners[0]?.(document.uri);
+
+    await vi.advanceTimersByTimeAsync(99);
+
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(guard.isTransitioning()).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(1);
+    mocks.saveListeners[0]?.(document);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
 
   it("does not save when the source hash is unchanged", async () => {

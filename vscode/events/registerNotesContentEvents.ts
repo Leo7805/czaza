@@ -15,6 +15,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
+import type { GitWorkspaceTransitionGuard } from "@vscode/services/workspaceTransition";
 import {
   applySourceChangeToNotesService,
   classifySourceChangeBatch,
@@ -47,6 +48,8 @@ type TextDocumentSnapshot = {
  * @param context - Current VS Code extension context.
  * @param notes - Shared workspace note store.
  * @param notesProvider - Optional notes webview provider to refresh after stored changes.
+ * @param workspaceTransitionGuard - Optional Git transition state that suppresses checkout writes.
+ * @returns Nothing.
  *
  * @example
  * registerNotesContentEvents(context, notes);
@@ -55,6 +58,7 @@ export function registerNotesContentEvents(
   context: vscode.ExtensionContext,
   notes: WorkspaceNoteStore,
   notesProvider?: NotesViewProvider,
+  workspaceTransitionGuard?: GitWorkspaceTransitionGuard,
 ): void {
   const externalChangeTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const notesRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -62,6 +66,15 @@ export function registerNotesContentEvents(
   const documentChangeQueues: DocumentChangeQueue = new Map();
   const recentlySavedTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const watcher = vscode.workspace.createFileSystemWatcher("**/*", true, false, true);
+  const transitionDisposable = workspaceTransitionGuard?.onDidStartTransition(
+    () => {
+      clearTimers(externalChangeTimers);
+      clearTimers(notesRefreshTimers);
+      clearTimers(recentlySavedTimers);
+      pendingDocumentChanges.clear();
+      documentChangeQueues.clear();
+    },
+  );
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
@@ -72,6 +85,7 @@ export function registerNotesContentEvents(
         pendingDocumentChanges,
         notesRefreshTimers,
         documentChangeQueues,
+        workspaceTransitionGuard,
       );
     }),
     vscode.workspace.onDidSaveTextDocument((document) => {
@@ -82,6 +96,7 @@ export function registerNotesContentEvents(
         notesProvider,
         pendingDocumentChanges,
         documentChangeQueues,
+        workspaceTransitionGuard,
       );
     }),
     watcher.onDidChange((uri) => {
@@ -91,9 +106,11 @@ export function registerNotesContentEvents(
         notesProvider,
         externalChangeTimers,
         recentlySavedTimers,
+        workspaceTransitionGuard,
       );
     }),
     watcher,
+    ...(transitionDisposable ? [transitionDisposable] : []),
     {
       dispose: () => {
         clearTimers(externalChangeTimers);
@@ -124,8 +141,14 @@ async function handleTextDocumentChange(
   pendingDocumentChanges: Map<string, PendingDocumentChangeState>,
   notesRefreshTimers: Map<string, ReturnType<typeof setTimeout>>,
   documentChangeQueues: DocumentChangeQueue,
+  workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
 ): Promise<void> {
   try {
+    if (workspaceTransitionGuard?.isTransitioning()) {
+      workspaceTransitionGuard.touchTransition();
+      return;
+    }
+
     if (
       event.document.uri.scheme !== "file" ||
       isCzazaManagedResource(event.document.uri)
@@ -145,6 +168,11 @@ async function handleTextDocumentChange(
     const document = createTextDocumentSnapshot(event.document);
 
     enqueueDocumentChange(documentChangeQueues, key, async () => {
+      if (workspaceTransitionGuard?.isTransitioning()) {
+        workspaceTransitionGuard.touchTransition();
+        return;
+      }
+
       const result = await applySourceChangeToNotesService({
         document,
         change: classifiedBatch,
@@ -164,13 +192,30 @@ async function handleTextDocumentChange(
   }
 }
 
+/**
+ * Handles a document save unless Git is currently replacing workspace files.
+ *
+ * @param notes - Shared workspace Note store.
+ * @param document - Saved VS Code document.
+ * @param notesProvider - Optional Notes view refreshed after persistence.
+ * @param pendingDocumentChanges - Per-document save fallback state.
+ * @param documentChangeQueues - Per-document serialized update queues.
+ * @param workspaceTransitionGuard - Optional Git transition state.
+ * @returns Promise resolved after save-time detection or suppression.
+ */
 async function handleSavedDocument(
   notes: WorkspaceNoteStore,
   document: vscode.TextDocument,
   notesProvider: NotesViewProvider | undefined,
   pendingDocumentChanges: Map<string, PendingDocumentChangeState>,
   documentChangeQueues: DocumentChangeQueue,
+  workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
 ): Promise<void> {
+  if (workspaceTransitionGuard?.isTransitioning()) {
+    workspaceTransitionGuard.touchTransition();
+    return;
+  }
+
   if (isCzazaManagedResource(document.uri)) {
     return;
   }
@@ -294,13 +339,30 @@ function scheduleNotesRefresh(
   );
 }
 
+/**
+ * Schedules external source inspection unless a Git transition is active.
+ *
+ * @param uri - Changed workspace resource URI.
+ * @param notes - Shared workspace Note store.
+ * @param notesProvider - Optional Notes view refreshed after persistence.
+ * @param externalChangeTimers - Per-resource external-change timers.
+ * @param recentlySavedTimers - Recently saved resources suppressed from rechecking.
+ * @param workspaceTransitionGuard - Optional Git transition state.
+ * @returns Nothing.
+ */
 function scheduleExternalChangeCheck(
   uri: vscode.Uri,
   notes: WorkspaceNoteStore,
   notesProvider: NotesViewProvider | undefined,
   externalChangeTimers: Map<string, ReturnType<typeof setTimeout>>,
   recentlySavedTimers: Map<string, ReturnType<typeof setTimeout>>,
+  workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
 ): void {
+  if (workspaceTransitionGuard?.isTransitioning()) {
+    workspaceTransitionGuard.touchTransition();
+    return;
+  }
+
   if (
     uri.scheme !== "file" ||
     isCzazaManagedResource(uri) ||
@@ -320,7 +382,12 @@ function scheduleExternalChangeCheck(
     key,
     setTimeout(() => {
       externalChangeTimers.delete(key);
-      void handleExternalChange(notes, uri, notesProvider);
+      void handleExternalChange(
+        notes,
+        uri,
+        notesProvider,
+        workspaceTransitionGuard,
+      );
     }, EXTERNAL_CHANGE_DEBOUNCE_MS),
   );
 }
@@ -345,12 +412,27 @@ function isCzazaManagedResource(uri: vscode.Uri): boolean {
   }
 }
 
+/**
+ * Applies one external resource change unless Git is replacing workspace files.
+ *
+ * @param notes - Shared workspace Note store.
+ * @param uri - Changed workspace resource URI.
+ * @param notesProvider - Optional Notes view refreshed after persistence.
+ * @param workspaceTransitionGuard - Optional Git transition state.
+ * @returns Promise resolved after inspection or suppression.
+ */
 async function handleExternalChange(
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
   notesProvider: NotesViewProvider | undefined,
+  workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
 ): Promise<void> {
   try {
+    if (workspaceTransitionGuard?.isTransitioning()) {
+      workspaceTransitionGuard.touchTransition();
+      return;
+    }
+
     const fingerprint = await getResourceFingerprint(uri);
 
     if (fingerprint.kind === "text") {

@@ -19,11 +19,18 @@ import { saveUserNoteService } from "./services/saveUserNoteService";
 import { WorkspaceNoteStore } from "./notes";
 import { NotesViewProvider } from "./notesUi/NotesViewProvider";
 import { registerNotesUi } from "./notesUi/registerNotesUi";
+import {
+  GitWorkspaceTransitionGuard,
+  registerGitWorkspaceTransition,
+} from "./services/workspaceTransition";
 
 /**
  * Activates the CZaza VS Code extension.
+ *
+ * @param context - Current VS Code extension context.
+ * @returns Nothing.
  */
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext): void {
   // ---------------------------------------------------------------------------
   // 1. Create shared runtime objects.
   // ---------------------------------------------------------------------------
@@ -45,6 +52,8 @@ export function activate(context: vscode.ExtensionContext) {
     (uri, lineNumber) => generateLineBatchNotesForResource(context, notes, uri, lineNumber),
   );
   context.subscriptions.push(notesProvider);
+  const workspaceTransitionGuard = new GitWorkspaceTransitionGuard();
+  context.subscriptions.push(workspaceTransitionGuard);
 
   // ---------------------------------------------------------------------------
   // 2. Register command palette and context-menu commands.
@@ -69,8 +78,21 @@ export function activate(context: vscode.ExtensionContext) {
   // ---------------------------------------------------------------------------
 
   registerNotesPreviewEvents(context, notesProvider);
-  registerNotesContentEvents(context, notes, notesProvider);
+  registerNotesContentEvents(
+    context,
+    notes,
+    notesProvider,
+    workspaceTransitionGuard,
+  );
   registerNotesResourceEvents(context, notes, notesProvider);
+  void registerGitWorkspaceTransition(
+    context,
+    notes,
+    notesProvider,
+    workspaceTransitionGuard,
+  ).catch((error) => {
+    console.error("Failed to register CZaza Git workspace transition protection.", error);
+  });
 }
 
 /**
