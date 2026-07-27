@@ -64,13 +64,25 @@ export async function registerGitWorkspaceTransition(
   let activeRepository: GitRepository | undefined;
 
   const finishDisposable = guard.onDidFinishTransition(async () => {
-    if (!activeRepository) {
+    const repository = activeRepository;
+
+    if (!repository) {
       return;
     }
 
-    clearRepositoryNoteCache(notes, activeRepository.rootUri);
-    await notesProvider.refreshCurrentNotes(activeRepository.rootUri);
-    activeRepository = undefined;
+    const revision = guard.getRevision();
+
+    clearRepositoryNoteCache(notes, repository.rootUri);
+    await notesProvider.refreshCurrentNotes(repository.rootUri);
+
+    if (!guard.isRevisionCurrent(revision)) {
+      clearRepositoryNoteCache(notes, repository.rootUri);
+      return;
+    }
+
+    if (activeRepository === repository) {
+      activeRepository = undefined;
+    }
   });
 
   context.subscriptions.push(
