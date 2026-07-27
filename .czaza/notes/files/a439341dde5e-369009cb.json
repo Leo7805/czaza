@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:aa89e784b1236aee625bb881b7267a75ee8c8a7dc3f24b3d3e4e716e8d2ca7a4",
+    "sourceHash": "sha256:222da2b6176468939160310cf642dec50a0dcb23cd0c66b4d3782e74d8d5adf2",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-26T11:26:35.078Z",
-    "updatedAt": "2026-07-26T11:26:35.078Z"
+    "updatedAt": "2026-07-27T05:48:02.996Z"
   },
   "fileNote": {
     "userNote": "CZaza VS Code 扩展入口，负责创建共享服务并注册功能。\nactivate — 新增 transition guard，接入 Git HEAD 监听，并将 guard 传给 Notes 内容事件模块。",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

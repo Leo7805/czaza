@@ -46,7 +46,7 @@ type IndexSnapshot =
   | { kind: "valid"; index: WorkspaceNoteIndexV2; raw: string };
 
 type StoredSourceFileSnapshot =
-  | { kind: "valid"; sourceFile: StoredSourceFile }
+  | { kind: "valid"; sourceFile: StoredSourceFile; raw: string }
   | { kind: "unreadable" };
 
 /**
@@ -218,7 +218,15 @@ export class WorkspaceNoteStoreRepository {
 
       if (
         options.canPersist?.() === false ||
-        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot))
+        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot)) ||
+        (existingEntry &&
+          existingSourceFileSnapshot?.kind === "valid" &&
+          !(await isStoredSourceFileSnapshotCurrent(
+            workspaceRoot,
+            outputDirectory,
+            existingEntry.noteFile,
+            existingSourceFileSnapshot.raw,
+          )))
       ) {
         return "cancelled";
       }
@@ -237,11 +245,22 @@ export class WorkspaceNoteStoreRepository {
         },
       };
 
-      await writeStoredSourceFile(workspaceRoot, outputDirectory, noteFile, sourceFile);
+      const writtenSourceFileRaw = await writeStoredSourceFile(
+        workspaceRoot,
+        outputDirectory,
+        noteFile,
+        sourceFile,
+      );
 
       if (
         options.canPersist?.() === false ||
-        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot))
+        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot)) ||
+        !(await isStoredSourceFileSnapshotCurrent(
+          workspaceRoot,
+          outputDirectory,
+          noteFile,
+          writtenSourceFileRaw,
+        ))
       ) {
         return "cancelled";
       }
@@ -354,10 +373,37 @@ async function readStoredSourceFile(
     const sourceFile = decodeSourceFileDocument(JSON.parse(raw) as unknown);
 
     return sourceFile
-      ? { kind: "valid", sourceFile }
+      ? { kind: "valid", sourceFile, raw }
       : { kind: "unreadable" };
   } catch {
     return { kind: "unreadable" };
+  }
+}
+
+/**
+ * Checks whether one Note JSON still matches the raw snapshot used by a write.
+ *
+ * @param workspaceRoot - Absolute workspace root path.
+ * @param outputDirectory - Workspace-relative CZaza output directory.
+ * @param noteFile - Note file path relative to the notes directory.
+ * @param expectedRaw - Raw Note JSON expected at validation time.
+ * @returns True when no external process replaced the Note JSON.
+ */
+async function isStoredSourceFileSnapshotCurrent(
+  workspaceRoot: string,
+  outputDirectory: string,
+  noteFile: string,
+  expectedRaw: string,
+): Promise<boolean> {
+  try {
+    const currentRaw = await readFile(
+      getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile),
+      "utf-8",
+    );
+
+    return currentRaw === expectedRaw;
+  } catch {
+    return false;
   }
 }
 
@@ -551,11 +597,14 @@ async function writeStoredSourceFile(
   outputDirectory: string,
   noteFile: string,
   sourceFile: StoredSourceFile,
-): Promise<void> {
+): Promise<string> {
   const notePath = getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile);
+  const raw = `${JSON.stringify(encodeSourceFileDocument(sourceFile), null, 2)}\n`;
 
   await mkdir(path.dirname(notePath), { recursive: true });
-  await writeJsonFile(notePath, encodeSourceFileDocument(sourceFile));
+  await writeRawJsonFile(notePath, raw);
+
+  return raw;
 }
 
 /**
@@ -569,10 +618,21 @@ async function writeStoredSourceFile(
  * await writeJsonFile("/tmp/example.json", { ok: true });
  */
 async function writeJsonFile(filePath: string, value: unknown): Promise<void> {
+  await writeRawJsonFile(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+/**
+ * Atomically replaces one JSON file with pre-serialized content.
+ *
+ * @param filePath - Absolute path to write.
+ * @param raw - Formatted JSON text including its trailing newline.
+ * @returns Promise that resolves after the file is written.
+ */
+async function writeRawJsonFile(filePath: string, raw: string): Promise<void> {
   const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
 
   try {
-    await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
+    await writeFile(temporaryPath, raw, "utf-8");
     recentInternalWrites.set(
       path.resolve(filePath),
       Date.now() + INTERNAL_WRITE_SUPPRESS_MS,

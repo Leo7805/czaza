@@ -2,6 +2,7 @@
  * Unit tests for the new workspace note store repository.
  */
 
+import { writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -241,6 +242,54 @@ describe("WorkspaceNoteStoreRepository", () => {
     expect(result).toBe("cancelled");
     expect(await readFile(indexPath, "utf-8")).toBe(beforeIndex);
     expect(await readFile(notePath, "utf-8")).toBe(invalidNote);
+  });
+
+  it("cancels saving when the indexed Note JSON changes after it is read", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const sourceFile = createStoredSourceFile();
+
+    await repository.saveSourceFile(root, outputDirectory, "src/index.ts", sourceFile, now);
+
+    const indexPath = getWorkspaceNoteIndexPath(root, outputDirectory);
+    const notePath = getWorkspaceNoteFilePath(
+      root,
+      outputDirectory,
+      createWorkspaceNoteFileName("src/index.ts", firstRandomId),
+    );
+    const beforeIndex = await readFile(indexPath, "utf-8");
+    const externalNote = `${JSON.stringify({
+      source: {
+        sourceHash: "sha256:external",
+        programmingLanguage: "typescript",
+      },
+      sectionNotes: {},
+      lineNotes: {},
+    }, null, 2)}\n`;
+    let permissionChecks = 0;
+
+    const result = await repository.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/index.ts",
+      createStoredSourceFile("sha256:next"),
+      "2026-07-14T00:00:00.000Z",
+      {
+        canPersist: () => {
+          permissionChecks += 1;
+
+          if (permissionChecks === 3) {
+            writeFileSync(notePath, externalNote, "utf-8");
+          }
+
+          return true;
+        },
+      },
+    );
+
+    expect(result).toBe("cancelled");
+    expect(await readFile(indexPath, "utf-8")).toBe(beforeIndex);
+    expect(await readFile(notePath, "utf-8")).toBe(externalNote);
   });
 
   it("refuses to store generated note files as source entries", async () => {

@@ -84,7 +84,12 @@ export function activate(context: vscode.ExtensionContext): void {
     notesProvider,
     workspaceTransitionGuard,
   );
-  registerNotesResourceEvents(context, notes, notesProvider);
+  registerNotesResourceEvents(
+    context,
+    notes,
+    notesProvider,
+    workspaceTransitionGuard,
+  );
   void registerGitWorkspaceTransition(
     context,
     notes,

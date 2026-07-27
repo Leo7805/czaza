@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-27T05:26:03.742Z",
+  "updatedAt": "2026-07-27T05:48:02.996Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -163,9 +163,9 @@
     },
     "vscode/extension.ts": {
       "noteFile": "files/a439341dde5e-369009cb.json",
-      "sourceHash": "sha256:aa89e784b1236aee625bb881b7267a75ee8c8a7dc3f24b3d3e4e716e8d2ca7a4",
+      "sourceHash": "sha256:222da2b6176468939160310cf642dec50a0dcb23cd0c66b4d3782e74d8d5adf2",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-26T11:26:35.078Z"
+      "updatedAt": "2026-07-27T05:48:02.996Z"
     },
     "vscode/webview-ui/src/components/NoteCard.tsx": {
       "noteFile": "files/a9334a6e6087-760dc8e6.json",
