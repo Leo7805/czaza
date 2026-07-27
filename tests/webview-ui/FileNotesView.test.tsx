@@ -6,9 +6,21 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { FileNotesView } from "@vscode/webview-ui/src/components/FileNotesView";
+import { getDefaultNoteTab } from "@vscode/webview-ui/src/hooks/useNoteTabSelection";
 import type { ResourceNotesViewModel } from "@vscode/webview-ui/src/types";
 
 describe("FileNotesView", () => {
+  it("prefers User unless only AI Notes contain content", () => {
+    const aiExplanation = {
+      summary: "AI summary.",
+      detail: "AI detail.",
+    };
+
+    expect(getDefaultNoteTab(undefined, undefined)).toBe("user");
+    expect(getDefaultNoteTab("User note.", aiExplanation)).toBe("user");
+    expect(getDefaultNoteTab(undefined, aiExplanation)).toBe("ai");
+  });
+
   it("shows aligned local created and last-updated times from the File Notes title", () => {
     const createdAt = "2026-07-19T04:32:00.000Z";
     const updatedAt = "2026-07-19T06:08:00.000Z";
@@ -199,7 +211,7 @@ describe("FileNotesView", () => {
     expect(markup).not.toContain("user-note-edit-button");
   });
 
-  it("does not show stale status on an empty User Notes tab when only AI notes exist", () => {
+  it("shows AI Notes by default when User Notes are empty", () => {
     const notes: Extract<ResourceNotesViewModel, { kind: "file" }> = {
       kind: "file",
       name: "index.ts",
@@ -220,8 +232,9 @@ describe("FileNotesView", () => {
 
     const markup = renderToStaticMarkup(<FileNotesView notes={notes} />);
 
-    expect(markup).not.toContain("note-status-badge--stale");
-    expect(markup).not.toContain("Stale");
+    expect(markup).toContain("File AI note.");
+    expect(markup).toContain("File AI detail.");
+    expect(markup).toContain("note-status-badge--stale");
   });
 
   it("shows stale status on the AI Notes tab when AI notes exist", () => {

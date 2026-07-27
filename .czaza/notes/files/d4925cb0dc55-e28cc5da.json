@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:039612ba646cae4da0e7956e8c53df321d439bbdcab72f83c5f851a0f8e142a3",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescriptreact"
+  },
+  "defaults": {
+    "createdAt": "2026-07-27T06:31:42.333Z",
+    "updatedAt": "2026-07-27T06:31:42.333Z"
+  },
+  "fileNote": {
+    "userNote": "作用：渲染 File、Section、Line Notes。\nFileNotesView：删除分散的三个标签状态和重置 effect，改用统一 Hook；为三个 Note 构造稳定 identity。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

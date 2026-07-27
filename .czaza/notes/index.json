@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-27T05:48:02.996Z",
+  "updatedAt": "2026-07-27T06:31:42.333Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -178,6 +178,23 @@
       "sourceHash": "sha256:db31b563d76482356e73c9134ef246221a64d25282aacdbe0c19f131f9a1a9df",
       "programmingLanguage": "typescript",
       "updatedAt": "2026-07-26T12:10:18.682Z"
+    },
+    "vscode/webview-ui/src/hooks": {
+      "noteFile": "files/77de99c28517-3718ad6b.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-07-27T06:30:39.066Z"
+    },
+    "vscode/webview-ui/src/hooks/useNoteTabSelection.ts": {
+      "noteFile": "files/852142a9f0ad-b7996539.json",
+      "sourceHash": "sha256:c0e06583347d56b7a653c37010f0f22468b213e445ab1ebfafb8cb88422bd651",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-27T06:31:00.729Z"
+    },
+    "vscode/webview-ui/src/components/FileNotesView.tsx": {
+      "noteFile": "files/d4925cb0dc55-e28cc5da.json",
+      "sourceHash": "sha256:039612ba646cae4da0e7956e8c53df321d439bbdcab72f83c5f851a0f8e142a3",
+      "programmingLanguage": "typescriptreact",
+      "updatedAt": "2026-07-27T06:31:42.333Z"
     }
   }
 }

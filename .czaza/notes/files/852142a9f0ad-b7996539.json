@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:c0e06583347d56b7a653c37010f0f22468b213e445ab1ebfafb8cb88422bd651",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-27T06:31:00.729Z",
+    "updatedAt": "2026-07-27T06:31:00.729Z"
+  },
+  "fileNote": {
+    "userNote": "作用：管理 File、Section、Line Notes 的默认标签、AI reveal 和内存选择记录。\n\ngetDefaultNoteTab：仅当 User 为空且 AI 有内容时返回 AI，否则返回 User。\nuseNoteTabSelection：记录当前文件内每个 Note 的人为选择，切换文件时清空。\ncreateInitialSelections：生成三个 Note 卡片的初始标签。\nresolveTargetSelection：同一 Note 保持当前选择，切换 Note 时恢复记忆或使用默认规则。\ncreateDefaultSelection：为新 Note 创建默认选择。\napplyAiReveal：响应 AI 生成后的明确 reveal 指令，但不记录成人为选择。\nhasAiNoteContent：判断 AI summary、detail 或附加 Notes 是否具有内容。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

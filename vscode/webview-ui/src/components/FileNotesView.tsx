@@ -9,6 +9,7 @@ import type {
   ResourceSectionNoteContent,
   UserNoteTarget,
 } from "../types";
+import { useNoteTabSelection } from "../hooks/useNoteTabSelection";
 import { getVsCodeApi } from "../vscodeApi";
 import { AiGenerationMenu, type GenerationScope } from "./AiGenerationMenu";
 import { NoteCard } from "./NoteCard";
@@ -32,14 +33,6 @@ export function FileNotesView({
   notes: Extract<ResourceNotesViewModel, { kind: "file" }>;
 }) {
   const firstSectionId = notes.sectionNotes[0]?.id;
-  const revealsFileSection =
-    notes.revealAiNotes === "fileSection" || notes.revealAiNotes === "all";
-  const initialGeneratedTab = revealsFileSection ? "ai" : "user";
-  const initialSectionTab = revealsFileSection || notes.revealAiNotes === "section" ? "ai" : "user";
-  const initialLineTab = notes.revealAiNotes === "all" || notes.revealAiNotes === "line" ? "ai" : "user";
-  const [fileTab, setFileTab] = useState<"user" | "ai">(initialGeneratedTab);
-  const [sectionTab, setSectionTab] = useState<"user" | "ai">(initialSectionTab);
-  const [lineTab, setLineTab] = useState<"user" | "ai">(initialLineTab);
   const [showAllNotesConfirm, setShowAllNotesConfirm] = useState(false);
   const editTarget = notes.editTarget;
   const [sectionSelection, setSectionSelection] = useState({
@@ -66,12 +59,32 @@ export function FileNotesView({
   const shouldEditLine = editTarget?.level === "line" && notes.activeLine === editTarget.line;
   const runningScope = notes.aiActionRunningScope ?? (notes.isAiActionRunning ? "fileSection" : undefined);
   const isAnyAiActionRunning = Boolean(runningScope);
-
-  useEffect(() => {
-    setFileTab("user");
-    setSectionTab("user");
-    setLineTab("user");
-  }, [notes.relativePath]);
+  const {
+    fileTab,
+    sectionTab,
+    lineTab,
+    selectFileTab,
+    selectSectionTab,
+    selectLineTab,
+  } = useNoteTabSelection({
+    relativePath: notes.relativePath,
+    file: {
+      identity: `file:${notes.relativePath}`,
+      userNote: notes.fileNote?.userNote,
+      aiExplanation: notes.fileNote?.aiExplanation,
+    },
+    section: {
+      identity: `section:${notes.relativePath}:${selectedSection?.id ?? "none"}`,
+      userNote: selectedSection?.userNote,
+      aiExplanation: selectedSection?.aiExplanation,
+    },
+    line: {
+      identity: `line:${notes.relativePath}:${notes.lineNote?.id ?? notes.activeLine ?? "none"}`,
+      userNote: notes.lineNote?.userNote,
+      aiExplanation: notes.lineNote?.aiExplanation,
+    },
+    revealAiNotes: notes.revealAiNotes,
+  });
 
   useEffect(() => {
     setSectionSelection({
@@ -79,21 +92,6 @@ export function FileNotesView({
       sectionId: preferredSectionId,
     });
   }, [notes.relativePath, preferredSectionId]);
-
-  useEffect(() => {
-    if (revealsFileSection) {
-      setFileTab("ai");
-      setSectionTab("ai");
-    }
-
-    if (notes.revealAiNotes === "section") {
-      setSectionTab("ai");
-    }
-
-    if (notes.revealAiNotes === "all" || notes.revealAiNotes === "line") {
-      setLineTab("ai");
-    }
-  }, [notes.revealAiNotes, revealsFileSection]);
 
   const selectSection = (sectionId: string): void => {
     setSectionSelection({ relativePath: notes.relativePath, sectionId });
@@ -187,7 +185,7 @@ export function FileNotesView({
         titleTooltip={getFileNoteTimeTooltip(notes.fileNote)}
         variant="file"
         activeTab={fileTab}
-        onTabChange={setFileTab}
+        onTabChange={selectFileTab}
         userNote={notes.fileNote?.userNote}
         aiExplanation={notes.fileNote?.aiExplanation}
         status={notes.fileNote?.status}
@@ -202,7 +200,7 @@ export function FileNotesView({
         title="Section Notes"
         variant="section"
         activeTab={sectionTab}
-        onTabChange={setSectionTab}
+        onTabChange={selectSectionTab}
         aiActionLabel={selectedSection?.aiExplanation ? "Regenerate" : "Generate"}
         isAiActionRunning={runningScope === "section"}
         isAiActionDisabled={isAnyAiActionRunning && runningScope !== "section"}
@@ -238,7 +236,7 @@ export function FileNotesView({
         title="Line Notes"
         variant="line"
         activeTab={lineTab}
-        onTabChange={setLineTab}
+        onTabChange={selectLineTab}
         aiAction={
           notes.activeLine ? (
             <AiGenerationMenu
