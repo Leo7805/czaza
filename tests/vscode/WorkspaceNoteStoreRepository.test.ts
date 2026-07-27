@@ -113,6 +113,34 @@ describe("WorkspaceNoteStoreRepository", () => {
     });
   });
 
+  it("does not rewrite a note or index when the persistent content is unchanged", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const sourceFile = createStoredSourceFile();
+
+    await repository.saveSourceFile(root, outputDirectory, "src/index.ts", sourceFile, now);
+
+    const indexPath = getWorkspaceNoteIndexPath(root, outputDirectory);
+    const notePath = getWorkspaceNoteFilePath(
+      root,
+      outputDirectory,
+      createWorkspaceNoteFileName("src/index.ts", firstRandomId),
+    );
+    const beforeIndex = await readFile(indexPath, "utf-8");
+    const beforeNote = await readFile(notePath, "utf-8");
+
+    await repository.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/index.ts",
+      sourceFile,
+      "2026-07-14T00:00:00.000Z",
+    );
+
+    expect(await readFile(indexPath, "utf-8")).toBe(beforeIndex);
+    expect(await readFile(notePath, "utf-8")).toBe(beforeNote);
+  });
+
   it("refuses to store generated note files as source entries", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);

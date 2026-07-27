@@ -160,6 +160,22 @@ export class WorkspaceNoteStoreRepository {
 
     const existing = await this.loadIndex(workspaceRoot, outputDirectory);
     const existingEntry = existing?.files[relativeFilePath];
+    const existingSourceFile = await this.getSourceFile(
+      workspaceRoot,
+      outputDirectory,
+      relativeFilePath,
+    );
+
+    if (
+      existingEntry &&
+      existingSourceFile &&
+      isSameStoredSourceFile(existingSourceFile, sourceFile) &&
+      existingEntry.sourceHash === sourceFile.source.sourceHash &&
+      existingEntry.programmingLanguage === sourceFile.source.programmingLanguage
+    ) {
+      return;
+    }
+
     const noteFile = existingEntry?.noteFile ?? createWorkspaceNoteFileName(
       relativeFilePath,
       this.createNoteFileRandomId(),
@@ -198,6 +214,20 @@ export class WorkspaceNoteStoreRepository {
       // Missing note JSON is acceptable when deleting an index entry.
     }
   }
+}
+
+/**
+ * Returns whether two note documents carry identical persistent content.
+ *
+ * The comparison intentionally includes note timestamps: callers that make a
+ * real note edit must persist it, while status-only scans preserve timestamps
+ * when their status is unchanged.
+ */
+function isSameStoredSourceFile(
+  left: StoredSourceFile,
+  right: StoredSourceFile,
+): boolean {
+  return JSON.stringify(encodeSourceFileDocument(left)) === JSON.stringify(encodeSourceFileDocument(right));
 }
 
 /**

@@ -140,6 +140,13 @@ function updateStoredNoteStatus<TNote extends { status: NoteStatus; updatedAt: s
   status: NoteStatus,
   now: string,
 ): TNote {
+  if (
+    note.status.content === status.content &&
+    note.status.anchor === status.anchor
+  ) {
+    return note;
+  }
+
   return {
     ...note,
     status,
