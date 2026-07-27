@@ -44,6 +44,10 @@ type IndexSnapshot =
   | { kind: "missing" }
   | { kind: "valid"; index: WorkspaceNoteIndexV2; raw: string };
 
+type StoredSourceFileSnapshot =
+  | { kind: "valid"; sourceFile: StoredSourceFile }
+  | { kind: "unreadable" };
+
 /**
  * Repository for the new workspace note index and per-file note files.
  *
@@ -191,9 +195,15 @@ export class WorkspaceNoteStoreRepository {
 
       const existing = snapshot.kind === "valid" ? snapshot.index : null;
       const existingEntry = existing?.files[relativeFilePath];
-      const existingSourceFile = existingEntry
+      const existingSourceFileSnapshot = existingEntry
         ? await readStoredSourceFile(workspaceRoot, outputDirectory, existingEntry.noteFile)
         : undefined;
+
+      if (existingSourceFileSnapshot?.kind === "unreadable") {
+        return "cancelled";
+      }
+
+      const existingSourceFile = existingSourceFileSnapshot?.sourceFile;
 
       if (
         existingEntry &&
@@ -327,22 +337,26 @@ async function isIndexSnapshotCurrent(
  * @param workspaceRoot - Absolute workspace root path.
  * @param outputDirectory - Workspace-relative CZaza output directory.
  * @param noteFile - Note file path from the captured index snapshot.
- * @returns Decoded source-file document or undefined when unreadable.
+ * @returns Valid decoded document or an unreadable snapshot.
  */
 async function readStoredSourceFile(
   workspaceRoot: string,
   outputDirectory: string,
   noteFile: string,
-): Promise<StoredSourceFile | undefined> {
+): Promise<StoredSourceFileSnapshot> {
   try {
     const raw = await readFile(
       getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile),
       "utf-8",
     );
 
-    return decodeSourceFileDocument(JSON.parse(raw) as unknown);
+    const sourceFile = decodeSourceFileDocument(JSON.parse(raw) as unknown);
+
+    return sourceFile
+      ? { kind: "valid", sourceFile }
+      : { kind: "unreadable" };
   } catch {
-    return undefined;
+    return { kind: "unreadable" };
   }
 }
 

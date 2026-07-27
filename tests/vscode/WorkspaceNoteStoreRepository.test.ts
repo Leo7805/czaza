@@ -2,7 +2,7 @@
  * Unit tests for the new workspace note store repository.
  */
 
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -143,6 +143,67 @@ describe("WorkspaceNoteStoreRepository", () => {
 
     expect(await readFile(indexPath, "utf-8")).toBe(beforeIndex);
     expect(await readFile(notePath, "utf-8")).toBe(beforeNote);
+  });
+
+  it("cancels saving when an indexed Note JSON temporarily disappears", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const sourceFile = createStoredSourceFile();
+
+    await repository.saveSourceFile(root, outputDirectory, "src/index.ts", sourceFile, now);
+
+    const indexPath = getWorkspaceNoteIndexPath(root, outputDirectory);
+    const notePath = getWorkspaceNoteFilePath(
+      root,
+      outputDirectory,
+      createWorkspaceNoteFileName("src/index.ts", firstRandomId),
+    );
+    const beforeIndex = await readFile(indexPath, "utf-8");
+
+    await unlink(notePath);
+
+    const result = await repository.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/index.ts",
+      sourceFile,
+      "2026-07-14T00:00:00.000Z",
+    );
+
+    expect(result).toBe("cancelled");
+    expect(await readFile(indexPath, "utf-8")).toBe(beforeIndex);
+    await expect(readFile(notePath, "utf-8")).rejects.toThrow();
+  });
+
+  it("cancels saving when an indexed Note JSON is invalid", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const sourceFile = createStoredSourceFile();
+
+    await repository.saveSourceFile(root, outputDirectory, "src/index.ts", sourceFile, now);
+
+    const indexPath = getWorkspaceNoteIndexPath(root, outputDirectory);
+    const notePath = getWorkspaceNoteFilePath(
+      root,
+      outputDirectory,
+      createWorkspaceNoteFileName("src/index.ts", firstRandomId),
+    );
+    const beforeIndex = await readFile(indexPath, "utf-8");
+    const invalidNote = "{temporarily invalid";
+
+    await writeFile(notePath, invalidNote, "utf-8");
+
+    const result = await repository.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/index.ts",
+      sourceFile,
+      "2026-07-14T00:00:00.000Z",
+    );
+
+    expect(result).toBe("cancelled");
+    expect(await readFile(indexPath, "utf-8")).toBe(beforeIndex);
+    expect(await readFile(notePath, "utf-8")).toBe(invalidNote);
   });
 
   it("refuses to store generated note files as source entries", async () => {
