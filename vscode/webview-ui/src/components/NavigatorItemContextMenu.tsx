@@ -12,7 +12,7 @@ export type NavigatorItemContextMenuPosition = {
 
 /** One action rendered by the Navigator item context menu. */
 export type NavigatorItemContextMenuItem = {
-  id: "viewNotes" | "clearStale" | "relocate" | "markOrphaned" | "delete";
+  id: "viewNotes" | "clearStale" | "clearAllStale" | "relocate" | "markOrphaned" | "delete";
   label: string;
   disabled?: boolean;
   onSelect?: () => void;
@@ -90,7 +90,7 @@ function NavigatorContextMenuIcon({ name }: { name: NavigatorItemContextMenuItem
     );
   }
 
-  if (name === "clearStale") {
+  if (name === "clearStale" || name === "clearAllStale") {
     return (
       <svg className="navigator-context-menu__icon" viewBox="0 0 16 16" aria-hidden="true">
         <path

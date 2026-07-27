@@ -108,6 +108,15 @@ type NotesWebviewMessage =
 	      relativePath: string;
 	    }
   | {
+      /** Clears stale content from the currently visible Navigator items. */
+      type: "clearVisibleNavigatorStaleContent";
+      targets: Array<
+        | { level: "file"; relativePath: string }
+        | { level: "section"; sectionId: string }
+        | { level: "line"; line: number }
+      >;
+    }
+  | {
       /** Opens the detail notes view for one Navigator file-note item. */
       type: "viewNavigatorFileNotes";
 
@@ -409,6 +418,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 	        void this.runClearNavigatorFileStaleStatus(message.relativePath);
 	        return;
 	      }
+
+      if (message.type === "clearVisibleNavigatorStaleContent") {
+        void this.runClearVisibleNavigatorStaleContent(message.targets);
+        return;
+      }
 
       if (message.type === "viewNavigatorFileNotes") {
         void this.viewNavigatorFileNotes(message.relativePath, message.anchor);
@@ -1273,6 +1287,64 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
+  /**
+   * Clears stale content only for Navigator rows visible after filtering.
+   *
+   * @param targets - Visible stale file, section, or line note targets.
+   */
+  private async runClearVisibleNavigatorStaleContent(
+    targets: Array<
+      | { level: "file"; relativePath: string }
+      | { level: "section"; sectionId: string }
+      | { level: "line"; line: number }
+    >,
+  ): Promise<void> {
+    const currentUri = this.currentResourceUri;
+
+    if (!currentUri || targets.length === 0) {
+      return;
+    }
+
+    try {
+      const { rootDirectory } = resolveCzazaRootDirectory(currentUri);
+      let changed = false;
+
+      for (const target of targets) {
+        if (target.level === "file") {
+          if (!isSafeRelativePath(target.relativePath)) {
+            continue;
+          }
+
+          const targetUri = vscode.Uri.file(
+            path.join(rootDirectory, ...target.relativePath.split("/")),
+          );
+          changed =
+            (await clearNoteStaleStatusService({
+              uri: targetUri,
+              notes: this.notes,
+              target: { level: "file" },
+            })) || changed;
+          continue;
+        }
+
+        changed =
+          (await clearNoteStaleStatusService({
+            uri: currentUri,
+            notes: this.notes,
+            target,
+          })) || changed;
+      }
+
+      if (changed) {
+        await this.loadNavigatorNotes();
+        await this.loadResourceNotes(currentUri, false, getActiveLine(currentUri));
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error.";
+      void vscode.window.showErrorMessage(`Failed to clear visible CZaza stale content: ${message}`);
+    }
+  }
+
   private async viewNavigatorFileNotes(
     relativePath: string,
     anchor: "confirmed" | "needsConfirmation" | "orphaned",
@@ -1630,6 +1702,7 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     toRelativePath?: unknown;
     anchor?: unknown;
     action?: unknown;
+    targets?: unknown;
   };
 
   return (
@@ -1647,6 +1720,9 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
 	      typeof candidate.userNote === "string") ||
 	    (candidate.type === "clearNoteStaleStatus" && isUserNoteTarget(candidate.target)) ||
 	    (candidate.type === "clearNavigatorFileStaleStatus" && typeof candidate.relativePath === "string") ||
+    (candidate.type === "clearVisibleNavigatorStaleContent" &&
+      Array.isArray(candidate.targets) &&
+      candidate.targets.every(isVisibleNavigatorStaleTarget)) ||
     (candidate.type === "viewNavigatorFileNotes" &&
       typeof candidate.relativePath === "string" &&
       isNoteAnchorStatus(candidate.anchor)) ||
@@ -1678,6 +1754,38 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
       Number.isInteger(candidate.line) &&
       isPositiveLine(Number(candidate.line))) ||
     (candidate.type === "selectSection" && typeof candidate.sectionId === "string")
+  );
+}
+
+/**
+ * Validates one bulk stale-content target received from the webview.
+ *
+ * @param target - Unknown target candidate.
+ * @returns Whether the candidate is a supported visible Navigator target.
+ */
+function isVisibleNavigatorStaleTarget(
+  target: unknown,
+): target is
+  | { level: "file"; relativePath: string }
+  | { level: "section"; sectionId: string }
+  | { level: "line"; line: number } {
+  if (!target || typeof target !== "object") {
+    return false;
+  }
+
+  const candidate = target as {
+    level?: unknown;
+    relativePath?: unknown;
+    sectionId?: unknown;
+    line?: unknown;
+  };
+
+  return (
+    (candidate.level === "file" && typeof candidate.relativePath === "string") ||
+    (candidate.level === "section" && typeof candidate.sectionId === "string") ||
+    (candidate.level === "line" &&
+      Number.isInteger(candidate.line) &&
+      isPositiveLine(Number(candidate.line)))
   );
 }
 

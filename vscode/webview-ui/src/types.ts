@@ -409,6 +409,17 @@ export type WebviewToExtensionMessage =
 	      relativePath: string;
 	    }
   | {
+      /** Clears stale content from the currently visible Navigator items. */
+      type: "clearVisibleNavigatorStaleContent";
+
+      /** Visible stale note targets after the active search and filters are applied. */
+      targets: Array<
+        | { level: "file"; relativePath: string }
+        | { level: "section"; sectionId: string }
+        | { level: "line"; line: number }
+      >;
+    }
+  | {
       /** Opens the detail notes view for a Navigator file-note item. */
       type: "viewNavigatorFileNotes";
 

@@ -441,6 +441,8 @@ function NavigatorList({
     null,
   );
   const [lineContextMenu, setLineContextMenu] = useState<LineContextMenuState | null>(null);
+  const [listContextMenu, setListContextMenu] =
+    useState<NavigatorItemContextMenuPosition | null>(null);
   const [markOrphanedModal, setMarkOrphanedModal] = useState<MarkOrphanedModalState | null>(null);
   const [deleteNotesModal, setDeleteNotesModal] = useState<DeleteNotesModalState | null>(null);
   const [deleteSectionModal, setDeleteSectionModal] = useState<DeleteSectionModalState | null>(
@@ -463,12 +465,6 @@ function NavigatorList({
 
   if (notes.kind !== "resource") {
     return <p className="notes-navigator__empty">No notes loaded yet.</p>;
-  }
-
-  if (items.length === 0) {
-    const label = tab === "files" ? "file" : tab === "sections" ? "section" : "line";
-    const isFiltered = Boolean(globalQuery.trim() || filterQuery.trim());
-    return <p className="notes-navigator__empty">{isFiltered ? `No matching ${label} notes.` : `No ${label} notes found.`}</p>;
   }
 
   const openNavigatorResource = (relativePath: string): void => {
@@ -567,10 +563,60 @@ function NavigatorList({
       target: { level: "line", lineId: line.id, line: line.line },
     });
   };
+  const visibleStaleTargets = items.reduce<
+    Array<
+      | { level: "file"; relativePath: string }
+      | { level: "section"; sectionId: string }
+      | { level: "line"; line: number }
+    >
+  >((targets, item) => {
+    if (item.status?.content !== "stale") {
+      return targets;
+    }
+
+    if (tab === "files" && "relativePath" in item) {
+      targets.push({ level: "file", relativePath: item.relativePath });
+      return targets;
+    }
+
+    if (tab === "sections" && "startLine" in item) {
+      targets.push({ level: "section", sectionId: item.id });
+      return targets;
+    }
+
+    if ("line" in item) {
+      targets.push({ level: "line", line: item.line });
+    }
+
+    return targets;
+  }, []);
+  const clearVisibleStaleContent = (): void => {
+    getVsCodeApi()?.postMessage({
+      type: "clearVisibleNavigatorStaleContent",
+      targets: visibleStaleTargets,
+    });
+  };
+  const emptyLabel = tab === "files" ? "file" : tab === "sections" ? "section" : "line";
+  const isFiltered = Boolean(globalQuery.trim() || filterQuery.trim());
 
   return (
     <>
-      <ol className="notes-navigator__list">
+      <div
+        className="notes-navigator__list-region"
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setFileContextMenu(null);
+          setSectionContextMenu(null);
+          setLineContextMenu(null);
+          setListContextMenu({ x: event.clientX, y: event.clientY });
+        }}
+      >
+      {items.length === 0 ? (
+        <p className="notes-navigator__empty">
+          {isFiltered ? `No matching ${emptyLabel} notes.` : `No ${emptyLabel} notes found.`}
+        </p>
+      ) : (
+        <ol className="notes-navigator__list">
         {items.map((item, index) => {
           if (tab === "files" && "relativePath" in item) {
             const anchor = item.status?.anchor ?? "confirmed";
@@ -701,7 +747,23 @@ function NavigatorList({
 
           return null;
         })}
-      </ol>
+        </ol>
+      )}
+      </div>
+      {listContextMenu ? (
+        <NavigatorItemContextMenu
+          items={[
+            {
+              id: "clearAllStale",
+              label: "Clear all stale content",
+              disabled: visibleStaleTargets.length === 0,
+              onSelect: clearVisibleStaleContent,
+            },
+          ]}
+          position={listContextMenu}
+          onClose={() => setListContextMenu(null)}
+        />
+      ) : null}
       {fileContextMenu ? (
         <NavigatorItemContextMenu
           items={getFileContextMenuItems(

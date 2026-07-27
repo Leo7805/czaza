@@ -339,6 +339,10 @@ textarea {
   color: var(--vscode-descriptionForeground);
 }
 
+.notes-navigator__list-region {
+  min-height: 3rem;
+}
+
 .notes-navigator__list {
   display: flex;
   flex-direction: column;
