@@ -172,12 +172,6 @@ textarea {
   padding: 0 2px 12px;
 }
 
-.notes-navigator__content::after {
-  content: "";
-  display: block;
-  height: 80vh;
-}
-
 .notes-navigator__heading {
   display: flex;
   position: sticky;
@@ -341,6 +335,12 @@ textarea {
 
 .notes-navigator__list-region {
   min-height: 3rem;
+}
+
+.notes-navigator__list-region::after {
+  content: "";
+  display: block;
+  height: 80vh;
 }
 
 .notes-navigator__list {
