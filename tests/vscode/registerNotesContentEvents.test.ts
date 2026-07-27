@@ -155,6 +155,7 @@ describe("registerNotesContentEvents()", () => {
         ],
       }),
       expect.any(String),
+      { canPersist: expect.any(Function) },
     );
     expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(document.uri);
   });
@@ -292,6 +293,7 @@ describe("registerNotesContentEvents()", () => {
         ],
       }),
       expect.any(String),
+      { canPersist: expect.any(Function) },
     );
   });
 
@@ -491,6 +493,7 @@ describe("registerNotesContentEvents()", () => {
         ],
       }),
       expect.any(String),
+      { canPersist: expect.any(Function) },
     );
   });
 
@@ -553,6 +556,7 @@ describe("registerNotesContentEvents()", () => {
         ],
       }),
       expect.any(String),
+      { canPersist: expect.any(Function) },
     );
   });
 
@@ -614,6 +618,7 @@ describe("registerNotesContentEvents()", () => {
         ],
       }),
       expect.any(String),
+      { canPersist: expect.any(Function) },
     );
     expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
 
@@ -696,15 +701,36 @@ describe("registerNotesContentEvents()", () => {
         ],
       }),
       expect.any(String),
+      { canPersist: expect.any(Function) },
     );
+  });
+
+  it("invalidates cached Notes when the managed Store changes externally", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("managed-store-change");
+    const notes = createNotes(createStoredSourceFile("export const value = 1;\n"));
+    const managedIndex = createDocument(
+      path.join(workspaceRoot, ".caca/notes/index.json"),
+      "{}",
+      false,
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(createExtensionContext(), notes.value);
+    mocks.changeListeners[0]?.(managedIndex.uri);
+    await waitForMicrotasks();
+
+    expect(notes.clearCache).toHaveBeenCalledWith(workspaceRoot, ".caca");
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 });
 
 function createNotes(sourceFile: StoredSourceFile | undefined): {
   value: WorkspaceNoteStore;
   saveSourceFile: ReturnType<typeof vi.fn>;
+  clearCache: ReturnType<typeof vi.fn>;
 } {
   let cachedSourceFile = sourceFile;
+  const clearCache = vi.fn();
   const saveSourceFile = vi.fn().mockImplementation(async (
     _workspaceRoot: string,
     _outputDirectory: string,
@@ -719,9 +745,11 @@ function createNotes(sourceFile: StoredSourceFile | undefined): {
       cache: {
         getSourceFile: vi.fn().mockImplementation(async () => cachedSourceFile),
         saveSourceFile,
+        clearCache,
       },
     } as unknown as WorkspaceNoteStore,
     saveSourceFile,
+    clearCache,
   };
 }
 

@@ -8,6 +8,9 @@ import type { GitWorkspaceTransitionGuard } from "./GitWorkspaceTransitionGuard"
 export type SourceChangeRevisionToken = {
   /** HEAD transition revision observed before the task started. */
   revision: number;
+
+  /** Gate-local revision incremented when the Note Store changes externally. */
+  gateRevision: number;
 };
 
 /** Automatic source-change task invoked after the configured quiet period. */
@@ -30,6 +33,7 @@ export class GitAwareSourceChangeGate {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly delayMs: number;
   private readonly guard: GitWorkspaceTransitionGuard | undefined;
+  private gateRevision = 0;
 
   /**
    * Creates a Git-aware automatic source-change gate.
@@ -51,7 +55,10 @@ export class GitAwareSourceChangeGate {
    * @returns Current source-change revision token.
    */
   captureToken(): SourceChangeRevisionToken {
-    return { revision: this.guard?.getRevision() ?? 0 };
+    return {
+      revision: this.guard?.getRevision() ?? 0,
+      gateRevision: this.gateRevision,
+    };
   }
 
   /**
@@ -63,8 +70,19 @@ export class GitAwareSourceChangeGate {
   canPersist(token: SourceChangeRevisionToken): boolean {
     return (
       this.guard?.isTransitioning() !== true &&
-      (this.guard?.isRevisionCurrent(token.revision) ?? true)
+      (this.guard?.isRevisionCurrent(token.revision) ?? true) &&
+      token.gateRevision === this.gateRevision
     );
+  }
+
+  /**
+   * Invalidates pending and running tasks after an external Note Store change.
+   *
+   * @returns Nothing.
+   */
+  invalidate(): void {
+    this.gateRevision += 1;
+    this.cancelPending();
   }
 
   /**

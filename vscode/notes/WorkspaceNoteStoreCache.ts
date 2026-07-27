@@ -4,7 +4,10 @@
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
-import { WorkspaceNoteStoreRepository } from "./WorkspaceNoteStoreRepository";
+import {
+  type NoteStorePersistenceOptions,
+  WorkspaceNoteStoreRepository,
+} from "./WorkspaceNoteStoreRepository";
 
 /**
  * Coordinates repository IO with in-memory workspace note caches.
@@ -107,6 +110,7 @@ export class WorkspaceNoteStoreCache {
    * @param relativeFilePath - Normalized workspace-relative source file path.
    * @param sourceFile - Stored source file to save.
    * @param now - ISO 8601 timestamp used for index updatedAt.
+   * @param options - Optional automatic persistence safety checks.
    * @returns Promise that resolves after saving.
    *
    * @example
@@ -118,8 +122,22 @@ export class WorkspaceNoteStoreCache {
     relativeFilePath: string,
     sourceFile: StoredSourceFile,
     now: string,
+    options: NoteStorePersistenceOptions = {},
   ): Promise<void> {
-    await this.repository.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, sourceFile, now);
+    const result = await this.repository.saveSourceFile(
+      workspaceRoot,
+      outputDirectory,
+      relativeFilePath,
+      sourceFile,
+      now,
+      options,
+    );
+
+    if (result === "cancelled") {
+      this.clearCache(workspaceRoot, outputDirectory);
+      return;
+    }
+
     this.sourceFileCache.set(
       getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath),
       sourceFile,

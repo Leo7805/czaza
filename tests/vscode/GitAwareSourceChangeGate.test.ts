@@ -67,4 +67,13 @@ describe("GitAwareSourceChangeGate", () => {
     expect(firstTask).not.toHaveBeenCalled();
     expect(secondTask).toHaveBeenCalledOnce();
   });
+
+  it("invalidates running tokens after the Note Store changes externally", () => {
+    const gate = new GitAwareSourceChangeGate(50);
+    const token = gate.captureToken();
+
+    gate.invalidate();
+
+    expect(gate.canPersist(token)).toBe(false);
+  });
 });

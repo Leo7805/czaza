@@ -4,7 +4,7 @@
 
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import {
@@ -13,12 +13,15 @@ import {
 } from "@shared/services/sourceFileDocumentCodec";
 import { createSourceHash } from "@shared/utils/hashUtils";
 import { isCzazaManagedRelativePath } from "@shared/utils/managedOutputPath";
+import { WorkspaceNoteStoreWriteCoordinator } from "./WorkspaceNoteStoreWriteCoordinator";
 
 const NOTES_DIR_NAME = "notes";
 const FILES_DIR_NAME = "files";
 const INDEX_FILE_NAME = "index.json";
 const PATH_HASH_PREFIX_LENGTH = 12;
 const RANDOM_SUFFIX_LENGTH = 8;
+const INTERNAL_WRITE_SUPPRESS_MS = 1500;
+const recentInternalWrites = new Map<string, number>();
 
 /**
  * Creates the random id portion of a new note file name.
@@ -27,6 +30,19 @@ const RANDOM_SUFFIX_LENGTH = 8;
  * const randomId = createNoteFileRandomId();
  */
 export type CreateNoteFileRandomId = () => string;
+
+/** Optional safety check used by automatic Note Store writes. */
+export type NoteStorePersistenceOptions = {
+  /** Returns whether the originating automatic task may still persist. */
+  canPersist?: () => boolean;
+};
+
+/** Outcome of one serialized source-file persistence request. */
+export type SaveSourceFileResult = "saved" | "unchanged" | "cancelled";
+
+type IndexSnapshot =
+  | { kind: "missing" }
+  | { kind: "valid"; index: WorkspaceNoteIndexV2; raw: string };
 
 /**
  * Repository for the new workspace note index and per-file note files.
@@ -40,6 +56,7 @@ export type CreateNoteFileRandomId = () => string;
  */
 export class WorkspaceNoteStoreRepository {
   private readonly createNoteFileRandomId: CreateNoteFileRandomId;
+  private readonly writeCoordinator = new WorkspaceNoteStoreWriteCoordinator();
 
   /**
    * Creates a workspace note store repository.
@@ -153,46 +170,74 @@ export class WorkspaceNoteStoreRepository {
     relativeFilePath: string,
     sourceFile: StoredSourceFile,
     now: string,
-  ): Promise<void> {
+    options: NoteStorePersistenceOptions = {},
+  ): Promise<SaveSourceFileResult> {
     if (isCzazaManagedRelativePath(workspaceRoot, outputDirectory, relativeFilePath)) {
       throw new Error("CZaza-managed output files cannot be stored as source-note entries.");
     }
 
-    const existing = await this.loadIndex(workspaceRoot, outputDirectory);
-    const existingEntry = existing?.files[relativeFilePath];
-    const existingSourceFile = await this.getSourceFile(
-      workspaceRoot,
-      outputDirectory,
-      relativeFilePath,
-    );
+    const storeKey = `${path.resolve(workspaceRoot)}::${outputDirectory}`;
 
-    if (
-      existingEntry &&
-      existingSourceFile &&
-      isSameStoredSourceFile(existingSourceFile, sourceFile) &&
-      existingEntry.sourceHash === sourceFile.source.sourceHash &&
-      existingEntry.programmingLanguage === sourceFile.source.programmingLanguage
-    ) {
-      return;
-    }
+    return this.writeCoordinator.run(storeKey, async () => {
+      if (options.canPersist?.() === false) {
+        return "cancelled";
+      }
 
-    const noteFile = existingEntry?.noteFile ?? createWorkspaceNoteFileName(
-      relativeFilePath,
-      this.createNoteFileRandomId(),
-    );
-    const nextEntry = createFileIndexEntry(noteFile, sourceFile, now);
-    const nextIndex: WorkspaceNoteIndexV2 = {
-      schemaVersion: 2,
-      updatedAt: now,
-      workspaceRoot: normalizePath(path.resolve(workspaceRoot)),
-      files: {
-        ...(existing?.files ?? {}),
-        [relativeFilePath]: nextEntry,
-      },
-    };
+      const snapshot = await readIndexSnapshotForUpdate(workspaceRoot, outputDirectory);
 
-    await writeStoredSourceFile(workspaceRoot, outputDirectory, noteFile, sourceFile);
-    await this.saveIndex(workspaceRoot, outputDirectory, nextIndex);
+      if (options.canPersist?.() === false) {
+        return "cancelled";
+      }
+
+      const existing = snapshot.kind === "valid" ? snapshot.index : null;
+      const existingEntry = existing?.files[relativeFilePath];
+      const existingSourceFile = existingEntry
+        ? await readStoredSourceFile(workspaceRoot, outputDirectory, existingEntry.noteFile)
+        : undefined;
+
+      if (
+        existingEntry &&
+        existingSourceFile &&
+        isSameStoredSourceFile(existingSourceFile, sourceFile) &&
+        existingEntry.sourceHash === sourceFile.source.sourceHash &&
+        existingEntry.programmingLanguage === sourceFile.source.programmingLanguage
+      ) {
+        return "unchanged";
+      }
+
+      if (
+        options.canPersist?.() === false ||
+        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot))
+      ) {
+        return "cancelled";
+      }
+
+      const noteFile = existingEntry?.noteFile ?? createWorkspaceNoteFileName(
+        relativeFilePath,
+        this.createNoteFileRandomId(),
+      );
+      const nextIndex: WorkspaceNoteIndexV2 = {
+        schemaVersion: 2,
+        updatedAt: now,
+        workspaceRoot: normalizePath(path.resolve(workspaceRoot)),
+        files: {
+          ...(existing?.files ?? {}),
+          [relativeFilePath]: createFileIndexEntry(noteFile, sourceFile, now),
+        },
+      };
+
+      await writeStoredSourceFile(workspaceRoot, outputDirectory, noteFile, sourceFile);
+
+      if (
+        options.canPersist?.() === false ||
+        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot))
+      ) {
+        return "cancelled";
+      }
+
+      await this.saveIndex(workspaceRoot, outputDirectory, nextIndex);
+      return "saved";
+    });
   }
 
   /**
@@ -213,6 +258,120 @@ export class WorkspaceNoteStoreRepository {
     } catch {
       // Missing note JSON is acceptable when deleting an index entry.
     }
+  }
+}
+
+/**
+ * Reads a strict index snapshot for a write without treating instability as an empty Store.
+ *
+ * @param workspaceRoot - Absolute workspace root path.
+ * @param outputDirectory - Workspace-relative CZaza output directory.
+ * @returns Missing snapshot for a new Store or a validated existing snapshot.
+ */
+async function readIndexSnapshotForUpdate(
+  workspaceRoot: string,
+  outputDirectory: string,
+): Promise<IndexSnapshot> {
+  const indexPath = getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory);
+
+  try {
+    const raw = await readFile(indexPath, "utf-8");
+    const parsed = JSON.parse(raw) as unknown;
+
+    if (!isWorkspaceNoteIndexV2(parsed)) {
+      throw new Error("Workspace Note index has an invalid shape.");
+    }
+
+    return { kind: "valid", index: parsed, raw };
+  } catch (error) {
+    if (!isMissingFileError(error)) {
+      throw new Error("Workspace Note index is unreadable or unstable.", { cause: error });
+    }
+
+    if (await pathExists(path.dirname(indexPath))) {
+      throw new Error("Workspace Note index disappeared from an existing Store.");
+    }
+
+    return { kind: "missing" };
+  }
+}
+
+/**
+ * Checks whether the index still matches the snapshot used to prepare a write.
+ *
+ * @param workspaceRoot - Absolute workspace root path.
+ * @param outputDirectory - Workspace-relative CZaza output directory.
+ * @param snapshot - Strict index snapshot captured before preparing the write.
+ * @returns True when no external process replaced the index.
+ */
+async function isIndexSnapshotCurrent(
+  workspaceRoot: string,
+  outputDirectory: string,
+  snapshot: IndexSnapshot,
+): Promise<boolean> {
+  try {
+    const raw = await readFile(
+      getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory),
+      "utf-8",
+    );
+
+    return snapshot.kind === "valid" && raw === snapshot.raw;
+  } catch (error) {
+    return snapshot.kind === "missing" && isMissingFileError(error);
+  }
+}
+
+/**
+ * Reads one stored source-file document from a known index entry.
+ *
+ * @param workspaceRoot - Absolute workspace root path.
+ * @param outputDirectory - Workspace-relative CZaza output directory.
+ * @param noteFile - Note file path from the captured index snapshot.
+ * @returns Decoded source-file document or undefined when unreadable.
+ */
+async function readStoredSourceFile(
+  workspaceRoot: string,
+  outputDirectory: string,
+  noteFile: string,
+): Promise<StoredSourceFile | undefined> {
+  try {
+    const raw = await readFile(
+      getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile),
+      "utf-8",
+    );
+
+    return decodeSourceFileDocument(JSON.parse(raw) as unknown);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Reports whether a filesystem error represents a missing path.
+ *
+ * @param error - Unknown filesystem error.
+ * @returns True for ENOENT errors.
+ */
+function isMissingFileError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
+}
+
+/**
+ * Reports whether one filesystem path currently exists.
+ *
+ * @param targetPath - Absolute path to inspect.
+ * @returns True when the path can be statted.
+ */
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await stat(targetPath);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -261,6 +420,28 @@ export function getWorkspaceNoteFilePath(
   noteFile: string,
 ): string {
   return path.join(workspaceRoot, outputDirectory, NOTES_DIR_NAME, ...noteFile.split("/"));
+}
+
+/**
+ * Reports whether CZaza itself recently replaced one managed Note Store file.
+ *
+ * @param filePath - Absolute managed Note Store path reported by the watcher.
+ * @returns True when the path belongs to a recent internal atomic write.
+ */
+export function isRecentInternalWorkspaceNoteWrite(filePath: string): boolean {
+  const normalizedPath = path.resolve(filePath);
+  const expiresAt = recentInternalWrites.get(normalizedPath);
+
+  if (!expiresAt) {
+    return false;
+  }
+
+  if (expiresAt <= Date.now()) {
+    recentInternalWrites.delete(normalizedPath);
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -370,7 +551,24 @@ async function writeStoredSourceFile(
  * await writeJsonFile("/tmp/example.json", { ok: true });
  */
 async function writeJsonFile(filePath: string, value: unknown): Promise<void> {
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
+  const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
+
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
+    recentInternalWrites.set(
+      path.resolve(filePath),
+      Date.now() + INTERNAL_WRITE_SUPPRESS_MS,
+    );
+    await rename(temporaryPath, filePath);
+  } catch (error) {
+    try {
+      await unlink(temporaryPath);
+    } catch {
+      // Missing temporary files require no cleanup.
+    }
+
+    throw error;
+  }
 }
 
 /**

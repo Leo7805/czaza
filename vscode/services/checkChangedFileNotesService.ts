@@ -146,6 +146,7 @@ export async function checkChangedFileNotesService(
       relativePath,
       updatedSourceFile,
       now,
+      { canPersist },
     );
 
     return {
@@ -181,6 +182,7 @@ export async function checkChangedFileNotesService(
     relativePath,
     updatedSourceFile,
     now,
+    { canPersist },
   );
 
   return {

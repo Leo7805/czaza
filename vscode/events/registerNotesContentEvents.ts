@@ -3,6 +3,7 @@
  */
 
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import { isRecentInternalWorkspaceNoteWrite } from "@vscode/notes/WorkspaceNoteStoreRepository";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import { checkChangedFileNotesService } from "@vscode/services/checkChangedFileNotesService";
 import {
@@ -403,6 +404,13 @@ function scheduleExternalChangeCheck(
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
   sourceChangeGate: GitAwareSourceChangeGate,
 ): void {
+  if (isCzazaManagedResource(uri)) {
+    if (!isRecentInternalWorkspaceNoteWrite(uri.fsPath)) {
+      invalidateManagedNoteStore(uri, notes, sourceChangeGate);
+    }
+    return;
+  }
+
   if (workspaceTransitionGuard?.isTransitioning()) {
     workspaceTransitionGuard.touchTransition();
     return;
@@ -410,7 +418,6 @@ function scheduleExternalChangeCheck(
 
   if (
     uri.scheme !== "file" ||
-    isCzazaManagedResource(uri) ||
     recentlySavedTimers.has(uri.toString())
   ) {
     return;
@@ -427,6 +434,30 @@ function scheduleExternalChangeCheck(
       token,
     ),
   );
+}
+
+/**
+ * Clears cached Notes and invalidates automatic tasks after managed output changes externally.
+ *
+ * @param uri - Changed CZaza-managed Note Store resource.
+ * @param notes - Shared workspace Note store.
+ * @param sourceChangeGate - Automatic task gate to invalidate.
+ * @returns Nothing.
+ */
+function invalidateManagedNoteStore(
+  uri: vscode.Uri,
+  notes: WorkspaceNoteStore,
+  sourceChangeGate: GitAwareSourceChangeGate,
+): void {
+  try {
+    const { rootDirectory } = resolveCzazaRootDirectory(uri);
+    const settings = getCzazaSettings(uri);
+
+    sourceChangeGate.invalidate();
+    notes.cache.clearCache(rootDirectory, settings.outputDirectory);
+  } catch {
+    // Out-of-scope managed output events require no cache invalidation.
+  }
 }
 
 function isCzazaManagedResource(uri: vscode.Uri): boolean {
@@ -528,6 +559,7 @@ async function handleExternalChange(
           relativePath,
           updatedSourceFile,
           new Date().toISOString(),
+          { canPersist: () => sourceChangeGate.canPersist(token) },
         );
         await notesProvider?.refreshCurrentNotes(uri);
       }

@@ -1,12 +1,12 @@
 {
   "source": {
-    "sourceHash": "sha256:76775003e3ba8c712b331e7ee1254e5b7c845d6e364e3194f305151f811ffa08",
+    "sourceHash": "sha256:f4dea4b35a9b34fde00a6fc7531f823885706ac48295b81c6ced193037939204",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-23T12:02:15.571Z",
-    "updatedAt": "2026-07-27T03:38:46.386Z"
+    "updatedAt": "2026-07-27T04:42:32.375Z"
   },
   "fileNote": {
     "userNote": "当前负责将单个变化或批量变化应用并保存到 Workspace Note Store。\n\n1. applyDeterministicRelocation：统一更新 source hash、File Note、Section Notes 和 Line Notes。\n2. applySectionTransform：将 Section 锚点结果写入 Section Note。\n3. applyLineTransform：将 Line 锚点结果写入 Line Note。\n4. confirmAnchor：确定性移动成功后将锚点恢复为 confirmed。\n\napplySourceChangeToNotesService：现在同时接受单 splice 和 splice batch，并统一通过批次服务完成一次持久化。\nnormalizeSourceChangeBatch：将旧的单 splice 调用包装成单元素批次，保持现有调用兼容。",

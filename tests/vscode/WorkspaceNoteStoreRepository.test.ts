@@ -11,6 +11,7 @@ import {
   createWorkspaceNoteFileName,
   getWorkspaceNoteFilePath,
   getWorkspaceNoteIndexPath,
+  isRecentInternalWorkspaceNoteWrite,
   isWorkspaceNoteIndexV2,
   WorkspaceNoteStoreRepository,
 } from "@vscode/notes/WorkspaceNoteStoreRepository";
@@ -111,6 +112,9 @@ describe("WorkspaceNoteStoreRepository", () => {
         },
       },
     });
+    expect(isRecentInternalWorkspaceNoteWrite(
+      getWorkspaceNoteIndexPath(root, outputDirectory),
+    )).toBe(true);
   });
 
   it("does not rewrite a note or index when the persistent content is unchanged", async () => {
@@ -205,6 +209,95 @@ describe("WorkspaceNoteStoreRepository", () => {
     });
     expect(await repository.getSourceFile(root, outputDirectory, "src/first.ts")).toEqual(firstFile);
     expect(await repository.getSourceFile(root, outputDirectory, "src/second.ts")).toEqual(secondFile);
+  });
+
+  it("serializes concurrent saves without losing either index entry", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(
+      createSequentialRandomId([firstRandomId, secondRandomId]),
+    );
+
+    await Promise.all([
+      repository.saveSourceFile(
+        root,
+        outputDirectory,
+        "src/first.ts",
+        createStoredSourceFile("sha256:first"),
+        now,
+      ),
+      repository.saveSourceFile(
+        root,
+        outputDirectory,
+        "src/second.ts",
+        createStoredSourceFile("sha256:second"),
+        now,
+      ),
+    ]);
+
+    const index = await repository.loadIndex(root, outputDirectory);
+
+    expect(Object.keys(index?.files ?? {}).sort()).toEqual([
+      "src/first.ts",
+      "src/second.ts",
+    ]);
+  });
+
+  it("refuses to replace an invalid existing index with a one-entry Store", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const invalidContent = "{temporarily invalid";
+
+    await writeRawStoreFile(root, invalidContent);
+
+    await expect(
+      repository.saveSourceFile(
+        root,
+        outputDirectory,
+        "src/index.ts",
+        createStoredSourceFile(),
+        now,
+      ),
+    ).rejects.toThrow("Workspace Note index is unreadable or unstable.");
+    expect(
+      await readFile(getWorkspaceNoteIndexPath(root, outputDirectory), "utf-8"),
+    ).toBe(invalidContent);
+  });
+
+  it("refuses to recreate a missing index inside an existing Note Store", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const notesDirectory = path.dirname(getWorkspaceNoteIndexPath(root, outputDirectory));
+
+    await mkdir(path.join(notesDirectory, "files"), { recursive: true });
+
+    await expect(
+      repository.saveSourceFile(
+        root,
+        outputDirectory,
+        "src/index.ts",
+        createStoredSourceFile(),
+        now,
+      ),
+    ).rejects.toThrow("Workspace Note index disappeared from an existing Store.");
+    expect(await repository.loadIndex(root, outputDirectory)).toBeNull();
+  });
+
+  it("cancels a write when its persistence permission changes inside the queue", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    let checks = 0;
+
+    const result = await repository.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/index.ts",
+      createStoredSourceFile(),
+      now,
+      { canPersist: () => ++checks === 1 },
+    );
+
+    expect(result).toBe("cancelled");
+    expect(await repository.loadIndex(root, outputDirectory)).toBeNull();
   });
 
   it("validates the top-level workspace note index shape", () => {

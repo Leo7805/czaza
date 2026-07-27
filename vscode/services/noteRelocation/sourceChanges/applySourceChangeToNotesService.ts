@@ -160,6 +160,7 @@ export async function applySourceChangeToNotesService(
     relativePath,
     applyResult.sourceFile,
     now,
+    { canPersist },
   );
 
   return {
