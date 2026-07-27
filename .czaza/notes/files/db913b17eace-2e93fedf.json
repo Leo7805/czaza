@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:a5adda40621294fd3a6a231f3bde7084344e79cfe99d850d8137b2884266e1cf",
+    "sourceHash": "sha256:a4793082a85f4d6b9841d0545157ec5c609d730b1999442558d9d93d059ec28a",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-26T11:26:04.997Z",
-    "updatedAt": "2026-07-26T11:26:04.997Z"
+    "updatedAt": "2026-07-27T03:38:32.348Z"
   },
   "fileNote": {
     "userNote": "统一导出 workspace transition guard 和 Git 注册服务。\n本文件没有函数。",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

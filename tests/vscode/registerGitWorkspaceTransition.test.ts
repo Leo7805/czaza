@@ -92,5 +92,6 @@ describe("registerGitWorkspaceTransition()", () => {
 
     expect(mocks.clearCache).toHaveBeenCalledTimes(2);
     expect(mocks.refreshCurrentNotes).toHaveBeenCalledOnce();
+    expect(guard.isTransitioning()).toBe(false);
   });
 });

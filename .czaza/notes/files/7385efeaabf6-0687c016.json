@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:0ed3ae5dc6d3acbe7a4d920256d84c8b1de0fa54cfe1a3eb4883485e901624c8",
+    "sourceHash": "sha256:a1e3a8a6c89ace35eb414277cb500936495ccae8ac8ac3555ca144760845dbe4",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-26T11:25:53.075Z",
-    "updatedAt": "2026-07-26T11:25:53.075Z"
+    "updatedAt": "2026-07-27T03:38:33.295Z"
   },
   "fileNote": {
     "userNote": "连接 VS Code 内置 Git API，检测 branch name 或 HEAD commit 变化。\nregisterGitWorkspaceTransition — 注册已有和后续打开的 Git repository，并在 transition 结束后刷新 Notes。\nmonitorGitRepository — 监听单个 repository 的 HEAD 变化。\ncreateHeadIdentity — 将 branch name 和 commit 组合成可比较的 HEAD 标识。\nclearRepositoryNoteCache — 清除对应 repository 当前 CZaza 根目录的 Notes Cache。",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

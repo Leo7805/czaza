@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:e296c4695bef8b3043d7007a86a7e06ed499d116a967b16388161fede87b5913",
+    "sourceHash": "sha256:bc5f73c54fd2317f1827cfa66823848579c6f26580f762a62b245f2c5a54cdac",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-26T11:25:42.421Z",
-    "updatedAt": "2026-07-26T11:25:42.421Z"
+    "updatedAt": "2026-07-27T03:39:58.689Z"
   },
   "fileNote": {
     "userNote": "管理 Git workspace transition 状态、稳定期计时器和状态通知。\nGitWorkspaceTransitionGuard.constructor — 创建 guard，并设置稳定期时长，默认 800ms。\nisTransitioning — 返回当前是否处于 Git workspace transition。\nbeginTransition — 开始 transition，并重新启动稳定期计时器。\ntouchTransition — 切换期间收到新文件事件时延长稳定期。\nonDidStartTransition — 注册 transition 开始监听器。\nonDidFinishTransition — 注册 transition 结束监听器。\ndispose — 清理 timer 和所有监听器。\nrestartSettleTimer — 重新启动内部稳定期 timer。\naddListener — 注册并返回可释放的状态监听器。\nemit — 通知当前注册的状态监听器。",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

@@ -161,6 +161,28 @@ describe("checkChangedFileNotesService()", () => {
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 
+  it("cancels persistence when a HEAD revision invalidates the task", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("cancelled");
+    const previousText = "export const value = 1;\n";
+    const nextText = "export const value = 2;\n";
+    const notes = createNotes(createStoredSourceFile(previousText));
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+
+    const result = await checkChangedFileNotesService({
+      document: createDocument(path.join(workspaceRoot, "src/index.ts"), nextText),
+      notes: notes.value,
+      now: "2026-07-18T00:00:00.000Z",
+      canPersist: () => false,
+    });
+
+    expect(result).toEqual({
+      kind: "cancelled",
+      relativePath: "src/index.ts",
+    });
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+  });
+
   it("ignores non-file documents", async () => {
     const notes = createNotes(createStoredSourceFile("export {};\n"));
 

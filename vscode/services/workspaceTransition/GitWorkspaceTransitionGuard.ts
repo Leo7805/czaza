@@ -9,7 +9,7 @@ export type WorkspaceTransitionDisposable = {
 };
 
 /** Callback invoked when a workspace transition starts or finishes. */
-export type WorkspaceTransitionListener = () => void;
+export type WorkspaceTransitionListener = () => void | Promise<void>;
 
 /**
  * Coordinates transition state and a trailing stability timer.
@@ -26,6 +26,8 @@ export class GitWorkspaceTransitionGuard {
   private readonly settleDelayMs: number;
   private settleTimer: ReturnType<typeof setTimeout> | undefined;
   private transitioning = false;
+  private headRevision = 0;
+  private settleGeneration = 0;
 
   /**
    * Creates a transition guard.
@@ -46,14 +48,35 @@ export class GitWorkspaceTransitionGuard {
   }
 
   /**
+   * Returns the current in-memory HEAD transition revision.
+   *
+   * @returns Revision incremented whenever a Git HEAD change begins.
+   */
+  getRevision(): number {
+    return this.headRevision;
+  }
+
+  /**
+   * Checks whether an automatic task still belongs to the current HEAD revision.
+   *
+   * @param revision - Revision captured when the task started.
+   * @returns True when no later HEAD transition has invalidated the task.
+   */
+  isRevisionCurrent(revision: number): boolean {
+    return revision === this.headRevision;
+  }
+
+  /**
    * Starts a transition or extends the current transition stability period.
    *
    * @returns Nothing.
    */
   beginTransition(): void {
+    this.headRevision += 1;
+
     if (!this.transitioning) {
       this.transitioning = true;
-      this.emit(this.startListeners);
+      void this.emit(this.startListeners);
     }
 
     this.restartSettleTimer();
@@ -120,11 +143,28 @@ export class GitWorkspaceTransitionGuard {
       clearTimeout(this.settleTimer);
     }
 
+    const generation = ++this.settleGeneration;
+
     this.settleTimer = setTimeout(() => {
       this.settleTimer = undefined;
-      this.transitioning = false;
-      this.emit(this.finishListeners);
+      void this.finishTransition(generation);
     }, this.settleDelayMs);
+  }
+
+  /**
+   * Runs stable-transition callbacks before exposing the workspace as writable.
+   *
+   * @param generation - Settle generation associated with the elapsed timer.
+   * @returns Promise resolved after transition callbacks finish.
+   */
+  private async finishTransition(generation: number): Promise<void> {
+    try {
+      await this.emit(this.finishListeners);
+    } finally {
+      if (generation === this.settleGeneration) {
+        this.transitioning = false;
+      }
+    }
   }
 
   /**
@@ -151,9 +191,9 @@ export class GitWorkspaceTransitionGuard {
    * @param listeners - Listener collection to notify.
    * @returns Nothing.
    */
-  private emit(listeners: Set<WorkspaceTransitionListener>): void {
+  private async emit(listeners: Set<WorkspaceTransitionListener>): Promise<void> {
     for (const listener of [...listeners]) {
-      listener();
+      await listener();
     }
   }
 }

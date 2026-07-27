@@ -42,6 +42,9 @@ export type CheckChangedFileNotesInput = {
 
   /** ISO timestamp used for saved note metadata. */
   now: string;
+
+  /** Optional final guard checked immediately before automatic persistence. */
+  canPersist?: () => boolean;
 };
 
 /** Result from checking one changed source file's notes. */
@@ -70,6 +73,11 @@ export type CheckChangedFileNotesResult =
       /** No stored note bundle exists for this source path. */
       kind: "untracked";
       relativePath: string;
+    }
+  | {
+      /** A Git HEAD transition invalidated the automatic update before persistence. */
+      kind: "cancelled";
+      relativePath: string;
     };
 
 /**
@@ -84,7 +92,7 @@ export type CheckChangedFileNotesResult =
 export async function checkChangedFileNotesService(
   input: CheckChangedFileNotesInput,
 ): Promise<CheckChangedFileNotesResult> {
-  const { document, notes, now } = input;
+  const { document, notes, now, canPersist = () => true } = input;
 
   if (document.uri.scheme !== "file") {
     return {
@@ -128,6 +136,10 @@ export async function checkChangedFileNotesService(
       report.file.currentProgrammingLanguage,
     );
 
+    if (!canPersist()) {
+      return { kind: "cancelled", relativePath };
+    }
+
     await notes.cache.saveSourceFile(
       resolvedRoot.rootDirectory,
       settings.outputDirectory,
@@ -158,6 +170,10 @@ export async function checkChangedFileNotesService(
     updateSourceHash(applyFileNotesDetectionReport(sourceFile, report, now), report.file.currentSourceHash),
     report.file.currentProgrammingLanguage,
   );
+
+  if (!canPersist()) {
+    return { kind: "cancelled", relativePath };
+  }
 
   await notes.cache.saveSourceFile(
     resolvedRoot.rootDirectory,

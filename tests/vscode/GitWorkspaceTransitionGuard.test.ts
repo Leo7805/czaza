@@ -30,6 +30,40 @@ describe("GitWorkspaceTransitionGuard", () => {
     expect(onFinish).toHaveBeenCalledOnce();
   });
 
+  it("keeps the transition active until asynchronous finish work completes", async () => {
+    vi.useFakeTimers();
+    const guard = new GitWorkspaceTransitionGuard(100);
+    let finishRefresh: (() => void) | undefined;
+    const refresh = new Promise<void>((resolve) => {
+      finishRefresh = resolve;
+    });
+    guard.onDidFinishTransition(() => refresh);
+
+    guard.beginTransition();
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(guard.isTransitioning()).toBe(true);
+
+    finishRefresh?.();
+    await vi.waitFor(() => expect(guard.isTransitioning()).toBe(false));
+
+    expect(guard.isTransitioning()).toBe(false);
+  });
+
+  it("increments the revision for every observed HEAD transition", () => {
+    const guard = new GitWorkspaceTransitionGuard(100);
+    const initialRevision = guard.getRevision();
+
+    guard.beginTransition();
+    const firstRevision = guard.getRevision();
+    guard.beginTransition();
+
+    expect(firstRevision).toBe(initialRevision + 1);
+    expect(guard.getRevision()).toBe(firstRevision + 1);
+    expect(guard.isRevisionCurrent(firstRevision)).toBe(false);
+    guard.dispose();
+  });
+
   it("extends the quiet period when workspace events continue", async () => {
     vi.useFakeTimers();
     const guard = new GitWorkspaceTransitionGuard(100);

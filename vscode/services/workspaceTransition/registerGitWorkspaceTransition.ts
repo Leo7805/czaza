@@ -63,13 +63,13 @@ export async function registerGitWorkspaceTransition(
   const git = exports.getAPI(1);
   let activeRepository: GitRepository | undefined;
 
-  const finishDisposable = guard.onDidFinishTransition(() => {
+  const finishDisposable = guard.onDidFinishTransition(async () => {
     if (!activeRepository) {
       return;
     }
 
     clearRepositoryNoteCache(notes, activeRepository.rootUri);
-    void notesProvider.refreshCurrentNotes(activeRepository.rootUri);
+    await notesProvider.refreshCurrentNotes(activeRepository.rootUri);
     activeRepository = undefined;
   });
 

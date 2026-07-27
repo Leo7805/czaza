@@ -15,7 +15,11 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
-import type { GitWorkspaceTransitionGuard } from "@vscode/services/workspaceTransition";
+import {
+  GitAwareSourceChangeGate,
+  type GitWorkspaceTransitionGuard,
+  type SourceChangeRevisionToken,
+} from "@vscode/services/workspaceTransition";
 import {
   applySourceChangeToNotesService,
   classifySourceChangeBatch,
@@ -60,7 +64,10 @@ export function registerNotesContentEvents(
   notesProvider?: NotesViewProvider,
   workspaceTransitionGuard?: GitWorkspaceTransitionGuard,
 ): void {
-  const externalChangeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const sourceChangeGate = new GitAwareSourceChangeGate(
+    EXTERNAL_CHANGE_DEBOUNCE_MS,
+    workspaceTransitionGuard,
+  );
   const notesRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const pendingDocumentChanges = new Map<string, PendingDocumentChangeState>();
   const documentChangeQueues: DocumentChangeQueue = new Map();
@@ -68,7 +75,7 @@ export function registerNotesContentEvents(
   const watcher = vscode.workspace.createFileSystemWatcher("**/*", true, false, true);
   const transitionDisposable = workspaceTransitionGuard?.onDidStartTransition(
     () => {
-      clearTimers(externalChangeTimers);
+      sourceChangeGate.cancelPending();
       clearTimers(notesRefreshTimers);
       clearTimers(recentlySavedTimers);
       pendingDocumentChanges.clear();
@@ -86,6 +93,7 @@ export function registerNotesContentEvents(
         notesRefreshTimers,
         documentChangeQueues,
         workspaceTransitionGuard,
+        sourceChangeGate,
       );
     }),
     vscode.workspace.onDidSaveTextDocument((document) => {
@@ -97,6 +105,7 @@ export function registerNotesContentEvents(
         pendingDocumentChanges,
         documentChangeQueues,
         workspaceTransitionGuard,
+        sourceChangeGate,
       );
     }),
     watcher.onDidChange((uri) => {
@@ -104,16 +113,16 @@ export function registerNotesContentEvents(
         uri,
         notes,
         notesProvider,
-        externalChangeTimers,
         recentlySavedTimers,
         workspaceTransitionGuard,
+        sourceChangeGate,
       );
     }),
     watcher,
     ...(transitionDisposable ? [transitionDisposable] : []),
     {
       dispose: () => {
-        clearTimers(externalChangeTimers);
+        sourceChangeGate.dispose();
         clearTimers(notesRefreshTimers);
         clearTimers(recentlySavedTimers);
         pendingDocumentChanges.clear();
@@ -132,6 +141,7 @@ export function registerNotesContentEvents(
  * @param pendingDocumentChanges - Per-document save fallback state.
  * @param notesRefreshTimers - Per-document refresh debounce timers.
  * @param documentChangeQueues - Per-document serialized update queues.
+ * @param sourceChangeGate - Git-aware revision gate for automatic persistence.
  * @returns Promise resolved after the event has been classified and queued.
  */
 async function handleTextDocumentChange(
@@ -142,6 +152,7 @@ async function handleTextDocumentChange(
   notesRefreshTimers: Map<string, ReturnType<typeof setTimeout>>,
   documentChangeQueues: DocumentChangeQueue,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
+  sourceChangeGate: GitAwareSourceChangeGate,
 ): Promise<void> {
   try {
     if (workspaceTransitionGuard?.isTransitioning()) {
@@ -170,6 +181,7 @@ async function handleTextDocumentChange(
     }
 
     const document = createTextDocumentSnapshot(event.document);
+    const token = sourceChangeGate.captureToken();
 
     enqueueDocumentChange(documentChangeQueues, key, async () => {
       if (workspaceTransitionGuard?.isTransitioning()) {
@@ -182,6 +194,7 @@ async function handleTextDocumentChange(
         change: classifiedBatch,
         notes,
         now: new Date().toISOString(),
+        canPersist: () => sourceChangeGate.canPersist(token),
       });
 
       if (result.kind !== "updated") {
@@ -205,6 +218,7 @@ async function handleTextDocumentChange(
  * @param pendingDocumentChanges - Per-document save fallback state.
  * @param documentChangeQueues - Per-document serialized update queues.
  * @param workspaceTransitionGuard - Optional Git transition state.
+ * @param sourceChangeGate - Git-aware revision gate for automatic persistence.
  * @returns Promise resolved after save-time detection or suppression.
  */
 async function handleSavedDocument(
@@ -214,6 +228,7 @@ async function handleSavedDocument(
   pendingDocumentChanges: Map<string, PendingDocumentChangeState>,
   documentChangeQueues: DocumentChangeQueue,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
+  sourceChangeGate: GitAwareSourceChangeGate,
 ): Promise<void> {
   if (workspaceTransitionGuard?.isTransitioning()) {
     workspaceTransitionGuard.touchTransition();
@@ -225,8 +240,13 @@ async function handleSavedDocument(
   }
 
   const key = document.uri.toString();
+  const token = sourceChangeGate.captureToken();
 
   await documentChangeQueues.get(key);
+
+  if (!sourceChangeGate.canPersist(token)) {
+    return;
+  }
 
   const state = pendingDocumentChanges.get(key);
 
@@ -236,14 +256,34 @@ async function handleSavedDocument(
     return;
   }
 
-  await handleChangedDocument(notes, document, notesProvider, "save");
+  await handleChangedDocument(
+    notes,
+    document,
+    notesProvider,
+    "save",
+    sourceChangeGate,
+    token,
+  );
 }
 
+/**
+ * Runs full stale detection with a final Git revision persistence check.
+ *
+ * @param notes - Shared workspace Note store.
+ * @param document - Current source document.
+ * @param notesProvider - Optional Notes view refreshed after persistence.
+ * @param trigger - Source event used for error reporting.
+ * @param sourceChangeGate - Git-aware revision gate.
+ * @param token - Revision captured before the automatic task started.
+ * @returns Promise resolved after detection or cancellation.
+ */
 async function handleChangedDocument(
   notes: WorkspaceNoteStore,
   document: vscode.TextDocument,
   notesProvider: NotesViewProvider | undefined,
   trigger: "save" | "externalChange",
+  sourceChangeGate: GitAwareSourceChangeGate,
+  token: SourceChangeRevisionToken,
 ): Promise<void> {
   try {
     if (document.uri.scheme !== "file") {
@@ -255,6 +295,7 @@ async function handleChangedDocument(
       document,
       notes,
       now,
+      canPersist: () => sourceChangeGate.canPersist(token),
     });
 
     if (result.kind !== "updated") {
@@ -349,18 +390,18 @@ function scheduleNotesRefresh(
  * @param uri - Changed workspace resource URI.
  * @param notes - Shared workspace Note store.
  * @param notesProvider - Optional Notes view refreshed after persistence.
- * @param externalChangeTimers - Per-resource external-change timers.
  * @param recentlySavedTimers - Recently saved resources suppressed from rechecking.
  * @param workspaceTransitionGuard - Optional Git transition state.
+ * @param sourceChangeGate - Git-aware debounce and revision gate.
  * @returns Nothing.
  */
 function scheduleExternalChangeCheck(
   uri: vscode.Uri,
   notes: WorkspaceNoteStore,
   notesProvider: NotesViewProvider | undefined,
-  externalChangeTimers: Map<string, ReturnType<typeof setTimeout>>,
   recentlySavedTimers: Map<string, ReturnType<typeof setTimeout>>,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
+  sourceChangeGate: GitAwareSourceChangeGate,
 ): void {
   if (workspaceTransitionGuard?.isTransitioning()) {
     workspaceTransitionGuard.touchTransition();
@@ -376,23 +417,15 @@ function scheduleExternalChangeCheck(
   }
 
   const key = uri.toString();
-  const previousTimer = externalChangeTimers.get(key);
-
-  if (previousTimer) {
-    clearTimeout(previousTimer);
-  }
-
-  externalChangeTimers.set(
-    key,
-    setTimeout(() => {
-      externalChangeTimers.delete(key);
-      void handleExternalChange(
-        notes,
-        uri,
-        notesProvider,
-        workspaceTransitionGuard,
-      );
-    }, EXTERNAL_CHANGE_DEBOUNCE_MS),
+  sourceChangeGate.schedule(key, (token) =>
+    handleExternalChange(
+      notes,
+      uri,
+      notesProvider,
+      workspaceTransitionGuard,
+      sourceChangeGate,
+      token,
+    ),
   );
 }
 
@@ -423,6 +456,8 @@ function isCzazaManagedResource(uri: vscode.Uri): boolean {
  * @param uri - Changed workspace resource URI.
  * @param notesProvider - Optional Notes view refreshed after persistence.
  * @param workspaceTransitionGuard - Optional Git transition state.
+ * @param sourceChangeGate - Git-aware revision gate.
+ * @param token - Revision captured when the delayed task was scheduled.
  * @returns Promise resolved after inspection or suppression.
  */
 async function handleExternalChange(
@@ -430,6 +465,8 @@ async function handleExternalChange(
   uri: vscode.Uri,
   notesProvider: NotesViewProvider | undefined,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
+  sourceChangeGate: GitAwareSourceChangeGate,
+  token: SourceChangeRevisionToken,
 ): Promise<void> {
   try {
     if (workspaceTransitionGuard?.isTransitioning()) {
@@ -440,7 +477,14 @@ async function handleExternalChange(
     const fingerprint = await getResourceFingerprint(uri);
 
     if (fingerprint.kind === "text") {
-      await handleChangedDocument(notes, fingerprint.document, notesProvider, "externalChange");
+      await handleChangedDocument(
+        notes,
+        fingerprint.document,
+        notesProvider,
+        "externalChange",
+        sourceChangeGate,
+        token,
+      );
       return;
     }
 
@@ -473,6 +517,11 @@ async function handleExternalChange(
           ...result.sourceFile,
           source: { ...result.sourceFile.source, sourceHashKind: "metadata" as const },
         };
+
+        if (!sourceChangeGate.canPersist(token)) {
+          return;
+        }
+
         await notes.cache.saveSourceFile(
           rootDirectory,
           settings.outputDirectory,

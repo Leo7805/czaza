@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-26T12:10:18.682Z",
+  "updatedAt": "2026-07-27T03:39:58.689Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -109,9 +109,9 @@
     },
     "vscode/services/noteRelocation/sourceChanges/applySourceChangeToNotesService.ts": {
       "noteFile": "files/f1e4f4de1ba7-ec7a30c1.json",
-      "sourceHash": "sha256:b963b4768aa6a82c1d417a4007c3dea869eb1663b85ca3ec5c80a018b2a65ef8",
+      "sourceHash": "sha256:76775003e3ba8c712b331e7ee1254e5b7c845d6e364e3194f305151f811ffa08",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-23T12:59:55.583Z"
+      "updatedAt": "2026-07-27T03:38:46.386Z"
     },
     "vscode/services/noteRelocation/sourceChanges/sourceChangeAnchorTransform.ts": {
       "noteFile": "files/0ad29fc79e69-13602646.json",
@@ -139,27 +139,27 @@
     },
     "vscode/events/registerNotesContentEvents.ts": {
       "noteFile": "files/a8ddb5ffcac5-2c97d283.json",
-      "sourceHash": "sha256:81f7932e35619c513784acda6b3997ee326c9f1d3eb421b481c3bebe37d61e6a",
+      "sourceHash": "sha256:24175a44e5e8751b73430c92dd9e26a79eb847754742ecb7d78b70f5fcd24dac",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-26T11:58:24.239Z"
+      "updatedAt": "2026-07-27T03:39:14.044Z"
     },
     "vscode/services/workspaceTransition/GitWorkspaceTransitionGuard.ts": {
       "noteFile": "files/22f375782ff6-cf3ddbe4.json",
-      "sourceHash": "sha256:e296c4695bef8b3043d7007a86a7e06ed499d116a967b16388161fede87b5913",
+      "sourceHash": "sha256:bc5f73c54fd2317f1827cfa66823848579c6f26580f762a62b245f2c5a54cdac",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-26T11:25:42.421Z"
+      "updatedAt": "2026-07-27T03:39:58.689Z"
     },
     "vscode/services/workspaceTransition/registerGitWorkspaceTransition.ts": {
       "noteFile": "files/7385efeaabf6-0687c016.json",
-      "sourceHash": "sha256:0ed3ae5dc6d3acbe7a4d920256d84c8b1de0fa54cfe1a3eb4883485e901624c8",
+      "sourceHash": "sha256:a1e3a8a6c89ace35eb414277cb500936495ccae8ac8ac3555ca144760845dbe4",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-26T11:25:53.075Z"
+      "updatedAt": "2026-07-27T03:38:33.295Z"
     },
     "vscode/services/workspaceTransition/index.ts": {
       "noteFile": "files/db913b17eace-2e93fedf.json",
-      "sourceHash": "sha256:a5adda40621294fd3a6a231f3bde7084344e79cfe99d850d8137b2884266e1cf",
+      "sourceHash": "sha256:a4793082a85f4d6b9841d0545157ec5c609d730b1999442558d9d93d059ec28a",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-26T11:26:04.997Z"
+      "updatedAt": "2026-07-27T03:38:32.348Z"
     },
     "vscode/extension.ts": {
       "noteFile": "files/a439341dde5e-369009cb.json",

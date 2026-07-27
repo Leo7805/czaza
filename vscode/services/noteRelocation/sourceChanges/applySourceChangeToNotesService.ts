@@ -44,6 +44,9 @@ export type ApplySourceChangeToNotesInput = {
 
   /** ISO timestamp used for saved note metadata. */
   now: string;
+
+  /** Optional final guard checked immediately before automatic persistence. */
+  canPersist?: () => boolean;
 };
 
 /** Result from applying one classified text document change to stored notes. */
@@ -79,6 +82,11 @@ export type ApplySourceChangeToNotesResult =
       /** No stored note bundle exists for this source path. */
       kind: "untracked";
       relativePath: string;
+    }
+  | {
+      /** A Git HEAD transition invalidated the automatic update before persistence. */
+      kind: "cancelled";
+      relativePath: string;
     };
 
 /**
@@ -93,7 +101,7 @@ export type ApplySourceChangeToNotesResult =
 export async function applySourceChangeToNotesService(
   input: ApplySourceChangeToNotesInput,
 ): Promise<ApplySourceChangeToNotesResult> {
-  const { document, change, notes, now } = input;
+  const { document, change, notes, now, canPersist = () => true } = input;
 
   if (change.kind === "unsupported") {
     return {
@@ -140,6 +148,10 @@ export async function applySourceChangeToNotesService(
       sourceFile,
       applyResult,
     };
+  }
+
+  if (!canPersist()) {
+    return { kind: "cancelled", relativePath };
   }
 
   await notes.cache.saveSourceFile(
