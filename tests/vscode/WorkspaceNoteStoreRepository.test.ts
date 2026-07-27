@@ -145,6 +145,43 @@ describe("WorkspaceNoteStoreRepository", () => {
     expect(await readFile(notePath, "utf-8")).toBe(beforeNote);
   });
 
+  it("does not rewrite semantically equal content with different property order", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const sourceFile = createStoredSourceFile();
+
+    await repository.saveSourceFile(root, outputDirectory, "src/index.ts", sourceFile, now);
+
+    const indexPath = getWorkspaceNoteIndexPath(root, outputDirectory);
+    const notePath = getWorkspaceNoteFilePath(
+      root,
+      outputDirectory,
+      createWorkspaceNoteFileName("src/index.ts", firstRandomId),
+    );
+    const beforeIndex = await readFile(indexPath, "utf-8");
+    const beforeNote = await readFile(notePath, "utf-8");
+    const reorderedSourceFile: StoredSourceFile = {
+      lineNotes: [],
+      sectionNotes: [],
+      source: {
+        programmingLanguage: sourceFile.source.programmingLanguage,
+        sourceHash: sourceFile.source.sourceHash,
+      },
+    };
+
+    const result = await repository.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/index.ts",
+      reorderedSourceFile,
+      "2026-07-14T00:00:00.000Z",
+    );
+
+    expect(result).toBe("unchanged");
+    expect(await readFile(indexPath, "utf-8")).toBe(beforeIndex);
+    expect(await readFile(notePath, "utf-8")).toBe(beforeNote);
+  });
+
   it("cancels saving when an indexed Note JSON temporarily disappears", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);

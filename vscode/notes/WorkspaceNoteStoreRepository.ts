@@ -5,6 +5,7 @@
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
+import { isDeepStrictEqual } from "node:util";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import {
@@ -400,7 +401,10 @@ function isSameStoredSourceFile(
   left: StoredSourceFile,
   right: StoredSourceFile,
 ): boolean {
-  return JSON.stringify(encodeSourceFileDocument(left)) === JSON.stringify(encodeSourceFileDocument(right));
+  return isDeepStrictEqual(
+    encodeSourceFileDocument(left),
+    encodeSourceFileDocument(right),
+  );
 }
 
 /**
