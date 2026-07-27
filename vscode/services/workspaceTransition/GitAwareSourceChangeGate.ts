@@ -76,6 +76,23 @@ export class GitAwareSourceChangeGate {
   }
 
   /**
+   * Waits for the configured confirmation window before validating a task token.
+   *
+   * The timer starts when this method is called, so multiple queued document
+   * changes wait concurrently while preserving their later execution order.
+   *
+   * @param token - Revision token captured when the automatic change arrived.
+   * @returns Promise resolving whether the task may enter its persistence queue.
+   */
+  async confirmPersistence(token: SourceChangeRevisionToken): Promise<boolean> {
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, this.delayMs);
+    });
+
+    return this.canPersist(token);
+  }
+
+  /**
    * Invalidates pending and running tasks after an external Note Store change.
    *
    * @returns Nothing.

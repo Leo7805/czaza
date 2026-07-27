@@ -183,8 +183,13 @@ async function handleTextDocumentChange(
 
     const document = createTextDocumentSnapshot(event.document);
     const token = sourceChangeGate.captureToken();
+    const persistenceConfirmation = sourceChangeGate.confirmPersistence(token);
 
     enqueueDocumentChange(documentChangeQueues, key, async () => {
+      if (!(await persistenceConfirmation)) {
+        return;
+      }
+
       if (workspaceTransitionGuard?.isTransitioning()) {
         workspaceTransitionGuard.touchTransition();
         return;
@@ -242,8 +247,13 @@ async function handleSavedDocument(
 
   const key = document.uri.toString();
   const token = sourceChangeGate.captureToken();
+  const queuedChanges = documentChangeQueues.get(key);
 
-  await documentChangeQueues.get(key);
+  if (queuedChanges) {
+    await queuedChanges;
+  } else if (!(await sourceChangeGate.confirmPersistence(token))) {
+    return;
+  }
 
   if (!sourceChangeGate.canPersist(token)) {
     return;

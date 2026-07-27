@@ -53,6 +53,33 @@ describe("GitAwareSourceChangeGate", () => {
     guard.dispose();
   });
 
+  it("rejects document persistence when HEAD changes during confirmation", async () => {
+    vi.useFakeTimers();
+    const guard = new GitWorkspaceTransitionGuard(100);
+    const gate = new GitAwareSourceChangeGate(50, guard);
+    const token = gate.captureToken();
+    const confirmation = gate.confirmPersistence(token);
+
+    await vi.advanceTimersByTimeAsync(49);
+    guard.beginTransition();
+    await vi.advanceTimersByTimeAsync(1);
+
+    await expect(confirmation).resolves.toBe(false);
+    guard.dispose();
+  });
+
+  it("confirms multiple document changes concurrently without coalescing them", async () => {
+    vi.useFakeTimers();
+    const gate = new GitAwareSourceChangeGate(50);
+    const firstConfirmation = gate.confirmPersistence(gate.captureToken());
+    const secondConfirmation = gate.confirmPersistence(gate.captureToken());
+
+    await vi.advanceTimersByTimeAsync(50);
+
+    await expect(firstConfirmation).resolves.toBe(true);
+    await expect(secondConfirmation).resolves.toBe(true);
+  });
+
   it("coalesces repeated changes for the same resource", async () => {
     vi.useFakeTimers();
     const gate = new GitAwareSourceChangeGate(50);

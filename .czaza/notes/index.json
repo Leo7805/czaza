@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-27T05:12:17.757Z",
+  "updatedAt": "2026-07-27T05:26:03.742Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -139,9 +139,9 @@
     },
     "vscode/events/registerNotesContentEvents.ts": {
       "noteFile": "files/a8ddb5ffcac5-2c97d283.json",
-      "sourceHash": "sha256:c4b96aa282577f72c9ec5a5eff924f170ad598ec1cacd019a63abcbfe129e44f",
+      "sourceHash": "sha256:8b7814d91c254a22bdad1364f3cf0fca96383de94847b2634c01a41007395405",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-27T04:44:47.341Z"
+      "updatedAt": "2026-07-27T05:26:03.742Z"
     },
     "vscode/services/workspaceTransition/GitWorkspaceTransitionGuard.ts": {
       "noteFile": "files/22f375782ff6-cf3ddbe4.json",

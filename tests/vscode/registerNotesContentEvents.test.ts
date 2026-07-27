@@ -107,6 +107,7 @@ describe("registerNotesContentEvents()", () => {
   });
 
   it("marks file, section, and line notes stale after a saved content change", async () => {
+    vi.useFakeTimers();
     const workspaceRoot = await createTempWorkspaceRoot("changed");
     const previousText = "export const value = 1;\n";
     const nextText = "export const value = 2;\n";
@@ -119,7 +120,7 @@ describe("registerNotesContentEvents()", () => {
     const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
     mocks.saveListeners[0]?.(document);
 
-    await waitForMicrotasks();
+    await vi.advanceTimersByTimeAsync(800);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).toHaveBeenCalledWith(
@@ -203,7 +204,7 @@ describe("registerNotesContentEvents()", () => {
 
     await vi.advanceTimersByTimeAsync(1);
     mocks.saveListeners[0]?.(document);
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(800);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
@@ -244,6 +245,7 @@ describe("registerNotesContentEvents()", () => {
   });
 
   it("relocates notes for the same deletion when the document is dirty", async () => {
+    vi.useFakeTimers();
     const workspaceRoot = await createTempWorkspaceRoot("dirty-user-deletion");
     const previousText = createNumberedSourceLines(35);
     const nextText = createNumberedSourceLines(6, 30);
@@ -273,7 +275,7 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await waitForMicrotasks();
+    await vi.advanceTimersByTimeAsync(800);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).toHaveBeenCalledWith(
@@ -425,7 +427,7 @@ describe("registerNotesContentEvents()", () => {
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
 
-  it("applies deterministic text changes immediately and refreshes notes after 500ms", async () => {
+  it("confirms deterministic text changes before saving and then refreshes notes", async () => {
     vi.useFakeTimers();
 
     const workspaceRoot = await createTempWorkspaceRoot("deterministic");
@@ -451,11 +453,15 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await vi.advanceTimersByTimeAsync(499);
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(799);
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
     expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1);
+    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+    expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(500);
 
     expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(document.uri);
     expect(notes.saveSourceFile).toHaveBeenCalledWith(
@@ -538,7 +544,7 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(800);
 
     expect(notes.saveSourceFile).toHaveBeenCalledTimes(2);
     expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
@@ -600,7 +606,7 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(800);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
@@ -651,7 +657,7 @@ describe("registerNotesContentEvents()", () => {
         },
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(800);
     mocks.saveListeners[0]?.(document);
     await vi.advanceTimersByTimeAsync(0);
 
@@ -683,7 +689,7 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
     mocks.saveListeners[0]?.(document);
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(800);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).toHaveBeenCalledWith(
@@ -703,6 +709,70 @@ describe("registerNotesContentEvents()", () => {
       expect.any(String),
       { canPersist: expect.any(Function) },
     );
+  });
+
+  it("cancels a dirty document change when HEAD changes during confirmation", async () => {
+    vi.useFakeTimers();
+    const workspaceRoot = await createTempWorkspaceRoot("pre-head-change");
+    const previousText = "export const value = 1;\n";
+    const nextText = "export const value = 2;\n";
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const guard = new GitWorkspaceTransitionGuard(100);
+    const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      guard,
+    );
+    mocks.textDocumentChangeListeners[0]?.({
+      document,
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 21 },
+            end: { line: 0, character: 22 },
+          },
+          rangeLength: 1,
+          text: "2",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+
+    await vi.advanceTimersByTimeAsync(799);
+    guard.beginTransition();
+    await vi.advanceTimersByTimeAsync(101);
+
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(guard.isTransitioning()).toBe(false);
+  });
+
+  it("cancels save-time fallback when HEAD changes during confirmation", async () => {
+    vi.useFakeTimers();
+    const workspaceRoot = await createTempWorkspaceRoot("pre-head-save");
+    const previousText = "export const value = 1;\n";
+    const nextText = "export const value = 2;\n";
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const guard = new GitWorkspaceTransitionGuard(100);
+    const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      guard,
+    );
+    mocks.saveListeners[0]?.(document);
+
+    await vi.advanceTimersByTimeAsync(799);
+    guard.beginTransition();
+    await vi.advanceTimersByTimeAsync(101);
+
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(guard.isTransitioning()).toBe(false);
   });
 
   it("invalidates cached Notes when the managed Store changes externally", async () => {
