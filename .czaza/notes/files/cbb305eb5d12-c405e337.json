@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:4b18326167bc1a52840a4b2ad2e562b1d73035133026429a20ab5cc53ab0594d",
+    "sourceHash": "sha256:ad981e9ef6fe9b9404a51b63eb3d1c5c7ba647b1de8d5dad7323af2b3d091233",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-29T12:21:14.175Z",
-    "updatedAt": "2026-07-29T12:21:14.175Z"
+    "updatedAt": "2026-07-29T12:32:24.826Z"
   },
   "fileNote": {
-    "userNote": "统一导出 Registry 和相关类型。",
+    "userNote": "统一导出 Registry 和相关类型。\n导出只读检测服务及结果类型。",
     "createdBy": "user"
   },
   "sectionNotes": {},

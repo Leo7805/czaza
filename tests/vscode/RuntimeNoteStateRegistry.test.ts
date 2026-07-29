@@ -4,11 +4,11 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  RuntimeNoteStateRegistry,
-  type RuntimeNoteIssue,
-  type RuntimeNoteState,
-} from "@vscode/services/runtimeState";
+import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState/RuntimeNoteStateRegistry";
+import type {
+  RuntimeNoteIssue,
+  RuntimeNoteState,
+} from "@vscode/services/runtimeState/runtimeNoteState";
 
 describe("RuntimeNoteStateRegistry", () => {
   it("stores and returns defensive copies of one affected resource", () => {

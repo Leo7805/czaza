@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-29T12:23:46.152Z",
+  "updatedAt": "2026-07-29T12:33:06.504Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -258,9 +258,15 @@
     },
     "vscode/services/runtimeState/index.ts": {
       "noteFile": "files/cbb305eb5d12-c405e337.json",
-      "sourceHash": "sha256:4b18326167bc1a52840a4b2ad2e562b1d73035133026429a20ab5cc53ab0594d",
+      "sourceHash": "sha256:ad981e9ef6fe9b9404a51b63eb3d1c5c7ba647b1de8d5dad7323af2b3d091233",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-29T12:21:14.175Z"
+      "updatedAt": "2026-07-29T12:32:24.826Z"
+    },
+    "vscode/services/runtimeState/detectRuntimeNoteStateService.ts": {
+      "noteFile": "files/92b3cfea7bf0-ed5ad632.json",
+      "sourceHash": "sha256:e353541a743695974edf4a638b470d64fd78686c997f03244fd5cc9a14720009",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-29T12:33:06.504Z"
     }
   }
 }
