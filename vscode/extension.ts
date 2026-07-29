@@ -53,6 +53,7 @@ export function activate(context: vscode.ExtensionContext): void {
     (uri, lineNumber) => generateLineNoteForResource(context, notes, uri, lineNumber),
     (uri, sectionId) => generateSectionNoteForResource(context, notes, uri, sectionId),
     (uri, lineNumber) => generateLineBatchNotesForResource(context, notes, uri, lineNumber),
+    runtimeNoteStateRegistry,
   );
   context.subscriptions.push(notesProvider);
   const workspaceTransitionGuard = new GitWorkspaceTransitionGuard();

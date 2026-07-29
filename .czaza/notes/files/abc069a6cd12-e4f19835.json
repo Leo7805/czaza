@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:67ae161e7fe2766115fbb48e0e0d73bd820e32ed4ad6378e117654211e145fd8",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T23:56:37.872Z",
+    "updatedAt": "2026-07-29T23:56:37.872Z"
+  },
+  "fileNote": {
+    "userNote": "将持久化 Notes 与内存 Runtime State 合并为界面展示数据。\napplyRuntimeStateToResourceNotes：覆盖 File、Section、Line Note 的状态及建议位置。\ncreateTargetChangeMap：按 Note ID 整理 Section 或 Line 的 Runtime State。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

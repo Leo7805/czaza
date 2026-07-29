@@ -200,6 +200,7 @@ import {
   AllNotesBatchRequiredError,
   AllNotesLineLimitError,
 } from "@vscode/services/generateAllNotesService";
+import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState/RuntimeNoteStateRegistry";
 
 describe("NotesViewProvider", () => {
   beforeEach(() => {
@@ -1992,7 +1993,127 @@ describe("NotesViewProvider", () => {
 
     provider.dispose();
   });
+
+  it("refreshes visible File Notes with matching Runtime State", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
+    const view = createWebviewView();
+
+    mockAllowedResource("src/index.ts");
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      fileNote: {
+        status: { content: "current", anchor: "confirmed" },
+      },
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.postMessage.mockClear();
+    registry.setState(createRuntimeFileState("src/index.ts"));
+
+    await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
+    const message = [...mocks.postMessage.mock.calls]
+      .reverse()
+      .map(([candidate]) => candidate)
+      .find((candidate) => candidate.type === "resourceNotes");
+
+    expect(message?.payload.fileNote.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+    provider.dispose();
+  });
+
+  it("ignores Runtime State for another resource and after disposal", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
+    const view = createWebviewView();
+
+    mockAllowedResource("src/index.ts");
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    registry.setState(createRuntimeFileState("src/other.ts"));
+    provider.dispose();
+    registry.setState(createRuntimeFileState("src/index.ts"));
+
+    await Promise.resolve();
+    expect(mocks.getResourceNotes).toHaveBeenCalledOnce();
+  });
 });
+
+/**
+ * Creates a provider connected to the supplied Runtime State registry.
+ *
+ * @param registry - Shared session-only Runtime State registry.
+ * @returns Notes provider configured for Runtime State UI tests.
+ */
+function createProviderWithRuntimeRegistry(
+  registry: RuntimeNoteStateRegistry,
+): NotesViewProvider {
+  return new NotesViewProvider(
+    createUri("/extension"),
+    {} as never,
+    vi.fn().mockResolvedValue(true),
+    vi.fn().mockResolvedValue(undefined),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    registry,
+  );
+}
+
+/**
+ * Configures Resource Gate coordinates for one workspace-relative file.
+ *
+ * @param relativePath - Source path relative to the workspace root.
+ */
+function mockAllowedResource(relativePath: string): void {
+  mocks.evaluateCzazaResourceAccess.mockReturnValue({
+    allowed: true,
+    relativePath,
+    root: { rootDirectory: "/workspace" },
+    settings: { outputDirectory: ".czaza" },
+  });
+}
+
+/**
+ * Creates one stale File Note Runtime State fixture.
+ *
+ * @param relativePath - Source path represented by the state.
+ * @returns Runtime State with a stale File Note overlay.
+ */
+function createRuntimeFileState(relativePath: string) {
+  return {
+    workspaceRoot: "/workspace",
+    outputDirectory: ".czaza",
+    relativePath,
+    issues: ["stale"] as const,
+    reason: "sourceChanged" as const,
+    observedAt: "2026-07-29T00:00:00.000Z",
+    targetChanges: [
+      {
+        kind: "file" as const,
+        status: { content: "stale" as const, anchor: "confirmed" as const },
+      },
+    ],
+  };
+}
 
 /**
  * Creates a minimal notes Webview View.

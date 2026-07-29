@@ -3,6 +3,7 @@
  */
 
 export { RuntimeNoteStateRegistry } from "./RuntimeNoteStateRegistry";
+export { applyRuntimeStateToResourceNotes } from "./applyRuntimeStateToResourceNotesService";
 export {
   detectRuntimeNoteStateService,
   type DetectRuntimeNoteStateInput,

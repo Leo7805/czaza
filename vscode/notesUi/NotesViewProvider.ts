@@ -48,6 +48,12 @@ import {
   relocateLineNoteService,
   relocateSectionNoteService,
 } from "@vscode/services/noteRelocation";
+import {
+  applyRuntimeStateToResourceNotes,
+  type RuntimeNoteStateChange,
+  type RuntimeNoteStateDisposable,
+  type RuntimeNoteStateRegistry,
+} from "@vscode/services/runtimeState";
 
 /**
  * Message posted by the React notes webview.
@@ -256,8 +262,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly allNotesProgress = new Map<string, AllNotesProgress>();
   private readonly highlightController = new NotesEditorHighlightController();
   private readonly notesTypographyConfigurationListener: vscode.Disposable;
+  private readonly runtimeNoteStateListener: RuntimeNoteStateDisposable;
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
+  private readonly runtimeNoteStateRegistry?: RuntimeNoteStateRegistry;
   private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
   private readonly generateAllNotes?: (
     uri: vscode.Uri,
@@ -289,6 +297,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @param generateLineNote - Callback that generates and persists the active line note.
    * @param generateLineBatchNotes - Callback that generates nearby line notes in one request.
    * @param generateSectionNote - Callback that regenerates one selected section note.
+   * @param runtimeNoteStateRegistry - Optional session-only status overlay registry.
    *
    * @example
    * const provider = new NotesViewProvider(context.extensionUri, notes, generateFileNotes, saveUserNote);
@@ -308,6 +317,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
     generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>,
     generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
+    runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
   ) {
     this.extensionUri = extensionUri;
     this.notes = notes;
@@ -317,6 +327,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.generateLineNote = generateLineNote;
     this.generateSectionNote = generateSectionNote;
     this.generateLineBatchNotes = generateLineBatchNotes;
+    this.runtimeNoteStateRegistry = runtimeNoteStateRegistry;
     this.notesTypographyConfigurationListener = vscode.workspace.onDidChangeConfiguration?.(
       (event) => {
         if (
@@ -330,6 +341,17 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
             }
           });
         }
+      },
+    ) ?? { dispose() {} };
+    this.runtimeNoteStateListener = runtimeNoteStateRegistry?.onDidChange(
+      (change) => {
+        if (!this.isRuntimeStateChangeForCurrentResource(change)) {
+          return;
+        }
+
+        void this.refreshCurrentNotes().catch((error: unknown) => {
+          console.error("Failed to refresh visible CZaza Runtime Note State.", error);
+        });
       },
     ) ?? { dispose() {} };
   }
@@ -718,6 +740,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.highlightController.clear();
     this.noteRelocateSession = undefined;
     this.notesTypographyConfigurationListener.dispose();
+    this.runtimeNoteStateListener.dispose();
     this.highlightController.dispose();
   }
 
@@ -749,6 +772,14 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
+    const visiblePayload = applyRuntimeStateToResourceNotes(
+      payload,
+      this.runtimeNoteStateRegistry?.getState({
+        workspaceRoot: access.root.rootDirectory,
+        outputDirectory: access.settings.outputDirectory,
+        relativePath: access.relativePath,
+      }),
+    );
     const resourceChanged = this.currentResourceUri?.toString() !== uri.toString();
     if (
       resourceChanged &&
@@ -759,24 +790,64 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       await this.view?.webview.postMessage({ type: "closeNoteRelocate" });
     }
     this.currentResourceUri = uri;
-    this.currentPayload = payload;
+    this.currentPayload = visiblePayload;
     if (resourceChanged) {
       this.isSectionSelectionManual = false;
     }
 
     const manualSelectionStillApplies =
       this.isSectionSelectionManual &&
-      Boolean(getSelectedSection(payload, this.selectedSectionId));
+      Boolean(getSelectedSection(visiblePayload, this.selectedSectionId));
 
     if (!manualSelectionStillApplies) {
       this.isSectionSelectionManual = false;
-      this.selectedSectionId = selectAutomaticSectionId(payload);
+      this.selectedSectionId = selectAutomaticSectionId(visiblePayload);
     }
     if (this.viewMode === "navigator") {
       await this.loadNavigatorNotes();
     }
     await this.postCurrentResourceNotes();
     this.updateEditorHighlights();
+  }
+
+  /**
+   * Reports whether a Registry mutation affects the currently visible resource.
+   *
+   * @param change - Runtime Registry mutation.
+   * @returns True when the current File Notes payload should be reloaded.
+   */
+  private isRuntimeStateChangeForCurrentResource(
+    change: RuntimeNoteStateChange,
+  ): boolean {
+    if (!this.currentResourceUri || this.currentPayload?.kind !== "file") {
+      return false;
+    }
+
+    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
+
+    if (!access.allowed) {
+      return false;
+    }
+
+    const matches = (state: {
+      workspaceRoot: string;
+      outputDirectory: string;
+      relativePath: string;
+    }): boolean =>
+      path.resolve(state.workspaceRoot) === path.resolve(access.root.rootDirectory) &&
+      state.outputDirectory === access.settings.outputDirectory &&
+      state.relativePath === access.relativePath;
+
+    switch (change.kind) {
+      case "set":
+        return matches(change.state);
+      case "delete":
+        return matches(change.previousState);
+      case "move":
+        return matches(change.state) || matches(change.previousState);
+      case "clear":
+        return change.previousStates.some(matches);
+    }
   }
 
   /**
