@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:f2e3e8fe0b2f7e0c0d7864eaf59eb6713692d75d4ca60a319e555348e5d12184",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T11:44:54.208Z",
+    "updatedAt": "2026-07-29T11:44:54.208Z"
+  },
+  "fileNote": {
+    "userNote": "导出 Gate 类型和函数。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

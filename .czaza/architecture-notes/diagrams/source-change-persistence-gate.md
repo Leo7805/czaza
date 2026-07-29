@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.0.0
+documentVersion: 1.1.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-29
@@ -21,9 +21,10 @@ flowchart TD
     B --> C{可信 dirty 到 save 生命周期}
     C -->|具备| D[Source Change Persistence Gate]
     C -->|缺少| E[Runtime State Registry]
-    D --> F{当前 source hash 匹配}
-    F -->|是| G[持久化 Notes]
-    F -->|否| E
+    D -->|允许| G[持久化 Notes]
+    D -->|需要关注| E
+    D -->|无需处理| H[丢弃 Candidate]
+    E --> I[停止，等待新触发]
 ```
 
 ## 完整版
@@ -44,18 +45,19 @@ flowchart TD
     I --> J[Runtime State Registry]
     D --> J
 
-    G --> K{candidate 仍有效且经历 dirty 到 save}
-    K -->|否| J
+    G --> K{candidate 是否仍然有效}
+    K -->|否且变化仍需关注| J
+    K -->|否且无需处理| T[丢弃 Candidate]
     K -->|是| L[重新读取当前文件]
     L --> M{当前 source hash 等于预期 hash}
     M -->|是| N[持久化 Note 位置、状态、sourceHash 和 updatedAt]
     M -->|否| J
 
-    J --> O{用户明确确认处理}
-    O -->|否| P[仅保留内存状态]
-    O -->|是| Q[重新读取并核对当前 source hash]
+    J --> P[停止，仅保留内存状态]
+    P -->|用户明确确认时重新触发| Q[重新读取并核对当前 source hash]
     Q -->|匹配| N
-    Q -->|不匹配| J
+    Q -->|不匹配| U[重新检测当前文件]
+    U --> J
 
     R[Git checkout 或其他外部替换] --> H
     R --> S[可能产生 isDirty 为 false 的文本事件]
@@ -73,8 +75,8 @@ flowchart TD
 ## Gate 输出
 
 - `persist`：candidate、编辑生命周期和当前 Hash 均有效，可以写入 Notes。
-- `runtimeState`：变化存在但没有自动持久化资格，只更新内存状态。
-- `cancelled`：candidate 已失效，不得继续使用旧计算结果。
+- `runtimeState`：变化仍需关注但没有自动持久化资格，只更新内存状态并停止，等待新的外部触发。
+- `cancelled`：candidate 已失效且无需继续处理，直接丢弃，不创建 Runtime State。
 
 ## 约束
 
@@ -83,6 +85,7 @@ flowchart TD
 - Copilot 或其他编辑器功能产生的正常文本编辑，只要进入 dirty 并随后保存，也可以获得资格。
 - 外部文件替换不得因为变化形状可以确定计算而直接写入 Note JSON 或 `index.json`。
 - 最终 `sourceHash` 校验必须紧邻持久化操作，避免检查后文件再次变化。
+- Gate 拒绝不会自行循环重试；只有新的文件事件、用户操作或被动检查才能再次触发验证。
 
 ## 与当前实现的关系
 

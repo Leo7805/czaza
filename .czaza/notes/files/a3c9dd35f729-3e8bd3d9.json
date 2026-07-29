@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:255dab474c0ea68f9c9c1ab590997c813bbc17c4e1acfaf9a187d78f1246779a",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T11:45:02.300Z",
+    "updatedAt": "2026-07-29T11:45:02.300Z"
+  },
+  "fileNote": {
+    "userNote": "外部资源不再回退到第一个 Workspace Folder。\nresolveWorkspaceFolder：传入资源时必须找到真正所属的 Workspace Folder。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

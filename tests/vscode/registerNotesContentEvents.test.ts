@@ -209,6 +209,76 @@ describe("registerNotesContentEvents()", () => {
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
 
+  it("blocks bursty checkout events across repeated HEAD transitions and resumes normal edits", async () => {
+    vi.useFakeTimers();
+    const workspaceRoot = await createTempWorkspaceRoot("rapid-git-transitions");
+    const previousText = "export const value = 1;\n";
+    const nextText = "export const value = 2;\n";
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const guard = new GitWorkspaceTransitionGuard(100);
+    const documentPath = path.join(workspaceRoot, "src/index.ts");
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      guard,
+    );
+
+    for (let index = 0; index < 12; index += 1) {
+      guard.beginTransition();
+      const checkoutDocument = createDocument(
+        documentPath,
+        `export const value = ${index + 10};\n`,
+        false,
+      );
+      mocks.textDocumentChangeListeners[0]?.({
+        document: checkoutDocument,
+        contentChanges: [
+          {
+            range: {
+              start: { line: 0, character: 21 },
+              end: { line: 0, character: 22 },
+            },
+            rangeLength: 1,
+            text: String(index),
+          },
+        ],
+      } as unknown as vscodeTypes.TextDocumentChangeEvent);
+      mocks.saveListeners[0]?.(checkoutDocument);
+      mocks.changeListeners[0]?.(checkoutDocument.uri);
+      await vi.advanceTimersByTimeAsync(20);
+    }
+
+    await vi.advanceTimersByTimeAsync(79);
+
+    expect(guard.isTransitioning()).toBe(true);
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(guard.isTransitioning()).toBe(false);
+
+    const editedDocument = createDocument(documentPath, nextText, true);
+    mocks.textDocumentChangeListeners[0]?.({
+      document: editedDocument,
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 21 },
+            end: { line: 0, character: 22 },
+          },
+          rangeLength: 1,
+          text: "2",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    await vi.advanceTimersByTimeAsync(800);
+
+    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+  });
+
   it("ignores clean document reloads caused by a Git checkout", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("clean-checkout-reload");
     const previousText = createNumberedSourceLines(35);

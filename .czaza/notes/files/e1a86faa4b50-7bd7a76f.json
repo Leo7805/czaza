@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:8522a68cf1dea09f08c2652bf7717fd28b2adea9a44a3df764c9fbbab36d1646",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T11:44:44.123Z",
+    "updatedAt": "2026-07-29T11:44:44.123Z"
+  },
+  "fileNote": {
+    "userNote": "新增统一资源访问 Gate。\nevaluateCzazaResourceAccess：检查 file URI、Workspace、Czaza Root 和管理目录。\nrequireCzazaResourceAccess：写操作前强制验证。\ngetCzazaResourceAccessDenialMessage：生成拒绝原因。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

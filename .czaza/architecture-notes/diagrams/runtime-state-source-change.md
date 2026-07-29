@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.4.2
+documentVersion: 1.5.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-29
@@ -88,3 +88,5 @@ flowchart TD
 ## 与当前实现的关系
 
 当前实现仍使用 `GitWorkspaceTransitionGuard`、`GitAwareSourceChangeGate` 和 Git HEAD 监听来延迟或取消自动写入。本图描述的是替代该机制的目标架构；在 Runtime State 工作流完成并通过验证前，不应删除现有 Git 防护。
+
+检测结果进入内存或磁盘的具体边界见 [Runtime State 与 Note Store 持久化边界](./runtime-state-persistence-boundary.md)。

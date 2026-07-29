@@ -139,4 +139,40 @@ describe("registerGitWorkspaceTransition()", () => {
     expect(mocks.clearCache).toHaveBeenCalledTimes(5);
     expect(guard.isTransitioning()).toBe(false);
   });
+
+  it("settles only after the final HEAD change in a rapid transition burst", async () => {
+    vi.useFakeTimers();
+    const guard = new GitWorkspaceTransitionGuard(100);
+    const context = {
+      subscriptions: [],
+    } as unknown as vscodeTypes.ExtensionContext;
+    const notes = {
+      cache: { clearCache: mocks.clearCache },
+    } as unknown as WorkspaceNoteStore;
+    const notesProvider = {
+      refreshCurrentNotes: mocks.refreshCurrentNotes,
+    } as unknown as NotesViewProvider;
+
+    await registerGitWorkspaceTransition(context, notes, notesProvider, guard);
+
+    for (let index = 0; index < 12; index += 1) {
+      mocks.head = {
+        name: index % 2 === 0 ? "feature" : "main",
+        commit: `commit-${index}`,
+      };
+      mocks.repositoryListener?.();
+      await vi.advanceTimersByTimeAsync(20);
+    }
+
+    await vi.advanceTimersByTimeAsync(79);
+
+    expect(guard.isTransitioning()).toBe(true);
+    expect(mocks.refreshCurrentNotes).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(guard.isTransitioning()).toBe(false);
+    expect(mocks.refreshCurrentNotes).toHaveBeenCalledOnce();
+    expect(mocks.clearCache.mock.calls.length).toBeGreaterThanOrEqual(12);
+  });
 });

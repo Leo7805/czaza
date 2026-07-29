@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:b221fb3aecb0d1a008dfb1331d796662c376ba42e173cf6b065aa5f2e2c8e936",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T11:45:47.901Z",
+    "updatedAt": "2026-07-29T11:45:47.901Z"
+  },
+  "fileNote": {
+    "userNote": "读取 Notes 前验证资源边界。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

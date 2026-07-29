@@ -187,6 +187,66 @@ describe("registerNotesResourceEvents()", () => {
     expect(notesProvider.refreshAfterResourceDelete).not.toHaveBeenCalled();
   });
 
+  it("blocks bursty rename and delete events across repeated HEAD transitions", async () => {
+    vi.useFakeTimers();
+    const workspaceRoot = await createTempWorkspaceRoot("rapid-git-transitions");
+    const notes = createNotes();
+    const notesProvider = createNotesProvider();
+    const guard = new GitWorkspaceTransitionGuard(100);
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesResourceEvents(
+      createExtensionContext(),
+      notes.value,
+      notesProvider.value,
+      guard,
+    );
+
+    for (let index = 0; index < 12; index += 1) {
+      mocks.renameListeners[0]?.({
+        files: [
+          {
+            oldUri: createUri(path.join(workspaceRoot, `src/old-${index}.ts`)),
+            newUri: createUri(path.join(workspaceRoot, `src/new-${index}.ts`)),
+          },
+        ],
+      });
+      mocks.deleteListeners[0]?.({
+        files: [createUri(path.join(workspaceRoot, `src/deleted-${index}.ts`))],
+      });
+      await vi.advanceTimersByTimeAsync(20);
+      guard.beginTransition();
+      await vi.advanceTimersByTimeAsync(20);
+    }
+
+    await vi.advanceTimersByTimeAsync(800);
+
+    expect(notes.moveSourceFileEntry).not.toHaveBeenCalled();
+    expect(notes.markSourceFileEntryDeleted).not.toHaveBeenCalled();
+    expect(notesProvider.refreshAfterResourceMove).not.toHaveBeenCalled();
+    expect(notesProvider.refreshAfterResourceDelete).not.toHaveBeenCalled();
+
+    const stableNewUri = createUri(path.join(workspaceRoot, "src/stable-new.ts"));
+    const stableDeletedUri = createUri(path.join(workspaceRoot, "src/stable-deleted.ts"));
+    mocks.renameListeners[0]?.({
+      files: [
+        {
+          oldUri: createUri(path.join(workspaceRoot, "src/stable-old.ts")),
+          newUri: stableNewUri,
+        },
+      ],
+    });
+    mocks.deleteListeners[0]?.({
+      files: [stableDeletedUri],
+    });
+    await vi.advanceTimersByTimeAsync(800);
+
+    expect(notes.moveSourceFileEntry).toHaveBeenCalledOnce();
+    expect(notes.markSourceFileEntryDeleted).toHaveBeenCalledOnce();
+    expect(notesProvider.refreshAfterResourceMove).toHaveBeenCalledOnce();
+    expect(notesProvider.refreshAfterResourceDelete).toHaveBeenCalledOnce();
+  });
+
   it("ignores rename events that cross configured CZaza roots", async () => {
     const firstRoot = await createTempWorkspaceRoot("first");
     const secondRoot = await createTempWorkspaceRoot("second");

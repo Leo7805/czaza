@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:e10149efe2675be0784a84adf68374648750a6dd63afdbf7d0e7606b1c36ba3e",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T11:45:55.715Z",
+    "updatedAt": "2026-07-29T11:45:55.715Z"
+  },
+  "fileNote": {
+    "userNote": "User Note 写盘前执行最终 Gate。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
