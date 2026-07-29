@@ -218,6 +218,27 @@ describe("NotesViewProvider", () => {
     mocks.activeTextEditor = undefined;
   });
 
+  it("initializes Architecture Notes when the notes webview is first shown", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const initializeArchitectureNotes = vi.fn().mockResolvedValue(undefined);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      initializeArchitectureNotes,
+    );
+
+    mocks.activeTextEditor = createEditor(uri);
+    await provider.resolveWebviewView(createWebviewView());
+
+    expect(initializeArchitectureNotes).toHaveBeenCalledWith(uri);
+  });
+
   it("switches section highlight while the webview owns focus", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(

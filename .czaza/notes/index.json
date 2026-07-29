@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-27T06:31:42.333Z",
+  "updatedAt": "2026-07-29T05:37:41.108Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -163,9 +163,9 @@
     },
     "vscode/extension.ts": {
       "noteFile": "files/a439341dde5e-369009cb.json",
-      "sourceHash": "sha256:222da2b6176468939160310cf642dec50a0dcb23cd0c66b4d3782e74d8d5adf2",
+      "sourceHash": "sha256:d6e3e82dad5c6e7efe7f1b7eccf03a3d4d3d64b6fe79c8bbd1255648e80d0a79",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-27T05:48:02.996Z"
+      "updatedAt": "2026-07-29T05:33:52.366Z"
     },
     "vscode/webview-ui/src/components/NoteCard.tsx": {
       "noteFile": "files/a9334a6e6087-760dc8e6.json",
@@ -195,6 +195,24 @@
       "sourceHash": "sha256:039612ba646cae4da0e7956e8c53df321d439bbdcab72f83c5f851a0f8e142a3",
       "programmingLanguage": "typescriptreact",
       "updatedAt": "2026-07-27T06:31:42.333Z"
+    },
+    "resources/architecture-notes/AI_CONTEXT.md": {
+      "noteFile": "files/6d87a7c3e28e-dd72b065.json",
+      "sourceHash": "sha256:6540ab7da64edda704931d10467759dfd437dcafc3fd0944284d037d218db616",
+      "programmingLanguage": "markdown",
+      "updatedAt": "2026-07-29T05:36:34.787Z"
+    },
+    "resources/architecture-notes/README.md": {
+      "noteFile": "files/c9c551acaba3-e98f2782.json",
+      "sourceHash": "sha256:e1e2d11de636d3f203eacdc63c1554740ecb91e408d412567b1f12d0cc39114c",
+      "programmingLanguage": "markdown",
+      "updatedAt": "2026-07-29T05:36:53.538Z"
+    },
+    "vscode/services/architectureNotes/initializeArchitectureNotesService.ts": {
+      "noteFile": "files/1fde8d53d02e-e6ca1cee.json",
+      "sourceHash": "sha256:cbc89d4355e28af4517b56cddb69c5396d907fbece50c19f5d64574e48331f1d",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-07-29T05:37:41.108Z"
     }
   }
 }
