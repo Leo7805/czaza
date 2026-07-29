@@ -305,7 +305,7 @@ describe("WorkspaceNoteStoreRepository", () => {
         sourceFile,
         now,
       ),
-    ).rejects.toThrow("CZaza-managed output files cannot be stored as source-note entries.");
+    ).rejects.toThrow("CZaza Note Store files cannot be stored as source-note entries.");
 
     await expect(
       repository.saveSourceFile(
@@ -315,9 +315,25 @@ describe("WorkspaceNoteStoreRepository", () => {
         sourceFile,
         now,
       ),
-    ).rejects.toThrow("CZaza-managed output files cannot be stored as source-note entries.");
+    ).rejects.toThrow("CZaza Note Store files cannot be stored as source-note entries.");
 
     expect(await repository.loadIndex(root, outputDirectory)).toBeNull();
+  });
+
+  it("allows user-authored files elsewhere in the output directory as source entries", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const relativePath = ".caca/architecture-notes/system.md";
+
+    await repository.saveSourceFile(
+      root,
+      outputDirectory,
+      relativePath,
+      createStoredSourceFile(),
+      now,
+    );
+
+    expect((await repository.loadIndex(root, outputDirectory))?.files[relativePath]).toBeDefined();
   });
 
   it("preserves existing source file entries when saving one file", async () => {

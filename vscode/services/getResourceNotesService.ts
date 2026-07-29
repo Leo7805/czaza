@@ -9,12 +9,9 @@ import * as vscode from "vscode";
 import type { AIExplanation } from "@shared/models/ai/common";
 import type { NoteStatus } from "@shared/models/domain/common";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import { getCzazaSettings } from "@vscode/config/czazaSettings";
-import {
-  getCzazaRelativePath,
-  resolveCzazaRootDirectory,
-} from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import { getCzazaRelativePath } from "@vscode/config/resolveCzazaRootDirectory";
+import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import type { UserNoteTarget } from "./saveUserNoteService";
 import { compareSectionsForDisplay } from "./sectionSelection/sectionComparators";
 import { getResourceFingerprint } from "./resourceFingerprint/getResourceFingerprintService";
@@ -233,17 +230,16 @@ export type GetResourceNotesInput = {
  */
 export async function getResourceNotes(input: GetResourceNotesInput): Promise<ResourceNotesResult> {
   const { uri, notes, activeLine } = input;
+  const access = evaluateCzazaResourceAccess(uri);
 
-  if (uri.scheme !== "file") {
+  if (!access.allowed) {
     return { kind: "outsideRoot" };
   }
 
   try {
-    const resolvedRoot = resolveCzazaRootDirectory(uri);
-    const relativePath = getCzazaRelativePath(uri, resolvedRoot.rootDirectory);
-    const settings = getCzazaSettings(uri);
+    const { relativePath, root, settings } = access;
     const sourceFile = await notes.cache.getSourceFile(
-      resolvedRoot.rootDirectory,
+      root.rootDirectory,
       settings.outputDirectory,
       relativePath,
     );
@@ -260,9 +256,9 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
         kind: "directory",
         name: getResourceName(uri, relativePath),
         relativePath,
-        projectRootName: path.basename(resolvedRoot.rootDirectory),
+        projectRootName: path.basename(root.rootDirectory),
         ...(fileNote ? { fileNote } : {}),
-        children: await getDirectoryChildNotePreviews(uri, notes, resolvedRoot.rootDirectory, settings.outputDirectory),
+        children: await getDirectoryChildNotePreviews(uri, notes, root.rootDirectory, settings.outputDirectory),
       };
     }
 
@@ -279,7 +275,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
         kind: "binary",
         name: getResourceName(uri, relativePath),
         relativePath,
-        projectRootName: path.basename(resolvedRoot.rootDirectory),
+        projectRootName: path.basename(root.rootDirectory),
         ...(fileNote ? { fileNote } : {}),
       };
     }
@@ -291,7 +287,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
       kind: "file",
       name: getResourceName(uri, relativePath),
       relativePath,
-      projectRootName: path.basename(resolvedRoot.rootDirectory),
+      projectRootName: path.basename(root.rootDirectory),
       ...(fileNote ? { fileNote } : {}),
       aiAction: hasFileSectionAiExplanation(sourceFile) ? "regenerate" : "generate",
       ...(isPositiveLine(activeLine) ? { activeLine } : {}),

@@ -118,15 +118,31 @@ export function isUriInsideCzazaRoot(uri: vscode.Uri, rootDirectory: string): bo
   return !isOutsideRoot(relativePath);
 }
 
+/**
+ * Selects the exact workspace folder that owns a resource.
+ *
+ * @param resource - Optional resource requiring strict workspace ownership.
+ * @returns Owning workspace folder or the default folder when no resource is supplied.
+ * @throws When the supplied resource is outside every open workspace folder.
+ */
 function resolveWorkspaceFolder(resource?: vscode.Uri): vscode.WorkspaceFolder {
-  const resourceWorkspaceFolder = resource ? vscode.workspace.getWorkspaceFolder(resource) : undefined;
-  const workspaceFolder = resourceWorkspaceFolder ?? vscode.workspace.workspaceFolders?.[0];
+  if (resource) {
+    const resourceWorkspaceFolder = vscode.workspace.getWorkspaceFolder(resource);
 
-  if (!workspaceFolder) {
+    if (!resourceWorkspaceFolder) {
+      throw new Error("The selected resource is outside the open VS Code workspace folders.");
+    }
+
+    return resourceWorkspaceFolder;
+  }
+
+  const defaultWorkspaceFolder = vscode.workspace.workspaceFolders?.[0];
+
+  if (!defaultWorkspaceFolder) {
     throw new Error("CZaza requires an open VS Code workspace folder.");
   }
 
-  return workspaceFolder;
+  return defaultWorkspaceFolder;
 }
 
 function resolveConfiguredRootDirectory(workspaceFolderPath: string, configuredRootDirectory: string): string {

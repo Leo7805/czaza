@@ -92,7 +92,7 @@ describe("workspaceNoteStoreResources", () => {
     });
   });
 
-  it("rejects moving a source entry into the managed output directory", async () => {
+  it("rejects moving a source entry into the Note Store directory", async () => {
     const root = await createTempWorkspaceRoot();
     const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
 

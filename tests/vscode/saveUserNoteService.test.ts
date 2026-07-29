@@ -65,6 +65,15 @@ vi.mock("@vscode/config/czazaSettings", () => ({
   getCzazaSettings: () => ({ outputDirectory: mocks.outputDirectory }),
 }));
 
+vi.mock("@vscode/services/resourceAccess", () => ({
+  requireCzazaResourceAccess: () => ({
+    allowed: true,
+    relativePath: mocks.relativePath,
+    root: { rootDirectory: mocks.rootDirectory },
+    settings: { outputDirectory: mocks.outputDirectory },
+  }),
+}));
+
 import { saveUserNoteService } from "@vscode/services/saveUserNoteService";
 
 const randomId = "abcdef123456";

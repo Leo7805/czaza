@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.4.1
+documentVersion: 1.4.2
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-29
@@ -67,7 +67,7 @@ flowchart TD
 
 ## 责任边界
 
-- 所有 VS Code 文档变化必须先通过 [Czaza 资源访问 Gate](./czaza-resource-access-gate.md)，工作区外、Root 外和 Czaza 管理文件不得进入源码检测。
+- 所有 VS Code 文档变化必须先通过 [Czaza 资源访问 Gate](./czaza-resource-access-gate.md)，工作区外、Root 外和 Czaza Note Store 文件不得进入源码检测。
 - 只有 `isDirty=true` 且 `contentChanges` 能够确定性分类的 VS Code 文档变化，才能生成 relocation candidate。
 - 确定性只表示能够准确计算 relocation candidate，不代表具备持久化权限。
 - `Source Change Persistence Gate` 必须独立验证可信编辑生命周期、候选有效性和当前 `sourceHash`。

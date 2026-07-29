@@ -1,6 +1,6 @@
 ---
 type: architecture-outline
-documentVersion: 1.2.0
+documentVersion: 1.2.1
 templateVersion: 1
 createdAt: 2026-07-29
 updatedAt: 2026-07-29
@@ -14,7 +14,7 @@ contentLanguage: zh-CN
 
 ## 资源访问
 
-1. [Czaza 资源访问 Gate](./diagrams/czaza-resource-access-gate.md)：说明 Notes 操作、变化检测和管理文件共用的工作区资源访问边界。
+1. [Czaza 资源访问 Gate](./diagrams/czaza-resource-access-gate.md)：说明 Notes 操作、变化检测和 Note Store 共用的工作区资源访问边界。
 
 ## 状态管理
 

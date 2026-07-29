@@ -16,6 +16,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
+import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import {
   GitAwareSourceChangeGate,
   type GitWorkspaceTransitionGuard,
@@ -25,9 +26,6 @@ import {
   applySourceChangeToNotesService,
   classifySourceChangeBatch,
 } from "@vscode/services/noteRelocation";
-import {
-  isCzazaManagedRelativePath,
-} from "@shared/utils/managedOutputPath";
 import * as vscode from "vscode";
 
 const EXTERNAL_CHANGE_DEBOUNCE_MS = 800;
@@ -161,13 +159,9 @@ async function handleTextDocumentChange(
       return;
     }
 
-    if (event.document.isDirty === false) {
-      return;
-    }
-
     if (
-      event.document.uri.scheme !== "file" ||
-      isCzazaManagedResource(event.document.uri)
+      event.document.isDirty === false ||
+      !evaluateCzazaResourceAccess(event.document.uri).allowed
     ) {
       return;
     }
@@ -241,7 +235,7 @@ async function handleSavedDocument(
     return;
   }
 
-  if (isCzazaManagedResource(document.uri)) {
+  if (!evaluateCzazaResourceAccess(document.uri).allowed) {
     return;
   }
 
@@ -414,10 +408,16 @@ function scheduleExternalChangeCheck(
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
   sourceChangeGate: GitAwareSourceChangeGate,
 ): void {
-  if (isCzazaManagedResource(uri)) {
+  const access = evaluateCzazaResourceAccess(uri);
+
+  if (!access.allowed && access.reason === "noteStore") {
     if (!isRecentInternalWorkspaceNoteWrite(uri.fsPath)) {
       invalidateManagedNoteStore(uri, notes, sourceChangeGate);
     }
+    return;
+  }
+
+  if (!access.allowed) {
     return;
   }
 
@@ -447,7 +447,7 @@ function scheduleExternalChangeCheck(
 }
 
 /**
- * Clears cached Notes and invalidates automatic tasks after managed output changes externally.
+ * Clears cached Notes and invalidates automatic tasks after Note Store changes externally.
  *
  * @param uri - Changed CZaza-managed Note Store resource.
  * @param notes - Shared workspace Note store.
@@ -466,27 +466,7 @@ function invalidateManagedNoteStore(
     sourceChangeGate.invalidate();
     notes.cache.clearCache(rootDirectory, settings.outputDirectory);
   } catch {
-    // Out-of-scope managed output events require no cache invalidation.
-  }
-}
-
-function isCzazaManagedResource(uri: vscode.Uri): boolean {
-  if (uri.scheme !== "file") {
-    return false;
-  }
-
-  try {
-    const { rootDirectory } = resolveCzazaRootDirectory(uri);
-    const settings = getCzazaSettings(uri);
-    const relativePath = getCzazaRelativePath(uri, rootDirectory);
-
-    return isCzazaManagedRelativePath(
-      rootDirectory,
-      settings.outputDirectory,
-      relativePath,
-    );
-  } catch {
-    return false;
+    // Out-of-scope Note Store events require no cache invalidation.
   }
 }
 

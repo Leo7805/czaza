@@ -33,6 +33,7 @@ import { deleteNavigatorFileNotesService } from "@vscode/services/deleteNavigato
 import { deleteNavigatorLineNoteService } from "@vscode/services/deleteNavigatorLineNoteService";
 import { deleteNavigatorSectionNoteService } from "@vscode/services/deleteNavigatorSectionNoteService";
 import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavigatorFileNoteOrphanedService";
+import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import {
   AllNotesBatchRequiredError,
   AllNotesBatchTimeoutError,
@@ -369,6 +370,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         void this.postCurrentNavigatorNotes();
         this.postViewMode(this.viewMode);
         this.updateEditorHighlights();
+        return;
+      }
+
+      if (
+        message.type !== "stopNoteRelocate" &&
+        message.type !== "selectSection" &&
+        !(message.type === "runNoticeAction" &&
+          message.action === "openMaxAnalysisLinesSetting") &&
+        !this.canOperateOnCurrentResource()
+      ) {
         return;
       }
 
@@ -712,10 +723,17 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
   private async loadResourceNotes(
     uri: vscode.Uri,
-    ignoreOutsideRoot: boolean,
+    _ignoreOutsideRoot: boolean,
     activeLine?: number,
   ): Promise<void> {
     const requestVersion = ++this.requestVersion;
+    const access = evaluateCzazaResourceAccess(uri);
+
+    if (!access.allowed) {
+      await this.showOutsideRootResource(uri);
+      return;
+    }
+
     const payload = await getResourceNotes({
       uri,
       notes: this.notes,
@@ -726,9 +744,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
-    if (ignoreOutsideRoot && payload.kind === "outsideRoot") {
-      this.currentNavigatorPayload = { kind: "outsideRoot" };
-      this.highlightController.clear();
+    if (payload.kind === "outsideRoot") {
+      await this.showOutsideRootResource(uri);
       return;
     }
 
@@ -760,6 +777,38 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
     await this.postCurrentResourceNotes();
     this.updateEditorHighlights();
+  }
+
+  /**
+   * Replaces stale editable state when the selected resource fails the shared access Gate.
+   *
+   * @param uri - Rejected resource that should become the current non-editable context.
+   * @returns Promise resolved after both Notes payloads are refreshed.
+   */
+  private async showOutsideRootResource(uri: vscode.Uri): Promise<void> {
+    this.currentResourceUri = uri;
+    this.currentPayload = { kind: "outsideRoot" };
+    this.currentNavigatorPayload = { kind: "outsideRoot" };
+    this.pendingEditTarget = undefined;
+    this.selectedSectionId = undefined;
+    this.isSectionSelectionManual = false;
+    this.noteRelocateSession = undefined;
+    this.highlightController.clear();
+    await this.view?.webview.postMessage({ type: "closeNoteRelocate" });
+    await this.postCurrentResourceNotes();
+    await this.postCurrentNavigatorNotes();
+  }
+
+  /**
+   * Checks whether the current webview resource may execute resource-bound actions.
+   *
+   * @returns True when the current resource passes the shared access Gate.
+   */
+  private canOperateOnCurrentResource(): boolean {
+    return Boolean(
+      this.currentResourceUri &&
+        evaluateCzazaResourceAccess(this.currentResourceUri).allowed,
+    );
   }
 
   private async postCurrentResourceNotes(

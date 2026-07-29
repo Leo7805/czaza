@@ -8,11 +8,7 @@ import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { createCurrentConfirmedStatus } from "@shared/models/domain/common";
 import { createStoredSourceFile } from "@shared/services/domainToStoreService";
 import { createAvailableLineNoteId } from "@shared/services/notes/lineNoteIdentityService";
-import { getCzazaSettings } from "@vscode/config/czazaSettings";
-import {
-  getCzazaRelativePath,
-  resolveCzazaRootDirectory,
-} from "@vscode/config/resolveCzazaRootDirectory";
+import { requireCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import { getResourceFingerprint } from "./resourceFingerprint/getResourceFingerprintService";
 
@@ -63,6 +59,7 @@ export type SaveUserNoteInput = {
  * });
  */
 export async function saveUserNoteService(input: SaveUserNoteInput): Promise<void> {
+  const access = requireCzazaResourceAccess(input.uri);
   const fingerprint = await getResourceFingerprint(input.uri);
   const resourceKind = fingerprint.kind === "directory" ? "directory" : "file";
 
@@ -75,13 +72,11 @@ export async function saveUserNoteService(input: SaveUserNoteInput): Promise<voi
   }
 
   const document = fingerprint.kind === "text" ? fingerprint.document : undefined;
-  const resolvedRoot = resolveCzazaRootDirectory(input.uri);
-  const relativePath = getCzazaRelativePath(input.uri, resolvedRoot.rootDirectory);
-  const settings = getCzazaSettings(input.uri);
+  const { relativePath, root, settings } = access;
   const now = new Date().toISOString();
   const userNote = normalizeUserNote(input.userNote);
   let sourceFile = await input.notes.cache.getSourceFile(
-    resolvedRoot.rootDirectory,
+    root.rootDirectory,
     settings.outputDirectory,
     relativePath,
   );
@@ -113,7 +108,7 @@ export async function saveUserNoteService(input: SaveUserNoteInput): Promise<voi
       now,
     });
     await input.notes.cache.saveSourceFile(
-      resolvedRoot.rootDirectory,
+      root.rootDirectory,
       settings.outputDirectory,
       relativePath,
       sourceFile,
@@ -122,7 +117,7 @@ export async function saveUserNoteService(input: SaveUserNoteInput): Promise<voi
   }
 
   const location = {
-    workspaceRoot: resolvedRoot.rootDirectory,
+    workspaceRoot: root.rootDirectory,
     outputDirectory: settings.outputDirectory,
     relativePath,
     now,

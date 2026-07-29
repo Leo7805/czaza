@@ -328,7 +328,7 @@ describe("registerNotesContentEvents()", () => {
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 
-  it("ignores saves and watcher changes inside the managed output directory", async () => {
+  it("ignores saves and watcher changes inside the Note Store directory", async () => {
     vi.useFakeTimers();
 
     const workspaceRoot = await createTempWorkspaceRoot("managed-output");

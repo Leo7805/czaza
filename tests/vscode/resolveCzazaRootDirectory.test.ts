@@ -50,6 +50,10 @@ import {
   isUriInsideCzazaRoot,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
+import {
+  evaluateCzazaResourceAccess,
+  requireCzazaResourceAccess,
+} from "@vscode/services/resourceAccess";
 
 describe("resolveCzazaRootDirectory()", () => {
   beforeEach(() => {
@@ -130,6 +134,77 @@ describe("resolveCzazaRootDirectory()", () => {
 
   it("throws when there is no open workspace folder", () => {
     expect(() => resolveCzazaRootDirectory()).toThrow("requires an open VS Code workspace folder");
+  });
+
+  it("rejects a supplied resource outside every open workspace instead of using the first workspace", async () => {
+    const workspace = await createTempWorkspaceFolder("strict-resource");
+    const outsideDirectory = await mkdtemp(path.join(tmpdir(), "czaza-strict-outside-"));
+    const outsideResource = createUri(path.join(outsideDirectory, "external.ts"));
+
+    mocks.workspaceFolders.push(workspace);
+
+    expect(() => resolveCzazaRootDirectory(outsideResource)).toThrow(
+      "outside the open VS Code workspace folders",
+    );
+    expect(evaluateCzazaResourceAccess(outsideResource)).toEqual({
+      allowed: false,
+      reason: "outsideWorkspace",
+    });
+  });
+
+  it("allows normal source files inside the resolved CZaza root", async () => {
+    const workspace = await createTempWorkspaceFolder("gate-allowed");
+    const sourceFile = path.join(workspace.uri.fsPath, "src", "index.ts");
+
+    await mkdir(path.dirname(sourceFile), { recursive: true });
+    await writeFile(sourceFile, "const value = 1;\n", "utf-8");
+    mocks.workspaceFolders.push(workspace);
+
+    const access = evaluateCzazaResourceAccess(createUri(sourceFile));
+
+    expect(access).toMatchObject({
+      allowed: true,
+      relativePath: "src/index.ts",
+      root: { rootDirectory: workspace.uri.fsPath },
+    });
+  });
+
+  it("rejects the CZaza Note Store as a source-note target", async () => {
+    const workspace = await createTempWorkspaceFolder("gate-managed");
+    const managedFile = path.join(workspace.uri.fsPath, ".czaza", "notes", "index.json");
+
+    await mkdir(path.dirname(managedFile), { recursive: true });
+    await writeFile(managedFile, "{}\n", "utf-8");
+    mocks.workspaceFolders.push(workspace);
+
+    const managedUri = createUri(managedFile);
+
+    expect(evaluateCzazaResourceAccess(managedUri)).toEqual({
+      allowed: false,
+      reason: "noteStore",
+    });
+    expect(() => requireCzazaResourceAccess(managedUri)).toThrow(
+      "CZaza Note Store files cannot have source notes",
+    );
+  });
+
+  it("allows user-authored files elsewhere in the CZaza output directory", async () => {
+    const workspace = await createTempWorkspaceFolder("gate-architecture");
+    const architectureFile = path.join(
+      workspace.uri.fsPath,
+      ".czaza",
+      "architecture-notes",
+      "system.md",
+    );
+
+    await mkdir(path.dirname(architectureFile), { recursive: true });
+    await writeFile(architectureFile, "# System\n", "utf-8");
+    mocks.workspaceFolders.push(workspace);
+
+    expect(evaluateCzazaResourceAccess(createUri(architectureFile))).toMatchObject({
+      allowed: true,
+      relativePath: ".czaza/architecture-notes/system.md",
+    });
   });
 
   it("throws when the resolved configured root does not exist", async () => {

@@ -12,6 +12,7 @@ import { ExplanationCache } from "../explanations/ExplanationCache";
 import { ExplanationStore } from "../explanations/ExplanationStore";
 import { getWebviewHtml } from "./getWebviewHtml";
 import { getCzazaSettings } from "../config/czazaSettings";
+import { evaluateCzazaResourceAccess } from "../services/resourceAccess";
 
 const FILE_DESCRIPTION_STORE_KEY = "czaza.fileDescriptions";
 
@@ -248,13 +249,10 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    if (resourceUri.scheme !== "file") {
-      vscode.window.showWarningMessage("CZaza descriptions can only be added to local workspace files.");
-      return;
-    }
-
-    if (!vscode.workspace.getWorkspaceFolder(resourceUri)) {
-      vscode.window.showWarningMessage("CZaza descriptions can only be added inside the current workspace.");
+    if (!evaluateCzazaResourceAccess(resourceUri).allowed) {
+      vscode.window.showWarningMessage(
+        "CZaza descriptions can only be added to allowed workspace source files.",
+      );
       return;
     }
 
@@ -305,10 +303,13 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    const access = evaluateCzazaResourceAccess(resourceUri);
     const workspace = vscode.workspace.getWorkspaceFolder(resourceUri);
 
-    if (!workspace) {
-      vscode.window.showWarningMessage("CZaza descriptions can only be saved inside the current workspace.");
+    if (!access.allowed || !workspace) {
+      vscode.window.showWarningMessage(
+        "CZaza descriptions can only be saved for allowed workspace source files.",
+      );
       return;
     }
 
@@ -325,6 +326,13 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
 
     if (!resourceUri) {
       vscode.window.showWarningMessage("Open a local source file before analyzing CZaza explanations.");
+      return;
+    }
+
+    if (!evaluateCzazaResourceAccess(resourceUri).allowed) {
+      vscode.window.showWarningMessage(
+        "CZaza analysis can only run for allowed workspace source files.",
+      );
       return;
     }
 
@@ -376,6 +384,10 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    if (!evaluateCzazaResourceAccess(resourceUri).allowed) {
+      return;
+    }
+
     await this.explanationCache.loadForUri(resourceUri, this.explanations);
     const saved = this.explanations.setStructureUserNotes(
       resourceUri,
@@ -399,7 +411,12 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
     const resourceUri = this.resolveCurrentResourceUri();
     const editor = vscode.window.activeTextEditor;
 
-    if (!resourceUri || !editor || editor.document.uri.toString() !== resourceUri.toString()) {
+    if (
+      !resourceUri ||
+      !evaluateCzazaResourceAccess(resourceUri).allowed ||
+      !editor ||
+      editor.document.uri.toString() !== resourceUri.toString()
+    ) {
       return;
     }
 
@@ -442,9 +459,10 @@ export class CzazaViewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
+    const access = evaluateCzazaResourceAccess(resourceUri);
     const workspace = vscode.workspace.getWorkspaceFolder(resourceUri);
 
-    if (!workspace) {
+    if (!access.allowed || !workspace) {
       this.postDescription({
         fileName: path.basename(resourceUri.fsPath),
         path: resourceUri.fsPath,

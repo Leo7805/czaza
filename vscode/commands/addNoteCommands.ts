@@ -4,7 +4,7 @@
 
 import * as vscode from "vscode";
 
-import { isUriInsideCzazaRoot, resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
+import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import { createUserSectionNoteService } from "@vscode/services/createUserSectionNoteService";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
@@ -118,10 +118,15 @@ async function canAddLineNote(editor: vscode.TextEditor): Promise<boolean> {
   return (await canUseCzazaResource(editor.document.uri)) && !isMultiLineSelection(editor);
 }
 
+/**
+ * Checks whether a command target passes the shared CZaza resource Gate.
+ *
+ * @param uri - Active editor resource considered by an Add Note command.
+ * @returns Promise resolving to true when the resource is allowed.
+ */
 async function canUseCzazaResource(uri: vscode.Uri): Promise<boolean> {
   try {
-    const root = resolveCzazaRootDirectory(uri);
-    return isUriInsideCzazaRoot(uri, root.rootDirectory);
+    return evaluateCzazaResourceAccess(uri).allowed;
   } catch {
     return false;
   }

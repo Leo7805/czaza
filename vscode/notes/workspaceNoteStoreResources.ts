@@ -3,7 +3,7 @@
  */
 
 import type { WorkspaceNoteFileIndexEntry, WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
-import { isCzazaManagedRelativePath } from "@shared/utils/managedOutputPath";
+import { isCzazaNoteStoreRelativePath } from "@shared/utils/managedOutputPath";
 import {
   applyFileNoteResourceDeleted,
   applyFileNoteResourceMoved,
@@ -167,7 +167,7 @@ export async function moveSourceFileEntry(input: {
   now: string;
 }): Promise<MoveSourceFileEntryResult> {
   if (
-    isCzazaManagedRelativePath(
+    isCzazaNoteStoreRelativePath(
       input.workspaceRoot,
       input.outputDirectory,
       input.nextRelativePath,

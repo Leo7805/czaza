@@ -6,13 +6,11 @@ import * as path from "node:path";
 
 import type { NoteStatus } from "@shared/models/domain/common";
 import {
-  isCzazaManagedRelativePath,
-  isPathInsideDirectory,
+  isCzazaNoteStoreRelativePath,
 } from "@shared/utils/managedOutputPath";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
-import { getWorkspaceNoteIndexPath } from "@vscode/notes/WorkspaceNoteStoreRepository";
 import * as vscode from "vscode";
 
 /** Successful file-note relocation result. */
@@ -53,15 +51,8 @@ export async function relocateFileNoteService(
   const { rootDirectory } = resolveCzazaRootDirectory(input.currentUri);
   const settings = getCzazaSettings(input.currentUri);
   const targetPath = path.resolve(rootDirectory, toRelativePath);
-  const managedNotesDirectory = path.dirname(
-    getWorkspaceNoteIndexPath(rootDirectory, settings.outputDirectory),
-  );
-
-  if (
-    isCzazaManagedRelativePath(rootDirectory, settings.outputDirectory, toRelativePath) ||
-    isPathInsideDirectory(targetPath, managedNotesDirectory)
-  ) {
-    throw new Error("CZaza-managed output files cannot be used as File Note targets.");
+  if (isCzazaNoteStoreRelativePath(rootDirectory, settings.outputDirectory, toRelativePath)) {
+    throw new Error("CZaza Note Store files cannot be used as File Note targets.");
   }
 
   const targetUri = vscode.Uri.file(targetPath);
@@ -128,7 +119,7 @@ export async function relocateFileNoteService(
   }
 
   if (result.kind === "protectedPath") {
-    throw new Error("CZaza-managed output files cannot be used as File Note targets.");
+    throw new Error("CZaza Note Store files cannot be used as File Note targets.");
   }
 
   return {

@@ -1,19 +1,24 @@
 /**
- * Path guards for files owned by CZaza's generated output directory.
+ * Path guards for the CZaza Note Store and other directory boundaries.
  */
 
 import * as path from "node:path";
 
 /**
- * Returns whether a root-relative resource is the configured output directory
+ * Returns whether a root-relative resource is the CZaza Note Store directory
  * itself or one of its descendants.
+ *
+ * @param workspaceRoot - Absolute CZaza root directory.
+ * @param outputDirectory - Configured CZaza output directory.
+ * @param relativePath - CZaza-root-relative candidate resource path.
+ * @returns True only for `<outputDirectory>/notes/**`.
  */
-export function isCzazaManagedRelativePath(
+export function isCzazaNoteStoreRelativePath(
   workspaceRoot: string,
   outputDirectory: string,
   relativePath: string,
 ): boolean {
-  const outputRoot = path.resolve(workspaceRoot, outputDirectory);
+  const outputRoot = path.resolve(workspaceRoot, outputDirectory, "notes");
   const candidate = path.resolve(workspaceRoot, relativePath);
   const relativeToOutput = path.relative(outputRoot, candidate);
 

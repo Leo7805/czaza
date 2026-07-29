@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getResourceNotes: vi.fn(),
   getNavigatorNotes: vi.fn(),
   getStoredNavigatorFileNotes: vi.fn(),
+  evaluateCzazaResourceAccess: vi.fn(),
   clearNoteStaleStatusService: vi.fn(),
   deleteNavigatorFileNotesService: vi.fn(),
   deleteNavigatorLineNoteService: vi.fn(),
@@ -47,6 +48,10 @@ vi.mock("@vscode/services/getNavigatorNotesService", () => ({
 
 vi.mock("@vscode/services/getStoredNavigatorFileNotesService", () => ({
   getStoredNavigatorFileNotes: mocks.getStoredNavigatorFileNotes,
+}));
+
+vi.mock("@vscode/services/resourceAccess", () => ({
+  evaluateCzazaResourceAccess: mocks.evaluateCzazaResourceAccess,
 }));
 
 vi.mock("@vscode/services/ensureFileNoteResourceAvailabilityService", () => ({
@@ -204,6 +209,19 @@ describe("NotesViewProvider", () => {
     mocks.deleteNavigatorLineNoteService.mockReset();
     mocks.deleteNavigatorSectionNoteService.mockReset();
     mocks.getStoredNavigatorFileNotes.mockReset();
+    mocks.evaluateCzazaResourceAccess.mockReset();
+    mocks.evaluateCzazaResourceAccess.mockImplementation((uri: vscodeTypes.Uri) =>
+      uri.scheme === "file" &&
+      !uri.fsPath.startsWith("/external-skill/") &&
+      !uri.fsPath.includes("/.czaza/notes/")
+        ? {
+            allowed: true,
+            relativePath: uri.fsPath,
+            root: { rootDirectory: "/workspace" },
+            settings: { outputDirectory: ".czaza" },
+          }
+        : { allowed: false, reason: "outsideWorkspace" },
+    );
     mocks.markNavigatorFileNoteOrphanedService.mockReset();
     mocks.relocateFileNoteService.mockReset();
     mocks.relocateSectionNoteService.mockReset();
@@ -1150,6 +1168,50 @@ describe("NotesViewProvider", () => {
       "Review this line.",
     );
 
+    provider.dispose();
+  });
+
+  it("clears the previous editable payload and blocks delayed saves for an outside resource", async () => {
+    const insideUri = createUri("/workspace/src/index.ts");
+    const outsideUri = createUri("/external-skill/SKILL.md");
+    const saveUserNote = vi.fn().mockResolvedValue(undefined);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      saveUserNote,
+    );
+    const view = createWebviewView();
+
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      activeLine: 1,
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(insideUri, 1);
+    mocks.postMessage.mockClear();
+
+    await provider.showActiveDocumentNotes(outsideUri, 1);
+
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      type: "resourceNotes",
+      payload: { kind: "outsideRoot" },
+    });
+    expect(mocks.getResourceNotes).toHaveBeenCalledTimes(1);
+
+    mocks.messageListeners[0]?.({
+      type: "saveUserNote",
+      target: { level: "file" },
+      userNote: "Must not be saved.",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(saveUserNote).not.toHaveBeenCalled();
     provider.dispose();
   });
 

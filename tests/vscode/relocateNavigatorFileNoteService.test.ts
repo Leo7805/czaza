@@ -119,7 +119,7 @@ describe("relocateFileNoteService()", () => {
     ).rejects.toThrow("src/missing.ts does not exist.");
   });
 
-  it("rejects files inside the configured CZaza output directory", async () => {
+  it("rejects files inside the CZaza Note Store directory", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("managed-output");
     const notes = await createStoreWithSourceFile(workspaceRoot, "src/old.ts");
 
@@ -133,7 +133,7 @@ describe("relocateFileNoteService()", () => {
         fromRelativePath: "src/old.ts",
         toRelativePath: ".caca/notes/index.json",
       }),
-    ).rejects.toThrow("CZaza-managed output files cannot be used as File Note targets.");
+    ).rejects.toThrow("CZaza Note Store files cannot be used as File Note targets.");
 
     expect(
       await notes.cache.getSourceFile(workspaceRoot, ".caca", "src/old.ts"),
