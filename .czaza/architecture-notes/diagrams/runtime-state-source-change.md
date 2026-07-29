@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.5.0
+documentVersion: 1.6.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-29
@@ -93,6 +93,8 @@ flowchart TD
 
 ## 与当前实现的关系
 
-当前实现仍使用 `GitWorkspaceTransitionGuard`、`GitAwareSourceChangeGate` 和 Git HEAD 监听来延迟或取消自动写入。本图描述的是替代该机制的目标架构；在 Runtime State 工作流完成并通过验证前，不应删除现有 Git 防护。
+当前实现已经创建共享的 `RuntimeNoteStateRegistry`，并在文档首次打开、切换为活动编辑器或内容 Hash 改变时执行被动一致性检查。检查只读取 Note Store 并更新内存状态，不扫描整个工作区，也不持久化检测结果。
+
+实时 VS Code 文档事件和文件系统 Watcher 仍使用 `GitWorkspaceTransitionGuard`、`GitAwareSourceChangeGate` 和 Git HEAD 监听来延迟或取消自动写入；Notes UI 也尚未读取 Runtime State。在这些路径完成迁移和验证前，不应删除现有 Git 防护。
 
 检测结果进入内存或磁盘的具体边界见 [Runtime State 与 Note Store 持久化边界](./runtime-state-persistence-boundary.md)。

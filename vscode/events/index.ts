@@ -5,3 +5,4 @@
 export { registerNotesContentEvents } from "./registerNotesContentEvents";
 export { registerNotesPreviewEvents } from "./registerNotesPreviewEvents";
 export { registerNotesResourceEvents } from "./registerNotesResourceEvents";
+export { registerPassiveRuntimeNoteChecks } from "./registerPassiveRuntimeNoteChecks";

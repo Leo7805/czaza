@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:f2ed98be9f85e2dfbfaa84890a9b7d7ea43158164049ae1ae34fb5195654e6aa",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T12:45:34.935Z",
+    "updatedAt": "2026-07-29T12:46:25.953Z"
+  },
+  "fileNote": {
+    "userNote": "定义被动检查入口。\npassiveRuntimeNoteCheckService：调用 refresh 服务，把检测结果同步到 Registry。\n\n接收当前文件 URI。\n打开并读取文件。\n调用 refreshRuntimeNoteStateService。\n只更新内存 Registry。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

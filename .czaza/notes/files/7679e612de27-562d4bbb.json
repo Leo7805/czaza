@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:a2ef8959bda6b537923acef587b826b9f0d78deb78d01c547093fdfd2183861f",
+    "sourceHash": "sha256:587e03d94e933d297318c62ee45edc8c5949a66848b3366fb42280608285564d",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-29T12:37:22.515Z",
-    "updatedAt": "2026-07-29T12:38:40.578Z"
+    "updatedAt": "2026-07-29T12:43:33.082Z"
   },
   "fileNote": {
     "userNote": "协调只读检测和 Registry 更新。\nrefreshRuntimeNoteStateService：affected → 新增或覆盖 Runtime State。\ncurrent → 清除旧状态。\nuntracked → 清除旧状态。\nignored → 不修改 Registry。\n\n\naffected\n  → setState\n  → 新增或覆盖 Runtime State\n\ncurrent\n  → deleteState\n  → 文件已经恢复一致，清除旧状态\n\nuntracked\n  → deleteState\n  → 没有正式 Notes，不保留待处理状态\n\nignored\n  → 不操作 Registry\n  → Gate 拒绝的资源不能影响现有状态\n\n\n当前完整入口：\n源文件快照\n   ↓\nrefreshRuntimeNoteStateService\n   ↓\n只读检测\n   ↓\naffected → Registry 写入\ncurrent/untracked → Registry 清除\nignored → 不操作",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

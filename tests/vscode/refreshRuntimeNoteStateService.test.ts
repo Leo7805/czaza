@@ -119,6 +119,25 @@ describe("refreshRuntimeNoteStateService()", () => {
     expect(registry.getState(createCoordinates())).toEqual(state);
   });
 
+  it("does not apply an obsolete asynchronous detection result", async () => {
+    const registry = new RuntimeNoteStateRegistry();
+
+    mocks.detect.mockResolvedValue({
+      kind: "affected",
+      relativePath: "src/index.ts",
+      report: createDetectionReport(),
+      state: createState("sha256:obsolete"),
+    } satisfies DetectRuntimeNoteStateResult);
+
+    const result = await refreshRuntimeNoteStateService({
+      ...createInput(registry),
+      canApply: () => false,
+    });
+
+    expect(result.registryChange).toBe("none");
+    expect(registry.getState(createCoordinates())).toBeUndefined();
+  });
+
   it("never writes persistent Notes", async () => {
     const registry = new RuntimeNoteStateRegistry();
     const input = createInput(registry);

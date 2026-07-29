@@ -6,6 +6,7 @@ import * as vscode from "vscode";
 import { registerCzazaRootValidation } from "./config/registerCzazaRootValidation";
 import { registerCzazaCommands } from "./commands/registerCzazaCommands";
 import {
+  registerPassiveRuntimeNoteChecks,
   registerNotesContentEvents,
   registerNotesPreviewEvents,
   registerNotesResourceEvents,
@@ -23,6 +24,7 @@ import {
   GitWorkspaceTransitionGuard,
   registerGitWorkspaceTransition,
 } from "./services/workspaceTransition";
+import { RuntimeNoteStateRegistry } from "./services/runtimeState";
 
 /**
  * Activates the CZaza VS Code extension.
@@ -39,6 +41,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Creating it only wires managers to one shared cache; it does not scan the
   // workspace, read all note files, or run AI analysis during activation.
   const notes = new WorkspaceNoteStore();
+  const runtimeNoteStateRegistry = new RuntimeNoteStateRegistry();
 
   // React-based notes panel provider for the new notes architecture.
   const notesProvider = new NotesViewProvider(
@@ -78,6 +81,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // ---------------------------------------------------------------------------
 
   registerNotesPreviewEvents(context, notesProvider);
+  registerPassiveRuntimeNoteChecks(context, notes, runtimeNoteStateRegistry);
   registerNotesContentEvents(
     context,
     notes,

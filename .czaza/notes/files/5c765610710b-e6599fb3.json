@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:573d19ed94d77d2dcdaf6c52b332197200f083c7cf8d2700880129e72e13a032",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T12:45:19.886Z",
+    "updatedAt": "2026-07-29T12:46:55.121Z"
+  },
+  "fileNote": {
+    "userNote": "监听文档打开和活动编辑器切换，按需触发被动检查。\n\nregisterPassiveRuntimeNoteChecks：注册事件、按 URI 和内容 Hash 合并重复通知，并阻止旧异步结果覆盖新状态。\nscheduleCheck：为最新文档快照安排串行检查。\ncreateDocumentSnapshot：生成不可变文本快照和 Hash。\n\n\n在以下时机按需检查：首次打开某个文件。\n当前编辑器切换到另一个文件。\n用户重新打开 VS Code 后首次访问文件。\n\n同一文件在内容和 Hash 未变化时避免重复检查。\n不扫描整个工作区。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

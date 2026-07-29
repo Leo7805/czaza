@@ -16,6 +16,9 @@ export type RuntimeNoteRegistryChange = "set" | "deleted" | "none";
 export type RefreshRuntimeNoteStateInput = DetectRuntimeNoteStateInput & {
   /** Session-only registry that owns affected resource state. */
   registry: RuntimeNoteStateRegistry;
+
+  /** Optional final check that rejects an obsolete asynchronous detection result. */
+  canApply?: () => boolean;
 };
 
 /** Detection result augmented with the performed registry mutation. */
@@ -44,6 +47,13 @@ export async function refreshRuntimeNoteStateService(
   input: RefreshRuntimeNoteStateInput,
 ): Promise<RefreshRuntimeNoteStateResult> {
   const result = await detectRuntimeNoteStateService(input);
+
+  if (input.canApply?.() === false) {
+    return {
+      ...result,
+      registryChange: "none",
+    };
+  }
 
   if (result.kind === "ignored") {
     return {

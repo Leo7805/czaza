@@ -15,6 +15,11 @@ export {
   type RefreshRuntimeNoteStateResult,
   type RuntimeNoteRegistryChange,
 } from "./refreshRuntimeNoteStateService";
+export {
+  passiveRuntimeNoteCheckService,
+  type PassiveRuntimeNoteCheckInput,
+  type PassiveRuntimeNoteCheckResult,
+} from "./passiveRuntimeNoteCheckService";
 export type {
   RuntimeFileNoteChange,
   RuntimeLineNoteChange,
