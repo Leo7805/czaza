@@ -78,6 +78,11 @@ describe("detectRuntimeNoteStateService()", () => {
       kind: "current",
       relativePath: "src/index.ts",
       currentSourceHash: createSourceHash(sourceText),
+      coordinates: {
+        workspaceRoot,
+        outputDirectory: ".czaza",
+        relativePath: "src/index.ts",
+      },
     });
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
@@ -174,6 +179,11 @@ describe("detectRuntimeNoteStateService()", () => {
     expect(result).toEqual({
       kind: "untracked",
       relativePath: "src/index.ts",
+      coordinates: {
+        workspaceRoot,
+        outputDirectory: ".czaza",
+        relativePath: "src/index.ts",
+      },
     });
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });

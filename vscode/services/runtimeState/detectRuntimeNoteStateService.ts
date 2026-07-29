@@ -18,6 +18,7 @@ import type * as vscode from "vscode";
 import type {
   RuntimeNoteIssue,
   RuntimeNoteState,
+  RuntimeNoteStateCoordinates,
   RuntimeNoteTargetChange,
 } from "./runtimeNoteState";
 
@@ -54,11 +55,13 @@ export type DetectRuntimeNoteStateResult =
   | {
     kind: "untracked";
     relativePath: string;
+    coordinates: RuntimeNoteStateCoordinates;
   }
   | {
     kind: "current";
     relativePath: string;
     currentSourceHash: string;
+    coordinates: RuntimeNoteStateCoordinates;
   }
   | {
     kind: "affected";
@@ -93,11 +96,17 @@ export async function detectRuntimeNoteStateService(
     access.settings.outputDirectory,
     access.relativePath,
   );
+  const coordinates = {
+    workspaceRoot: access.root.rootDirectory,
+    outputDirectory: access.settings.outputDirectory,
+    relativePath: access.relativePath,
+  };
 
   if (!sourceFile) {
     return {
       kind: "untracked",
       relativePath: access.relativePath,
+      coordinates,
     };
   }
 
@@ -112,6 +121,7 @@ export async function detectRuntimeNoteStateService(
       kind: "current",
       relativePath: access.relativePath,
       currentSourceHash: report.file.currentSourceHash,
+      coordinates,
     };
   }
 

@@ -9,6 +9,12 @@ export {
   type DetectRuntimeNoteStateResult,
   type RuntimeNoteDetectionDocument,
 } from "./detectRuntimeNoteStateService";
+export {
+  refreshRuntimeNoteStateService,
+  type RefreshRuntimeNoteStateInput,
+  type RefreshRuntimeNoteStateResult,
+  type RuntimeNoteRegistryChange,
+} from "./refreshRuntimeNoteStateService";
 export type {
   RuntimeFileNoteChange,
   RuntimeLineNoteChange,

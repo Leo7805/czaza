@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:e353541a743695974edf4a638b470d64fd78686c997f03244fd5cc9a14720009",
+    "sourceHash": "sha256:a354c83ff068f677f0e395e1de0a481d5178ced1ca6029142c0b32c47a9722f0",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-29T12:30:37.748Z",
-    "updatedAt": "2026-07-29T12:33:06.504Z"
+    "updatedAt": "2026-07-29T12:35:52.973Z"
   },
   "fileNote": {
     "userNote": "读取现有 Notes、运行检测并返回 Runtime State，不进行持久化。\n\ndetectRuntimeNoteStateService：返回 ignored、untracked、current 或 affected。\ncreateTargetChanges：将检测报告转换为 File、Section、Line 目标级变化。\ncreateIssues：生成 stale 和 locationReview 状态。\nisNonCurrentStatus：判断 Note 是否需要处理。\nisSameStatus：比较已有状态与检测状态。\n\n\n检查一个源文件并返回检测结果。\n复用现有 detectFileNotes，不重新实现 File、Section、Line 检测算法。\n不直接写 Registry，由后续事件协调器决定是否写入。\n不调用 saveSourceFile，也不修改 index.json。\n\n\n返回结果分为：\nignored     资源 Gate 拒绝\nuntracked   文件没有 Notes\ncurrent     当前 Notes 未受影响\naffected    返回 RuntimeNoteState\n\naffected 中会包含：\n当前 sourceHash\nstale / locationReview\n受影响的 File Note\n受影响的 Section ID 和状态\n受影响的 Line ID 和状态\n检测原因和时间\n\n\n当前检测流程：\n源文件快照\n   ↓\nCzaza Resource Access Gate\n   ↓\n读取现有 Notes\n   ↓\n复用 detectFileNotes\n   ↓\n返回 RuntimeNoteState",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}
