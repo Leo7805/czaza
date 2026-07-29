@@ -256,7 +256,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly highlightController = new NotesEditorHighlightController();
   private readonly notesTypographyConfigurationListener: vscode.Disposable;
   private readonly extensionUri: vscode.Uri;
-  private readonly initializeArchitectureNotes?: (resource?: vscode.Uri) => Promise<void>;
   private readonly notes: WorkspaceNoteStore;
   private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
   private readonly generateAllNotes?: (
@@ -289,7 +288,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @param generateLineNote - Callback that generates and persists the active line note.
    * @param generateLineBatchNotes - Callback that generates nearby line notes in one request.
    * @param generateSectionNote - Callback that regenerates one selected section note.
-   * @param initializeArchitectureNotes - Optional callback that initializes project-level architecture notes.
    *
    * @example
    * const provider = new NotesViewProvider(context.extensionUri, notes, generateFileNotes, saveUserNote);
@@ -309,10 +307,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
     generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>,
     generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
-    initializeArchitectureNotes?: (resource?: vscode.Uri) => Promise<void>,
   ) {
     this.extensionUri = extensionUri;
-    this.initializeArchitectureNotes = initializeArchitectureNotes;
     this.notes = notes;
     this.generateFileNotes = generateFileNotes;
     this.saveUserNote = saveUserNote;
@@ -347,9 +343,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * await provider.resolveWebviewView(webviewView);
    */
   async resolveWebviewView(webviewView: vscode.WebviewView): Promise<void> {
-    await this.initializeArchitectureNotes?.(
-      vscode.window.activeTextEditor?.document.uri ?? vscode.workspace.workspaceFolders?.[0]?.uri,
-    );
     this.view = webviewView;
 
     webviewView.webview.options = {
