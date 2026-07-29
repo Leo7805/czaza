@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:4b18326167bc1a52840a4b2ad2e562b1d73035133026429a20ab5cc53ab0594d",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T12:21:14.175Z",
+    "updatedAt": "2026-07-29T12:21:14.175Z"
+  },
+  "fileNote": {
+    "userNote": "统一导出 Registry 和相关类型。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.0.0
+documentVersion: 1.1.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-29
@@ -23,6 +23,12 @@ flowchart LR
     F --> G[删除 Git-aware 防护]
     G --> H[完整回归与快速分支切换测试]
 ```
+
+## 实施状态
+
+- 阶段一已完成：快速 HEAD 切换、内容事件及 rename/delete 事件爆发已有回归测试基线。
+- 阶段二已完成：`RuntimeNoteStateRegistry` 和目标级 Runtime State 类型已经实现并通过纯逻辑测试。
+- 阶段三至阶段六尚未实施，当前事件入口和 Git-aware 防护保持不变。
 
 ## 阶段说明
 

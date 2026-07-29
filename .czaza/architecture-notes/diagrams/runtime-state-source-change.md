@@ -33,6 +33,12 @@ flowchart LR
 
 详细流程图展示三种变化来源、VS Code 文档事件分类、状态管理、确认失败后的重新检测及最终持久化边界。
 
+1. VS Code 文档变化事件：编辑器内的文件变化（例如：手动输入代码并保存）。
+
+2. 文件系统 Watcher 事件：编辑器外的文件变化（例如：git restore 替换文件）。
+
+3. 被动一致性检查：在特定时机主动比较源文件与 Notes（例如：VS Code 重启后首次打开文件）。
+
 ```mermaid
 flowchart TD
     A[VS Code 文档变化事件] --> B[Czaza Resource Access Gate]

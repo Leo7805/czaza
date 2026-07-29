@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:d3d5d668cf46ff605bdfee6c27a1f80cb88328df6f44db839e1c12e45672c064",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T12:20:51.218Z",
+    "updatedAt": "2026-07-29T12:23:46.152Z"
+  },
+  "fileNote": {
+    "userNote": "管理当前 Extension Host 会话中的临时 Notes 状态。\n\nsetState：新增或覆盖资源的最新状态。\ngetState：读取单个资源状态。\nlistStates：列出指定工作区范围的状态。\ndeleteState：删除单个状态。\nclearScope：清除指定工作区和输出目录的状态。\nmoveState：将状态移动到新的资源路径。\nonDidChange：监听 Registry 变化。\n所有输入和输出均进行防御复制，外部修改不会污染内部状态。\n\nExtension Host 会话：VS Code 用来运行插件的一次生命周期（例如：打开 VS Code 时开始，关闭窗口或重启插件时结束）。\n所以“只保存在 Extension Host 会话内存中”表示：\n状态只存在于插件运行期间；关闭或重载 VS Code 后，内存状态消失，下次通过被动一致性检查重新检测。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

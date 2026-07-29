@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:2baf31f0c0ba501890ef2a00cb8c1bb32cc69dc3743622208fec905042bb5a5d",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-29T12:20:24.306Z",
+    "updatedAt": "2026-07-29T12:20:24.306Z"
+  },
+  "fileNote": {
+    "userNote": "定义 Runtime State、检测原因以及 File/Section/Line 目标级变化模型。(就是把状态放内存中, 不再 persist)",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
