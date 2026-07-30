@@ -1,7 +1,7 @@
 ---
 type: architecture-diagram
-documentVersion: 1.8.0
-status: proposed
+documentVersion: 2.0.0
+status: current
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
 author: Codex
@@ -9,7 +9,7 @@ author: Codex
 
 # Runtime State 总体架构
 
-本方案统一说明变化分类、持久化边界和 Runtime State 生命周期；源码与资源的转换细节由下级文档说明。
+本架构统一说明当前的变化分类、持久化边界和 Runtime State 生命周期；源码与资源的转换细节由下级文档说明。
 
 ## 总体流程
 

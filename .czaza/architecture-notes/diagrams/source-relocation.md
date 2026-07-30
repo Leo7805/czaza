@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.0.0
+documentVersion: 1.1.0
 status: current
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -43,7 +43,7 @@ flowchart TD
 - 历史不保存源码全文、User Note、AI Note、Title 或其他用户内容。
 - `event.reason` 必须为真实 VS Code Undo/Redo，且当前 Hash 和持久化 Hash 都必须匹配历史。
 - Undo 恢复 before；Redo 恢复 after；原本 stale 的目标仍恢复为 stale。
-- 文档关闭、Watcher、reload、rename、delete、transition 或扩展释放会使相关历史失效。
+- 文档关闭、Watcher、reload、rename、delete 或 Extension Host 释放会使相关历史失效。
 - 历史只存在于当前 Extension Host 会话，不跨 VS Code 重启。
 
 ## 当前实现

@@ -1,7 +1,7 @@
 ---
 type: architecture-diagram
-documentVersion: 1.7.0
-status: proposed
+documentVersion: 2.0.0
+status: current
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
 author: Codex
@@ -9,7 +9,7 @@ author: Codex
 
 # Resource Change
 
-本方案区分 VS Code 明确资源操作和外部磁盘变化，重点说明可直接更新 Notes 的确定性 Rename、Move、Delete 和 Remove。
+本架构区分当前的 VS Code 明确资源操作和外部磁盘变化，重点说明可直接更新 Notes 的确定性 Rename、Move、Delete 和 Remove。
 
 ## 事件来源
 

@@ -2,7 +2,7 @@
 
 ## Active Goal
 
-Document and then implement the planned runtime-state source-change architecture that will replace CZaza's Git-aware note update mechanism.
+Maintain and validate CZaza's current Runtime State source-change architecture after completing the Git-aware migration.
 
 ## Current State
 
@@ -37,9 +37,9 @@ Document and then implement the planned runtime-state source-change architecture
 - Use the user's AI Agent for project understanding, Mermaid content, and summaries.
 - Do not restore Architecture Notes integration in CZaza unless a future requirement cannot be handled by the Skill.
 
-## Planned Runtime State Architecture
+## Runtime State Architecture
 
-The planned Runtime State architecture and Git decoupling are implemented.
+The Runtime State architecture and Git decoupling are implemented.
 
 - Decouple source-change handling from Git concepts such as branches, HEAD revisions, checkout, merge, restore, and transition timing.
 - Use three detection sources: precise VS Code document events, file-system watcher events, and passive consistency checks.
