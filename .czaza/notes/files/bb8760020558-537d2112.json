@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:fc1523baa2a3218c47df5eecfe7b08c8e9111826dcb8392f836f5e0d4481e877",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T05:51:09.332Z",
+    "updatedAt": "2026-07-30T05:51:09.332Z"
+  },
+  "fileNote": {
+    "userNote": "导出资源事件协调服务。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

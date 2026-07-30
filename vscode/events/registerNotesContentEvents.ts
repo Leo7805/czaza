@@ -9,6 +9,7 @@ import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
 import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
+import type { ResourceEventSuppressionRegistry } from "@vscode/services/resourceEvents";
 import {
   GitAwareSourceChangeGate,
   type GitWorkspaceTransitionGuard,
@@ -22,6 +23,7 @@ import {
 } from "@vscode/services/noteRelocation";
 import {
   refreshBinaryRuntimeNoteStateService,
+  refreshMissingRuntimeNoteStateService,
   refreshRuntimeNoteStateService,
   type RuntimeNoteStateRegistry,
 } from "@vscode/services/runtimeState";
@@ -52,6 +54,7 @@ type TextDocumentSnapshot = {
  * @param workspaceTransitionGuard - Optional Git transition state that suppresses checkout writes.
  * @param runtimeNoteStateRegistry - Optional session registry reconciled after deterministic writes.
  * @param relocationHistoryService - Optional shared in-memory source relocation history.
+ * @param resourceEventSuppression - Optional deterministic resource-event suppression registry.
  * @returns Nothing.
  *
  * @example
@@ -64,6 +67,7 @@ export function registerNotesContentEvents(
   workspaceTransitionGuard?: GitWorkspaceTransitionGuard,
   runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
   relocationHistoryService?: SourceRelocationHistoryService,
+  resourceEventSuppression?: ResourceEventSuppressionRegistry,
 ): void {
   const sourceChangeGate = new GitAwareSourceChangeGate(
     EXTERNAL_CHANGE_DEBOUNCE_MS,
@@ -73,7 +77,7 @@ export function registerNotesContentEvents(
   const documentChangeQueues: DocumentChangeQueue = new Map();
   const recentlySavedTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const relocationHistory = relocationHistoryService ?? new SourceRelocationHistoryService();
-  const watcher = vscode.workspace.createFileSystemWatcher("**/*", true, false, true);
+  const watcher = vscode.workspace.createFileSystemWatcher("**/*", true, false, false);
   const transitionDisposable = workspaceTransitionGuard?.onDidStartTransition(() => {
     sourceChangeGate.cancelPending();
     clearTimers(recentlySavedTimers);
@@ -125,6 +129,18 @@ export function registerNotesContentEvents(
         runtimeNoteStateRegistry,
       );
     }),
+    watcher.onDidDelete((uri) => {
+      scheduleExternalDeleteCheck(
+        uri,
+        notes,
+        notesProvider,
+        documentChangeQueues,
+        workspaceTransitionGuard,
+        sourceChangeGate,
+        runtimeNoteStateRegistry,
+        resourceEventSuppression,
+      );
+    }),
     vscode.workspace.onDidCloseTextDocument((document) => {
       relocationHistory.clear(document.uri.toString());
     }),
@@ -140,6 +156,60 @@ export function registerNotesContentEvents(
       },
     },
   );
+}
+
+/**
+ * Schedules a missing-resource check after deterministic Delete events can register suppression.
+ *
+ * @param uri - Resource reported deleted by the filesystem watcher.
+ * @param notes - Shared workspace Note Store.
+ * @param notesProvider - Optional Notes view refreshed after state changes.
+ * @param documentChangeQueues - Per-resource serialized task queues.
+ * @param workspaceTransitionGuard - Optional Git transition state.
+ * @param sourceChangeGate - Existing external-event debounce gate.
+ * @param runtimeNoteStateRegistry - Optional session-only Runtime State registry.
+ * @param resourceEventSuppression - Optional deterministic deletion markers.
+ * @returns Nothing.
+ */
+function scheduleExternalDeleteCheck(
+  uri: vscode.Uri,
+  notes: WorkspaceNoteStore,
+  notesProvider: NotesViewProvider | undefined,
+  documentChangeQueues: DocumentChangeQueue,
+  workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
+  sourceChangeGate: GitAwareSourceChangeGate,
+  runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
+  resourceEventSuppression: ResourceEventSuppressionRegistry | undefined,
+): void {
+  const access = evaluateCzazaResourceAccess(uri);
+
+  if (!access.allowed || workspaceTransitionGuard?.isTransitioning()) {
+    return;
+  }
+
+  const key = `delete:${uri.toString()}`;
+  sourceChangeGate.schedule(key, (token) => {
+    if (
+      resourceEventSuppression?.isDeleteSuppressed(uri) ||
+      !sourceChangeGate.canPersist(token) ||
+      !runtimeNoteStateRegistry
+    ) {
+      return;
+    }
+
+    enqueueDocumentChange(documentChangeQueues, uri.toString(), async () => {
+      const result = await refreshMissingRuntimeNoteStateService({
+        uri,
+        notes,
+        registry: runtimeNoteStateRegistry,
+        now: new Date().toISOString(),
+      });
+
+      if (result.registryChange !== "none") {
+        await notesProvider?.refreshCurrentNotes(uri);
+      }
+    });
+  });
 }
 
 /**

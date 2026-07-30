@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:3e6cc27845d9d55519590591ff51cf1d95addf4bd522e073b79b939fbace2fa6",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T05:51:26.986Z",
+    "updatedAt": "2026-07-30T05:51:26.986Z"
+  },
+  "fileNote": {
+    "userNote": "验证标记过期及目录子路径抑制。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

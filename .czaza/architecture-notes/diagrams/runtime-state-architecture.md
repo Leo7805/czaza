@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.2.0
+documentVersion: 1.4.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -43,7 +43,7 @@ stateDiagram-v2
 ```
 
 - `Checking`：读取当前资源并与 Note Store 比较。
-- `Pending`：Registry 保存待处理状态，UI 显示 `stale`、`location review`、`missing` 或 `possible rename`。
+- `Pending`：Registry 保存待处理状态，UI 显示 `stale`、`location review` 或 `missing`。
 - `Current`：当前资源与 Notes 一致，可以清除对应 Runtime State。
 - `SessionEnded`：内存状态随 Extension Host 会话结束而丢失，重新打开后按需检测。
 
@@ -64,7 +64,7 @@ stateDiagram-v2
 - 无法准确分类的 dirty 文本事件。
 - `isDirty=false` 的 reload、文件替换和保存检查。
 - Watcher 检测到的文本或二进制 Change。
-- Watcher 检测到的 Create 或 Delete，以及根据两者推测的 Rename。
+- Watcher 检测到的 Delete；Watcher Create 直接忽略。
 - Git checkout、merge、restore 或其他外部磁盘变化。
 - 插件启动、打开文件或切换编辑器时的被动检查。
 
@@ -74,8 +74,8 @@ stateDiagram-v2
 
 ### Runtime State 只保存在内存
 
-- 自动检测产生的 `stale`、`location review`、`missing` 和 `possible rename`。
-- 当前路径、当前 Hash、检测原因、发现时间和可选建议位置。
+- 自动检测产生的 `stale`、`location review` 和 `missing`。
+- 当前路径、当前 Hash、检测原因和发现时间。
 - UI 待处理提示和会话中的临时选择。
 
 Registry 只保存受影响资源，不保存整个项目快照。状态不会定时重试；新事件、用户操作或被动检查才会重新检测。
@@ -98,6 +98,6 @@ Registry 只保存受影响资源，不保存整个项目快照。状态不会�
 
 ## 当前实现边界
 
-- 已完成：确定性 dirty relocation、Undo/Redo、非确定性文档检测、文本/二进制 Watcher Change、被动检查、Runtime UI、Clear Stale、Relocate，以及文件和目录的 VS Code Rename/Move/Delete/Remove。
-- 待完成：Watcher Create/Delete、`missing` 和 `possible rename`。
+- 已完成：确定性 dirty relocation、Undo/Redo、非确定性文档检测、文本/二进制 Watcher Change、Watcher Delete `missing`、被动检查、Runtime UI、Clear Stale、Relocate，以及文件和目录的 VS Code Rename/Move/Delete/Remove。
+- 待完成：Watcher Delete 最终存在性检查和 missing UI 立即刷新。
 - 最后删除剩余 Git-aware transition 和 revision 代码。

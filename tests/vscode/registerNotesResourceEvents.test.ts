@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type RenameListener = (event: vscodeTypes.FileRenameEvent) => void;
 type DeleteListener = (event: vscodeTypes.FileDeleteEvent) => void;
+type WillDeleteListener = (event: vscodeTypes.FileWillDeleteEvent) => void;
 type MockWorkspaceFolder = {
   uri: vscodeTypes.Uri;
   name: string;
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   outputDirectory: ".caca",
   renameListeners: [] as RenameListener[],
   deleteListeners: [] as DeleteListener[],
+  willDeleteListeners: [] as WillDeleteListener[],
 }));
 
 vi.mock("vscode", () => ({
@@ -59,6 +61,11 @@ vi.mock("vscode", () => ({
       mocks.deleteListeners.push(listener);
       return { dispose: vi.fn() };
     },
+
+    onWillDeleteFiles: (listener: WillDeleteListener) => {
+      mocks.willDeleteListeners.push(listener);
+      return { dispose: vi.fn() };
+    },
   },
 }));
 
@@ -66,6 +73,7 @@ import { registerNotesResourceEvents } from "@vscode/events";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import type { SourceRelocationHistoryService } from "@vscode/services/noteRelocation";
+import type { ResourceEventSuppressionRegistry } from "@vscode/services/resourceEvents";
 import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
 
 describe("registerNotesResourceEvents()", () => {
@@ -74,6 +82,7 @@ describe("registerNotesResourceEvents()", () => {
     mocks.workspaceFolders.length = 0;
     mocks.renameListeners.length = 0;
     mocks.deleteListeners.length = 0;
+    mocks.willDeleteListeners.length = 0;
     mocks.configuredRootDirectory = "";
     mocks.outputDirectory = ".caca";
   });
@@ -121,7 +130,7 @@ describe("registerNotesResourceEvents()", () => {
     expect(relocationHistory.clear).toHaveBeenCalledWith(oldUri.toString());
     expect(relocationHistory.clear).toHaveBeenCalledWith(newUri.toString());
     expect(notesProvider.refreshAfterResourceMove).toHaveBeenCalledWith(oldUri, newUri);
-    expect(context.subscriptions).toHaveLength(2);
+    expect(context.subscriptions).toHaveLength(3);
   });
 
   it("marks file Notes deleted and clears Runtime State immediately", async () => {
@@ -129,6 +138,7 @@ describe("registerNotesResourceEvents()", () => {
     const notes = createNotes();
     const notesProvider = createNotesProvider();
     const runtimeRegistry = createRuntimeRegistry(workspaceRoot, "src/deleted.ts");
+    const resourceEventSuppression = createResourceEventSuppression();
     const deletedUri = createUri(path.join(workspaceRoot, "src/deleted.ts"));
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
@@ -137,7 +147,12 @@ describe("registerNotesResourceEvents()", () => {
       notes.value,
       notesProvider.value,
       runtimeRegistry,
+      undefined,
+      resourceEventSuppression.value,
     );
+    mocks.willDeleteListeners[0]?.({
+      files: [deletedUri],
+    } as unknown as vscodeTypes.FileWillDeleteEvent);
     mocks.deleteListeners[0]?.({ files: [deletedUri] });
     await waitForMicrotasks();
 
@@ -153,6 +168,7 @@ describe("registerNotesResourceEvents()", () => {
       relativePath: "src/deleted.ts",
     })).toBeUndefined();
     expect(notesProvider.refreshAfterResourceDelete).toHaveBeenCalledWith(deletedUri);
+    expect(resourceEventSuppression.markDeleted).toHaveBeenCalledWith(deletedUri);
   });
 
   it("preserves Runtime State when the Note Store rejects a rename or delete", async () => {
@@ -370,6 +386,22 @@ function createRelocationHistory(): {
   return {
     value: { clear } as unknown as SourceRelocationHistoryService,
     clear,
+  };
+}
+
+/**
+ * Creates a mock deterministic resource-event suppression registry.
+ *
+ * @returns Registry interface and deletion marker spy.
+ */
+function createResourceEventSuppression(): {
+  value: ResourceEventSuppressionRegistry;
+  markDeleted: ReturnType<typeof vi.fn>;
+} {
+  const markDeleted = vi.fn();
+  return {
+    value: { markDeleted } as unknown as ResourceEventSuppressionRegistry,
+    markDeleted,
   };
 }
 

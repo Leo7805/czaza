@@ -28,6 +28,10 @@ export {
   type RefreshBinaryRuntimeNoteStateResult,
 } from "./refreshBinaryRuntimeNoteStateService";
 export {
+  refreshMissingRuntimeNoteStateService,
+  type RefreshMissingRuntimeNoteStateResult,
+} from "./refreshMissingRuntimeNoteStateService";
+export {
   passiveRuntimeNoteCheckService,
   type PassiveRuntimeNoteCheckInput,
   type PassiveRuntimeNoteCheckResult,

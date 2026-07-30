@@ -1,12 +1,12 @@
 {
   "source": {
-    "sourceHash": "sha256:e8f8c8ea316e88b047d7c6aa4b56ae312b103b0732fa0677ce0f2094e0167ce4",
+    "sourceHash": "sha256:ab47eb9b6402f32936316372638ae00df4e2fd4befdfd5ea43e2b73803f0ee5f",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-23T13:00:12.743Z",
-    "updatedAt": "2026-07-30T04:00:05.302Z"
+    "updatedAt": "2026-07-30T05:45:35.889Z"
   },
   "fileNote": {
     "userNote": "当前负责监听 VS Code 文档变化、保存和外部文件变化，并安排 Notes 更新。\n\nhandleTextDocumentChange：从“逐个 content change 入队”改成“整个事件作为一个 batch 入队”。\n\n现在一个多变化事件只会保存一次并刷新一次；连续的两个独立 VS Code 事件仍会保存两次。\n\n\n---\n\n监听编辑器内容、保存和外部文件变化，并安排 Notes 检测、迁移和刷新。\nregisterNotesContentEvents — 接收 transition guard，并在 transition 开始时清除 timers、pending state 和队列引用。\nhandleTextDocumentChange — Git 切换期间忽略编辑器内容变化和 relocation。\nhandleSavedDocument — Git 切换期间忽略保存事件引发的 Notes 检测。\nscheduleExternalChangeCheck — Git 切换期间不创建 external-change timer，并延长稳定期。\nhandleExternalChange — timer 执行前再次检查 transition，防止旧 timer 在 checkout 期间写 Notes。\n\n---\n\n编辑、保存和 Watcher 事件统一过滤外部资源及管理文件。\nhandleTextDocumentChange：非法资源不进入确定性 relocation。\nhandleSavedDocument：非法资源不触发 Notes 更新。\nscheduleExternalChangeCheck：管理文件只允许使缓存失效。\n\n\n---\nregisterNotesContentEvents：创建或接收共享历史服务；close、watcher、transition 和 dispose 时清理历史。\nhandleTextDocumentChange：普通确定性编辑成功后记录 before/after；\n真实 Undo/Redo 优先使用历史恢复；\nUndo 后即使文档变为 clean，也允许匹配历史；\n无历史或 Hash 不匹配时不猜测行号，转入 Runtime 检测。\n\n\n---\n— 负责处理 VS Code 文档修改、保存及外部文件变化事件。\nhandleTextDocumentChange：区分确定性 dirty 修改与只需 Runtime 检测的变化。\nrefreshRuntimeStateAfterDocumentChange：只读检测文件状态，并返回 Runtime Registry 是否改变。\nenqueueRuntimeStateRefresh：按文件顺序执行 Runtime State 检测，避免连续事件互相覆盖。\nhandleSavedDocument：保存时只刷新 Runtime State，不再修改 Notes，也取消 800ms 等待。",

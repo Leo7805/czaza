@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:d60dfb7e8d4c01002a93f3c0b3feb3b66d6273884a88cfd98efb9bd29f3a765b",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T05:51:18.811Z",
+    "updatedAt": "2026-07-30T05:51:18.811Z"
+  },
+  "fileNote": {
+    "userNote": "将外部删除记录为内存状态。\nrefreshMissingRuntimeNoteStateService：有 Notes 时写入 missing 和 locationReview，没有 Notes 时忽略。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

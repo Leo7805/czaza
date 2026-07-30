@@ -13,6 +13,7 @@ import { createSourceHash } from "@shared/utils/hashUtils";
 type SaveListener = (document: vscodeTypes.TextDocument) => void;
 type CloseListener = (document: vscodeTypes.TextDocument) => void;
 type ChangeListener = (uri: vscodeTypes.Uri) => void;
+type DeleteListener = (uri: vscodeTypes.Uri) => void;
 type TextDocumentChangeListener = (event: vscodeTypes.TextDocumentChangeEvent) => void;
 type MockWorkspaceFolder = {
   uri: vscodeTypes.Uri;
@@ -28,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   saveListeners: [] as SaveListener[],
   closeListeners: [] as CloseListener[],
   changeListeners: [] as ChangeListener[],
+  deleteListeners: [] as DeleteListener[],
   openTextDocument: vi.fn(),
   watcherDispose: vi.fn(),
 }));
@@ -84,6 +86,10 @@ vi.mock("vscode", () => ({
         mocks.changeListeners.push(listener);
         return { dispose: vi.fn() };
       },
+      onDidDelete: (listener: DeleteListener) => {
+        mocks.deleteListeners.push(listener);
+        return { dispose: vi.fn() };
+      },
       dispose: mocks.watcherDispose,
     })),
 
@@ -95,6 +101,7 @@ import { registerNotesContentEvents } from "@vscode/events";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
+import { ResourceEventSuppressionRegistry } from "@vscode/services/resourceEvents";
 import { GitWorkspaceTransitionGuard } from "@vscode/services/workspaceTransition";
 
 describe("registerNotesContentEvents()", () => {
@@ -106,6 +113,7 @@ describe("registerNotesContentEvents()", () => {
     mocks.saveListeners.length = 0;
     mocks.closeListeners.length = 0;
     mocks.changeListeners.length = 0;
+    mocks.deleteListeners.length = 0;
     mocks.openTextDocument.mockReset();
     mocks.watcherDispose.mockReset();
     mocks.configuredRootDirectory = "";
@@ -398,21 +406,33 @@ describe("registerNotesContentEvents()", () => {
     const workspaceRoot = await createTempWorkspaceRoot("managed-output");
     const notes = createNotes(createStoredSourceFile("{}\n"));
     const notesProvider = createNotesProvider();
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
     const document = createDocument(
       path.join(workspaceRoot, ".caca/notes/index.json"),
       '{"updatedAt":"later"}\n',
     );
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(createExtensionContext(), notes.value, notesProvider.value);
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      notesProvider.value,
+      undefined,
+      runtimeRegistry,
+    );
     mocks.saveListeners[0]?.(document);
     mocks.changeListeners[0]?.(document.uri);
+    mocks.deleteListeners[0]?.(document.uri);
 
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
     expect(mocks.openTextDocument).not.toHaveBeenCalled();
     expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
+    expect(runtimeRegistry.listStates({
+      workspaceRoot,
+      outputDirectory: ".caca",
+    })).toEqual([]);
   });
 
   it("checks externally changed files after a debounce", async () => {
@@ -612,6 +632,82 @@ describe("registerNotesContentEvents()", () => {
 
     expect(mocks.openTextDocument).not.toHaveBeenCalled();
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
+  });
+
+  it("stores an external Watcher Delete as missing Runtime State without persisting Notes", async () => {
+    vi.useFakeTimers();
+
+    const workspaceRoot = await createTempWorkspaceRoot("external-delete");
+    const sourceText = "export const value = 1;\n";
+    const notes = createNotes(createStoredSourceFile(sourceText));
+    const notesProvider = createNotesProvider();
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
+    const uri = createUri(path.join(workspaceRoot, "src/index.ts"));
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      notesProvider.value,
+      undefined,
+      runtimeRegistry,
+    );
+    mocks.deleteListeners[0]?.(uri);
+
+    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(runtimeRegistry.getState({
+      workspaceRoot,
+      outputDirectory: ".caca",
+      relativePath: "src/index.ts",
+    })).toMatchObject({
+      issues: ["missing", "locationReview"],
+      reason: "resourceMissing",
+      targetChanges: [
+        {
+          kind: "file",
+          status: {
+            content: "current",
+            anchor: "needsConfirmation",
+          },
+        },
+      ],
+    });
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(uri);
+  });
+
+  it("suppresses Watcher Delete after a deterministic VS Code deletion", async () => {
+    vi.useFakeTimers();
+
+    const workspaceRoot = await createTempWorkspaceRoot("suppressed-delete");
+    const notes = createNotes(createStoredSourceFile("export const value = 1;\n"));
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
+    const suppression = new ResourceEventSuppressionRegistry();
+    const uri = createUri(path.join(workspaceRoot, "src/index.ts"));
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      undefined,
+      runtimeRegistry,
+      undefined,
+      suppression,
+    );
+    mocks.deleteListeners[0]?.(uri);
+    suppression.markDeleted(uri);
+
+    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(runtimeRegistry.listStates({
+      workspaceRoot,
+      outputDirectory: ".caca",
+    })).toEqual([]);
+    suppression.dispose();
   });
 
   it("persists and refreshes deterministic text changes without a debounce", async () => {

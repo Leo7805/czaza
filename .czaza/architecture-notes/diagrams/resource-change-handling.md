@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.2.0
+documentVersion: 1.5.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -9,7 +9,7 @@ author: Codex
 
 # Resource Change
 
-本方案区分 VS Code 明确资源操作和外部磁盘变化，说明 Rename、Move、Delete、Remove、Create 与 possible rename 的边界。
+本方案区分 VS Code 明确资源操作和外部磁盘变化，重点说明可直接更新 Notes 的确定性 Rename、Move、Delete 和 Remove。
 
 ## 事件来源
 
@@ -19,10 +19,9 @@ flowchart TD
     B -->|Explorer 或 workspace.applyEdit| C[VS Code 资源事件]
     C --> D[明确 Rename Move Delete Remove]
     D --> E[确定性资源变化]
-    B -->|Git 外部工具或 workspace.fs| F[FileSystemWatcher]
-    F --> G[Create Change Delete]
-    G --> H[无法直接证明用户意图]
-    H --> I[Runtime State]
+    B -->|终端 Git 外部工具或 workspace.fs| F[FileSystemWatcher]
+    F --> G[Change 或 Delete]
+    G --> H[只更新 Runtime State]
 ```
 
 ## VS Code 确定性资源事件
@@ -38,17 +37,37 @@ Create 没有旧 Notes 需要迁移；Copy 是否复制 Notes 属于独立产品
 
 ## Watcher 非确定性资源事件
 
+```mermaid
+flowchart TD
+    A[终端 Git 或外部工具修改文件] --> B[FileSystemWatcher]
+    B --> C{事件类型}
+
+    C -->|Change| D[读取当前文件并比较 Hash]
+    D --> E[更新 Runtime State]
+    E --> F[UI 显示 stale 或 location review]
+
+    C -->|Delete| G[延迟确认路径是否仍存在]
+    G -->|已重新出现| D
+    G -->|仍不存在| H[Runtime missing 和 location review]
+    H --> I[用户手动 Relocate]
+    I --> J[用户确认后更新 Note Store]
+
+    C -->|Create| K[直接忽略]
+```
+
 - Change 只读检测文本内容或二进制 metadata hash。
-- Delete 只说明旧路径消失，应记录 `missing`。
-- Create 只说明新路径出现，不能单独证明它来自 Rename。
-- 根据相近 Delete 和 Create 推测 Rename 时，只记录 `possible rename`。
-- 用户确认前必须重新读取当前资源；忽略状态时不修改 Note Store。
+- Delete 延迟确认资源仍不存在后记录 session-only `missing`。
+- Create 直接忽略，不与 Delete 关联。
+- 外部 Rename/Move 不自动更新 Notes，由用户手动 Relocate。
+- 系统不保存候选新路径，也不自动修改 Note JSON 或 `index.json`。
 
 ## 当前实现边界
 
 - 文本和二进制 Watcher Change 已经只更新 Runtime State。
 - 文件和目录的 VS Code Rename/Move/Delete/Remove 已移除旧 Git-aware 延迟，通过 Resource Access Gate 后立即更新 Note Store 和 Runtime State。
-- 当前 Watcher 尚未监听 Create/Delete。
-- 下一步实现 Watcher 的 `missing` 和 `possible rename`。
+- Watcher Change 和 Delete 已接入 Runtime State，均不修改 Note Store。
+- VS Code Delete 在 `onWillDeleteFiles` 阶段写入短期标记，抑制随后到达的重复 Watcher Delete；目录标记同时覆盖其子文件事件。
+- Watcher Create 保持忽略，外部 Delete/Create 不做 Rename 或 Move 推测。
+- 待完成：Watcher Delete 的最终存在性检查，以及 missing 状态的 UI 立即刷新。
 
 总体持久化权限和 Runtime 生命周期见 [Runtime State 总体架构](./runtime-state-architecture.md)。

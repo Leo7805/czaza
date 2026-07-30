@@ -8,6 +8,7 @@ import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import type { SourceRelocationHistoryService } from "@vscode/services/noteRelocation";
 import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
+import type { ResourceEventSuppressionRegistry } from "@vscode/services/resourceEvents";
 import type { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
 
 /**
@@ -18,6 +19,7 @@ import type { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
  * @param notesProvider - Optional notes webview provider to refresh after stored changes.
  * @param runtimeNoteStateRegistry - Optional session registry synchronized after resource changes.
  * @param relocationHistory - Optional shared history invalidated by resource identity changes.
+ * @param resourceEventSuppression - Optional registry marking deterministic deletions.
  *
  * @example
  * registerNotesResourceEvents(context, notes);
@@ -28,8 +30,14 @@ export function registerNotesResourceEvents(
   notesProvider?: NotesViewProvider,
   runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
   relocationHistory?: SourceRelocationHistoryService,
+  resourceEventSuppression?: ResourceEventSuppressionRegistry,
 ): void {
   context.subscriptions.push(
+    vscode.workspace.onWillDeleteFiles((event) => {
+      for (const uri of event.files) {
+        resourceEventSuppression?.markDeleted(uri);
+      }
+    }),
     vscode.workspace.onDidRenameFiles((event) => {
       for (const file of event.files) {
         relocationHistory?.clear(file.oldUri.toString());

@@ -28,6 +28,7 @@ import {
   registerGitWorkspaceTransition,
 } from "./services/workspaceTransition";
 import { RuntimeNoteStateRegistry } from "./services/runtimeState";
+import { ResourceEventSuppressionRegistry } from "./services/resourceEvents";
 
 /**
  * Activates the CZaza VS Code extension.
@@ -46,6 +47,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const notes = new WorkspaceNoteStore();
   const runtimeNoteStateRegistry = new RuntimeNoteStateRegistry();
   const sourceRelocationHistory = new SourceRelocationHistoryService();
+  const resourceEventSuppression = new ResourceEventSuppressionRegistry();
+  context.subscriptions.push(resourceEventSuppression);
 
   // React-based notes panel provider for the new notes architecture.
   const notesProvider = new NotesViewProvider(
@@ -94,6 +97,7 @@ export function activate(context: vscode.ExtensionContext): void {
     workspaceTransitionGuard,
     runtimeNoteStateRegistry,
     sourceRelocationHistory,
+    resourceEventSuppression,
   );
   registerNotesResourceEvents(
     context,
@@ -101,6 +105,7 @@ export function activate(context: vscode.ExtensionContext): void {
     notesProvider,
     runtimeNoteStateRegistry,
     sourceRelocationHistory,
+    resourceEventSuppression,
   );
   void registerGitWorkspaceTransition(
     context,
