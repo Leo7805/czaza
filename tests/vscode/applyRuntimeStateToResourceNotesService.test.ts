@@ -29,8 +29,6 @@ describe("applyRuntimeStateToResourceNotes()", () => {
       sectionNotes: [
         {
           ...payload.sectionNotes[0],
-          startLine: 12,
-          endLine: 18,
           status: {
             content: "stale",
             anchor: "needsConfirmation",
@@ -43,7 +41,6 @@ describe("applyRuntimeStateToResourceNotes()", () => {
       ],
       lineNote: {
         ...payload.lineNote,
-        line: 14,
         status: {
           content: "stale",
           anchor: "needsConfirmation",

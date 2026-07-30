@@ -28,6 +28,9 @@ export type NavigatorNoteContent = {
   /** Current content and source-anchor status for this note. */
   status?: NoteStatus;
 
+  /** Session-only detected status when Runtime State overrides persistent status. */
+  runtimeStatus?: NoteStatus;
+
   /** ISO timestamp when this note was created. */
   createdAt?: string;
 

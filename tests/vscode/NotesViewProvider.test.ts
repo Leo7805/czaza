@@ -1541,6 +1541,59 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("routes Navigator Runtime stale through the hash-guarded confirmation service", async () => {
+    const uri = createUri("/tmp/current.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
+    const view = createWebviewView();
+
+    mocks.workspaceFolders.push(createWorkspaceFolder("/tmp"));
+    mocks.evaluateCzazaResourceAccess.mockReturnValue({
+      allowed: true,
+      relativePath: "current.ts",
+      root: { rootDirectory: "/tmp" },
+      settings: { outputDirectory: ".czaza" },
+    });
+    mocks.confirmRuntimeNoteStaleStatusService.mockResolvedValue({
+      kind: "confirmed",
+    });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "tmp",
+      currentFile: "current.ts",
+      files: [],
+      sections: [],
+      lines: [],
+    });
+    registry.setState(createRuntimeFileState("src/other.ts"));
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "clearNavigatorFileStaleStatus",
+      relativePath: "src/other.ts",
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.confirmRuntimeNoteStaleStatusService).toHaveBeenCalledOnce(),
+    );
+    expect(mocks.confirmRuntimeNoteStaleStatusService).toHaveBeenCalledWith({
+      uri: expect.objectContaining({ fsPath: "/tmp/src/other.ts" }),
+      notes: {},
+      registry,
+      target: { level: "file" },
+    });
+    expect(mocks.clearNoteStaleStatusService).not.toHaveBeenCalled();
+    provider.dispose();
+  });
+
   it("shows missing-source Clear stale failures in the CZaza Notice UI", async () => {
     const workspaceRoot = "/Users/leo/Projects/DocuMind";
     const uri = createUri(`${workspaceRoot}/current.ts`);
@@ -2171,6 +2224,60 @@ describe("NotesViewProvider", () => {
     expect(message?.payload.fileNote.status).toEqual({
       content: "stale",
       anchor: "confirmed",
+    });
+    provider.dispose();
+  });
+
+  it("refreshes Navigator status for another resource in the same scope", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
+    const view = createWebviewView();
+
+    mockAllowedResource("src/index.ts");
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "workspace",
+      currentFile: "src/index.ts",
+      files: [
+        {
+          name: "other.ts",
+          relativePath: "src/other.ts",
+          resourceKind: "file",
+          preview: "Other file.",
+          status: { content: "current", anchor: "confirmed" },
+        },
+      ],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    provider.postViewMode("navigator");
+    await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
+    mocks.postMessage.mockClear();
+    registry.setState(createRuntimeFileState("src/other.ts"));
+
+    await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledTimes(2));
+    expect(mocks.postMessage).toHaveBeenCalledWith({
+      type: "navigatorNotes",
+      payload: expect.objectContaining({
+        files: [
+          expect.objectContaining({
+            relativePath: "src/other.ts",
+            status: { content: "stale", anchor: "confirmed" },
+            runtimeStatus: { content: "stale", anchor: "confirmed" },
+          }),
+        ],
+      }),
     });
     provider.dispose();
   });

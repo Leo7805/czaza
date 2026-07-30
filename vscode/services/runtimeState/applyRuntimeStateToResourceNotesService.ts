@@ -57,12 +57,6 @@ export function applyRuntimeStateToResourceNotes(
       ...section,
       status: { ...change.status },
       runtimeStatus: { ...change.status },
-      ...(change.range
-        ? {
-            startLine: change.range.startLine,
-            endLine: change.range.endLine,
-          }
-        : {}),
     };
   });
   const lineChange = payload.lineNote
@@ -74,7 +68,6 @@ export function applyRuntimeStateToResourceNotes(
           ...payload.lineNote,
           status: { ...lineChange.status },
           runtimeStatus: { ...lineChange.status },
-          ...(lineChange.line ? { line: lineChange.line } : {}),
         }
       : payload.lineNote;
 

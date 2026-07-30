@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.6.0
+documentVersion: 1.7.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -28,7 +28,7 @@ flowchart LR
 
 - 阶段一已完成：快速 HEAD 切换、内容事件及 rename/delete 事件爆发已有回归测试基线。
 - 阶段二已完成：`RuntimeNoteStateRegistry` 和目标级 Runtime State 类型已经实现并通过纯逻辑测试。
-- 阶段三进行中：单文件只读检测、Registry 协调入口、按打开文件触发的被动检查、File Notes 详情页覆盖，以及纯 stale 的 Hash 复核确认已经实现；实时事件归一化、Navigator 和 location review 确认尚未接入。
+- 阶段三进行中：单文件只读检测、Registry 协调入口、按打开文件触发的被动检查、Detail 与 Navigator 状态覆盖，以及纯 stale 的 Hash 复核确认已经实现；实时事件归一化和 location review 确认尚未接入。
 - 阶段四至阶段六尚未实施，当前事件入口和 Git-aware 防护保持不变。
 
 ## 阶段说明

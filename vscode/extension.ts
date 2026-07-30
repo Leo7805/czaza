@@ -88,6 +88,7 @@ export function activate(context: vscode.ExtensionContext): void {
     notes,
     notesProvider,
     workspaceTransitionGuard,
+    runtimeNoteStateRegistry,
   );
   registerNotesResourceEvents(
     context,

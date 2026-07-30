@@ -38,7 +38,7 @@ describe("applySourceChangeBatch()", () => {
     expect(result.events.filter((event) => event.type === "fileNoteMarkedStale")).toHaveLength(1);
   });
 
-  it("combines same-position insertions before relocating anchors", () => {
+  it("combines same-position insertions without requiring location review", () => {
     const result = applySourceChangeBatch({
       sourceFile: createStoredSourceFile(),
       batch: {
@@ -47,7 +47,7 @@ describe("applySourceChangeBatch()", () => {
           createSplice({ insertedLineCount: 1, lineDelta: 1 }),
           createSplice({ insertedLineCount: 2, lineDelta: 2 }),
         ],
-        requiresConfirmation: true,
+        requiresConfirmation: false,
       },
       currentSourceText: "one\ntwo\nthree\nexport const value = 1;\n",
       now,
@@ -58,14 +58,14 @@ describe("applySourceChangeBatch()", () => {
       endLine: 4,
     });
     expect(result.sourceFile.lineNotes[0]?.line).toBe(4);
-    expect(result.sourceFile.sectionNotes[0]?.status.anchor).toBe("needsConfirmation");
-    expect(result.sourceFile.lineNotes[0]?.status.anchor).toBe("needsConfirmation");
+    expect(result.sourceFile.sectionNotes[0]?.status.anchor).toBe("confirmed");
+    expect(result.sourceFile.lineNotes[0]?.status.anchor).toBe("confirmed");
     expect(
       result.events.filter((event) => event.type === "sectionNoteNeedsConfirmation"),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     expect(
       result.events.filter((event) => event.type === "lineNoteNeedsConfirmation"),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 
   it("rejects an unsupported batch without changing Notes", () => {

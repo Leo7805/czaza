@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.3.0
+documentVersion: 1.4.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -88,7 +88,8 @@ flowchart TD
 - 用户确认或有效 Candidate 写入成功后，才清除对应 Runtime State。
 - Note Store 写入失败时保留 Runtime State，以便重试，不得把 UI 状态误报为已处理。
 - Clear stale 只能确认 `anchor=confirmed` 且建议位置未变化的 Runtime State；需要位置确认的目标必须继续走 relocate。
+- Runtime State 中的候选范围和行号不得直接覆盖 Detail 或 Navigator 的持久化位置；它们只能作为 relocate 的辅助输入。
 
 ## 与当前实现的关系
 
-当前 File Notes 详情页已经展示 Runtime State，并允许用户在当前 Hash 匹配时确认纯 stale 内容；成功后重新检测并协调 Registry。Navigator、location review 确认、Candidate Persistence Gate 和实时事件迁移仍未实现，Git 相关 Gate 继续用于降低旧事件路径在分支切换期间的误写风险。
+当前 File Notes 详情页和 Navigator 已经展示 Runtime State，并允许用户在当前 Hash 匹配时确认纯 stale 内容；成功后重新检测并协调 Registry。Location review 确认、Candidate Persistence Gate 和实时事件迁移仍未实现，Git 相关 Gate 继续用于降低旧事件路径在分支切换期间的误写风险。

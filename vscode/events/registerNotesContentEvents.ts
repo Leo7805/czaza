@@ -26,10 +26,13 @@ import {
   applySourceChangeToNotesService,
   classifySourceChangeBatch,
 } from "@vscode/services/noteRelocation";
+import {
+  refreshRuntimeNoteStateService,
+  type RuntimeNoteStateRegistry,
+} from "@vscode/services/runtimeState";
 import * as vscode from "vscode";
 
 const EXTERNAL_CHANGE_DEBOUNCE_MS = 800;
-const NOTES_REFRESH_DEBOUNCE_MS = 500;
 const SAVED_URI_SUPPRESS_MS = 1500;
 
 type PendingDocumentChangeState = {
@@ -52,6 +55,7 @@ type TextDocumentSnapshot = {
  * @param notes - Shared workspace note store.
  * @param notesProvider - Optional notes webview provider to refresh after stored changes.
  * @param workspaceTransitionGuard - Optional Git transition state that suppresses checkout writes.
+ * @param runtimeNoteStateRegistry - Optional session registry reconciled after deterministic writes.
  * @returns Nothing.
  *
  * @example
@@ -62,12 +66,12 @@ export function registerNotesContentEvents(
   notes: WorkspaceNoteStore,
   notesProvider?: NotesViewProvider,
   workspaceTransitionGuard?: GitWorkspaceTransitionGuard,
+  runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
 ): void {
   const sourceChangeGate = new GitAwareSourceChangeGate(
     EXTERNAL_CHANGE_DEBOUNCE_MS,
     workspaceTransitionGuard,
   );
-  const notesRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
   const pendingDocumentChanges = new Map<string, PendingDocumentChangeState>();
   const documentChangeQueues: DocumentChangeQueue = new Map();
   const recentlySavedTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -75,7 +79,6 @@ export function registerNotesContentEvents(
   const transitionDisposable = workspaceTransitionGuard?.onDidStartTransition(
     () => {
       sourceChangeGate.cancelPending();
-      clearTimers(notesRefreshTimers);
       clearTimers(recentlySavedTimers);
       pendingDocumentChanges.clear();
       documentChangeQueues.clear();
@@ -89,10 +92,10 @@ export function registerNotesContentEvents(
         event,
         notesProvider,
         pendingDocumentChanges,
-        notesRefreshTimers,
         documentChangeQueues,
         workspaceTransitionGuard,
         sourceChangeGate,
+        runtimeNoteStateRegistry,
       );
     }),
     vscode.workspace.onDidSaveTextDocument((document) => {
@@ -122,7 +125,6 @@ export function registerNotesContentEvents(
     {
       dispose: () => {
         sourceChangeGate.dispose();
-        clearTimers(notesRefreshTimers);
         clearTimers(recentlySavedTimers);
         pendingDocumentChanges.clear();
         documentChangeQueues.clear();
@@ -138,9 +140,9 @@ export function registerNotesContentEvents(
  * @param event - VS Code text document change event.
  * @param notesProvider - Optional Notes view refreshed after persistence.
  * @param pendingDocumentChanges - Per-document save fallback state.
- * @param notesRefreshTimers - Per-document refresh debounce timers.
  * @param documentChangeQueues - Per-document serialized update queues.
  * @param sourceChangeGate - Git-aware revision gate for automatic persistence.
+ * @param runtimeNoteStateRegistry - Optional session registry reconciled after persistence.
  * @returns Promise resolved after the event has been classified and queued.
  */
 async function handleTextDocumentChange(
@@ -148,10 +150,10 @@ async function handleTextDocumentChange(
   event: vscode.TextDocumentChangeEvent,
   notesProvider: NotesViewProvider | undefined,
   pendingDocumentChanges: Map<string, PendingDocumentChangeState>,
-  notesRefreshTimers: Map<string, ReturnType<typeof setTimeout>>,
   documentChangeQueues: DocumentChangeQueue,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
   sourceChangeGate: GitAwareSourceChangeGate,
+  runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
 ): Promise<void> {
   try {
     if (workspaceTransitionGuard?.isTransitioning()) {
@@ -177,13 +179,8 @@ async function handleTextDocumentChange(
 
     const document = createTextDocumentSnapshot(event.document);
     const token = sourceChangeGate.captureToken();
-    const persistenceConfirmation = sourceChangeGate.confirmPersistence(token);
 
     enqueueDocumentChange(documentChangeQueues, key, async () => {
-      if (!(await persistenceConfirmation)) {
-        return;
-      }
-
       if (workspaceTransitionGuard?.isTransitioning()) {
         workspaceTransitionGuard.touchTransition();
         return;
@@ -202,10 +199,54 @@ async function handleTextDocumentChange(
       }
 
       state.hasAppliedDeterministicChange = true;
-      scheduleNotesRefresh(document.uri, notesProvider, notesRefreshTimers);
+      await reconcileRuntimeStateAfterDeterministicChange(
+        document,
+        notes,
+        runtimeNoteStateRegistry,
+        () => sourceChangeGate.canPersist(token),
+      );
+      await notesProvider?.refreshCurrentNotes(document.uri);
     });
   } catch (error) {
     console.error("Failed to apply deterministic CZaza note updates after a text change.", error);
+  }
+}
+
+/**
+ * Re-detects one resource after deterministic persistence so obsolete Runtime State is removed.
+ *
+ * Runtime reconciliation is best-effort because a transient read failure must not
+ * invalidate an already persisted deterministic relocation.
+ *
+ * @param document - Immutable post-change source snapshot.
+ * @param notes - Shared persistent Note Store reader.
+ * @param registry - Optional session-only Runtime Note State Registry.
+ * @param canApply - Final revision check for the asynchronous registry mutation.
+ * @returns Promise resolved after reconciliation or a handled failure.
+ */
+async function reconcileRuntimeStateAfterDeterministicChange(
+  document: TextDocumentSnapshot,
+  notes: WorkspaceNoteStore,
+  registry: RuntimeNoteStateRegistry | undefined,
+  canApply: () => boolean,
+): Promise<void> {
+  if (!registry) {
+    return;
+  }
+
+  try {
+    await refreshRuntimeNoteStateService({
+      document,
+      notes,
+      registry,
+      now: new Date().toISOString(),
+      canApply,
+    });
+  } catch (error) {
+    console.error(
+      "Failed to reconcile CZaza Runtime Note State after deterministic relocation.",
+      error,
+    );
   }
 }
 
@@ -362,31 +403,6 @@ function createTextDocumentSnapshot(document: vscode.TextDocument): TextDocument
     languageId: document.languageId,
     getText: () => text,
   };
-}
-
-function scheduleNotesRefresh(
-  uri: vscode.Uri,
-  notesProvider: NotesViewProvider | undefined,
-  notesRefreshTimers: Map<string, ReturnType<typeof setTimeout>>,
-): void {
-  if (!notesProvider) {
-    return;
-  }
-
-  const key = uri.toString();
-  const previousTimer = notesRefreshTimers.get(key);
-
-  if (previousTimer) {
-    clearTimeout(previousTimer);
-  }
-
-  notesRefreshTimers.set(
-    key,
-    setTimeout(() => {
-      notesRefreshTimers.delete(key);
-      void notesProvider.refreshCurrentNotes(uri);
-    }, NOTES_REFRESH_DEBOUNCE_MS),
-  );
 }
 
 /**

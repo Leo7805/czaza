@@ -86,6 +86,7 @@ vi.mock("vscode", () => ({
 import { registerNotesContentEvents } from "@vscode/events";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
+import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
 import { GitWorkspaceTransitionGuard } from "@vscode/services/workspaceTransition";
 
 describe("registerNotesContentEvents()", () => {
@@ -274,7 +275,7 @@ describe("registerNotesContentEvents()", () => {
         },
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
-    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
@@ -345,7 +346,7 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).toHaveBeenCalledWith(
@@ -497,7 +498,7 @@ describe("registerNotesContentEvents()", () => {
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
 
-  it("confirms deterministic text changes before saving and then refreshes notes", async () => {
+  it("persists and refreshes deterministic text changes without a debounce", async () => {
     vi.useFakeTimers();
 
     const workspaceRoot = await createTempWorkspaceRoot("deterministic");
@@ -523,16 +524,8 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await vi.advanceTimersByTimeAsync(799);
-    expect(notes.saveSourceFile).not.toHaveBeenCalled();
-    expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(0);
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
-    expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(500);
-
     expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(document.uri);
     expect(notes.saveSourceFile).toHaveBeenCalledWith(
       workspaceRoot,
@@ -614,7 +607,7 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(notes.saveSourceFile).toHaveBeenCalledTimes(2);
     expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
@@ -644,13 +637,33 @@ describe("registerNotesContentEvents()", () => {
     const nextText = "const first = 1;\nconst second = 2;\nexport const value = 1;\n";
     const notes = createNotes(createStoredSourceFile(previousText));
     const notesProvider = createNotesProvider();
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
     const documentPath = path.join(workspaceRoot, "src/index.ts");
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    runtimeRegistry.setState({
+      workspaceRoot,
+      outputDirectory: ".caca",
+      relativePath: "src/index.ts",
+      currentSourceHash: createSourceHash(previousText),
+      issues: ["locationReview"],
+      reason: "anchorChanged",
+      observedAt: "2026-07-12T00:00:00.000Z",
+      targetChanges: [
+        {
+          kind: "section",
+          noteId: "section:1",
+          status: { content: "stale", anchor: "needsConfirmation" },
+          range: { startLine: 2, endLine: 2 },
+        },
+      ],
+    });
     registerNotesContentEvents(
       createExtensionContext(),
       notes.value,
       notesProvider.value,
+      undefined,
+      runtimeRegistry,
     );
     mocks.textDocumentChangeListeners[0]?.({
       document: createDocument(documentPath, nextText),
@@ -676,7 +689,7 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
@@ -690,16 +703,32 @@ describe("registerNotesContentEvents()", () => {
               startLine: 3,
               endLine: 3,
             },
+            status: {
+              content: "current",
+              anchor: "confirmed",
+            },
+          }),
+        ],
+        lineNotes: [
+          expect.objectContaining({
+            line: 3,
+            status: {
+              content: "current",
+              anchor: "confirmed",
+            },
           }),
         ],
       }),
       expect.any(String),
       { canPersist: expect.any(Function) },
     );
-    expect(notesProvider.refreshCurrentNotes).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(500);
-
+    expect(
+      runtimeRegistry.getState({
+        workspaceRoot,
+        outputDirectory: ".caca",
+        relativePath: "src/index.ts",
+      }),
+    ).toBeUndefined();
     expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledOnce();
   });
 
@@ -727,7 +756,7 @@ describe("registerNotesContentEvents()", () => {
         },
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
-    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
     mocks.saveListeners[0]?.(document);
     await vi.advanceTimersByTimeAsync(0);
 
@@ -759,7 +788,7 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
     mocks.saveListeners[0]?.(document);
-    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).toHaveBeenCalledWith(
@@ -781,7 +810,7 @@ describe("registerNotesContentEvents()", () => {
     );
   });
 
-  it("cancels a dirty document change when HEAD changes during confirmation", async () => {
+  it("persists a dirty deterministic change before a later HEAD transition", async () => {
     vi.useFakeTimers();
     const workspaceRoot = await createTempWorkspaceRoot("pre-head-change");
     const previousText = "export const value = 1;\n";
@@ -811,11 +840,12 @@ describe("registerNotesContentEvents()", () => {
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
 
-    await vi.advanceTimersByTimeAsync(799);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+
     guard.beginTransition();
     await vi.advanceTimersByTimeAsync(101);
 
-    expect(notes.saveSourceFile).not.toHaveBeenCalled();
     expect(guard.isTransitioning()).toBe(false);
   });
 

@@ -1,12 +1,12 @@
 {
   "source": {
-    "sourceHash": "sha256:17be7a1cffc2063c555fb173cc81acd3a545432d7929485dd64577543e9f0cbc",
+    "sourceHash": "sha256:4cfdd2a7982ff13de63270d8680c2289b06d503f8fd0d4299780d23de0c46165",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-29T11:45:19.027Z",
-    "updatedAt": "2026-07-30T00:41:02.936Z"
+    "updatedAt": "2026-07-30T00:54:36.328Z"
   },
   "fileNote": {
     "userNote": "Notes Panel 统一执行 Gate。\nloadResourceNotes：外部资源立即进入不可编辑状态。\nshowOutsideRootResource：清除旧 Payload、高亮、选择和 relocate session。\ncanOperateOnCurrentResource：拦截保存、生成、删除和 relocate 等 WebView 消息。",

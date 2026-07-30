@@ -4,6 +4,7 @@
 
 export { RuntimeNoteStateRegistry } from "./RuntimeNoteStateRegistry";
 export { applyRuntimeStateToResourceNotes } from "./applyRuntimeStateToResourceNotesService";
+export { applyRuntimeStateToNavigatorNotes } from "./applyRuntimeStateToNavigatorNotesService";
 export {
   confirmRuntimeNoteStaleStatusService,
   type ConfirmRuntimeNoteStaleStatusInput,

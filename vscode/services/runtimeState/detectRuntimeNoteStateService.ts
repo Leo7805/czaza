@@ -8,6 +8,7 @@ import {
   detectFileNotes,
   type FileNotesDetectionReport,
 } from "@shared/services/notes/noteDetectionService";
+import { createSourceHash } from "@shared/utils/hashUtils";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import {
   evaluateCzazaResourceAccess,
@@ -110,7 +111,19 @@ export async function detectRuntimeNoteStateService(
     };
   }
 
-  const report = detectFileNotes(input.document.getText(), sourceFile, {
+  const sourceText = input.document.getText();
+  const currentSourceHash = createSourceHash(sourceText);
+
+  if (sourceFile.source.sourceHash === currentSourceHash) {
+    return {
+      kind: "current",
+      relativePath: access.relativePath,
+      currentSourceHash,
+      coordinates,
+    };
+  }
+
+  const report = detectFileNotes(sourceText, sourceFile, {
     programmingLanguage: input.document.languageId,
   });
   const targetChanges = createTargetChanges(sourceFile, report);

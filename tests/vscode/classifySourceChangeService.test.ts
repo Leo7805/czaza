@@ -194,7 +194,7 @@ describe("classifySourceChangeBatch()", () => {
     expect(result.requiresConfirmation).toBe(false);
   });
 
-  it("marks same-position insertions as requiring confirmation", () => {
+  it("keeps same-position insertions deterministic", () => {
     const result = classifySourceChangeBatch({
       contentChanges: [
         createChange({
@@ -218,7 +218,7 @@ describe("classifySourceChangeBatch()", () => {
 
     expect(result).toMatchObject({
       kind: "splices",
-      requiresConfirmation: true,
+      requiresConfirmation: false,
     });
   });
 

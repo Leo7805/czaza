@@ -11,7 +11,7 @@ Document and then implement the planned runtime-state source-change architecture
 - The Skill reads `config.json`, resolves its Architecture Notes directory relative to the active project root, and uses its configured content language.
 - CZaza no longer initializes or manages project-level Architecture Notes.
 - Existing user-generated `.czaza/architecture-notes/` directories remain user data and must not be deleted.
-- Runtime State Registry, read-only detection, passive checks, File Notes overlays, and hash-guarded confirmation for pure stale content are implemented.
+- Runtime State Registry, read-only detection, passive checks, Detail/Navigator status overlays, and hash-guarded confirmation for pure stale content are implemented.
 - The first proposed Runtime State architecture document now lives at `.czaza/architecture-notes/diagrams/runtime-state-source-change.md`.
 - The proposed persistence gate document lives at `.czaza/architecture-notes/diagrams/source-change-persistence-gate.md`.
 
@@ -26,7 +26,7 @@ Document and then implement the planned runtime-state source-change architecture
 
 ## Planned Runtime State Architecture
 
-This design is being implemented incrementally; realtime event normalization, Navigator overlays, location-review confirmation, Candidate Persistence Gate, and Git-aware code removal remain pending.
+This design is being implemented incrementally; realtime event normalization, location-review confirmation, Candidate Persistence Gate, and Git-aware code removal remain pending.
 
 - Decouple source-change handling from Git concepts such as branches, HEAD revisions, checkout, merge, restore, and transition timing.
 - Use three detection sources: precise VS Code document events, file-system watcher events, and passive consistency checks.
@@ -37,6 +37,7 @@ This design is being implemented incrementally; realtime event normalization, Na
 - Re-read the source and verify its current hash immediately before persistence.
 - Treat ambiguous external changes as read-only detection; they must not automatically update persisted Notes.
 - Keep derived states such as stale content, location review, missing source, or possible rename in memory rather than in tracked Note JSON or `index.json`.
+- Keep proposed Runtime locations out of Detail and Navigator location fields until relocate is explicitly confirmed.
 - Store only affected files with non-current runtime state, including the file path, current source hash, status, and optional reason.
 - Use the runtime source hash to confirm that the file has not changed again before applying a user-approved update.
 - Recompute runtime state after restart through startup, first-open, Navigator, or explicit consistency checks; do not rely on a continuous full-workspace scan.
@@ -55,4 +56,4 @@ This design is being implemented incrementally; realtime event normalization, Na
 
 ## Next Step
 
-Connect Runtime State overlays to Navigator after confirming that its stale actions route through the hash-guarded confirmation path.
+Design the location-review confirmation path without weakening automatic persistence for trusted deterministic edits.

@@ -3,8 +3,6 @@
  */
 
 import type { NoteStatus } from "@shared/models/domain/common";
-import type { StoredLineNote } from "@shared/models/store/line";
-import type { StoredSectionNote } from "@shared/models/store/section";
 import type { ProgrammingLanguage, StoredSourceFile } from "@shared/models/store/sourceFile";
 import {
   updateProgrammingLanguage,
@@ -48,12 +46,6 @@ export type ApplySourceChangeBatchResult = {
   >["reason"];
 };
 
-/** One application splice and whether it combines ambiguous same-position insertions. */
-type BatchApplicationSplice = {
-  splice: SourceChangeSplice;
-  requiresConfirmation: boolean;
-};
-
 /**
  * Applies an ordered splice batch and updates file metadata exactly once.
  *
@@ -75,17 +67,10 @@ export function applySourceChangeBatch(
   let next = input.sourceFile;
   const events: DeterministicRelocationEvent[] = [];
 
-  for (const item of combineSamePositionInsertions(input.batch.splices)) {
-    const result = applySourceSpliceToAnchors(next, item.splice, input.now);
-    const confirmedResult = item.requiresConfirmation
-      ? requireConfirmationForAffectedAnchors(
-          result.sourceFile,
-          result.events,
-          input.now,
-        )
-      : result;
-    next = confirmedResult.sourceFile;
-    events.push(...confirmedResult.events);
+  for (const splice of combineSamePositionInsertions(input.batch.splices)) {
+    const result = applySourceSpliceToAnchors(next, splice, input.now);
+    next = result.sourceFile;
+    events.push(...result.events);
   }
 
   next = updateSourceHash(next, createSourceHash(input.currentSourceText));
@@ -111,106 +96,22 @@ export function applySourceChangeBatch(
  */
 function combineSamePositionInsertions(
   splices: readonly SourceChangeSplice[],
-): BatchApplicationSplice[] {
-  const combined: BatchApplicationSplice[] = [];
+): SourceChangeSplice[] {
+  const combined: SourceChangeSplice[] = [];
 
   for (const splice of splices) {
     const previous = combined.at(-1);
 
-    if (previous && areSamePositionInsertions(previous.splice, splice)) {
-      previous.splice.insertedLineCount += splice.insertedLineCount;
-      previous.splice.lineDelta += splice.lineDelta;
-      previous.requiresConfirmation = true;
+    if (previous && areSamePositionInsertions(previous, splice)) {
+      previous.insertedLineCount += splice.insertedLineCount;
+      previous.lineDelta += splice.lineDelta;
       continue;
     }
 
-    combined.push({
-      splice: { ...splice },
-      requiresConfirmation: false,
-    });
+    combined.push({ ...splice });
   }
 
   return combined;
-}
-
-/**
- * Marks anchors touched by an ambiguous combined insertion for location review.
- *
- * @param sourceFile - Source bundle after applying the combined insertion.
- * @param events - Anchor events emitted by the combined insertion.
- * @param now - Timestamp assigned to affected Notes.
- * @returns Source bundle and normalized confirmation events.
- */
-function requireConfirmationForAffectedAnchors(
-  sourceFile: StoredSourceFile,
-  events: readonly DeterministicRelocationEvent[],
-  now: string,
-): {
-  sourceFile: StoredSourceFile;
-  events: DeterministicRelocationEvent[];
-} {
-  const sectionIds = new Set(
-    events.flatMap((event) => ("sectionId" in event ? [event.sectionId] : [])),
-  );
-  const lineIds = new Set(
-    events.flatMap((event) => ("lineId" in event ? [event.lineId] : [])),
-  );
-
-  return {
-    sourceFile: {
-      ...sourceFile,
-      sectionNotes: sourceFile.sectionNotes.map((note) =>
-        sectionIds.has(note.id) ? requireSectionConfirmation(note, now) : note,
-      ),
-      lineNotes: sourceFile.lineNotes.map((note) =>
-        lineIds.has(note.id) ? requireLineConfirmation(note, now) : note,
-      ),
-    },
-    events: events.map((event) => {
-      if ("sectionId" in event) {
-        return { type: "sectionNoteNeedsConfirmation", sectionId: event.sectionId };
-      }
-
-      if ("lineId" in event) {
-        return { type: "lineNoteNeedsConfirmation", lineId: event.lineId };
-      }
-
-      return event;
-    }),
-  };
-}
-
-/**
- * Marks one affected Section Note as requiring anchor confirmation.
- *
- * @param note - Section Note affected by an ambiguous insertion.
- * @param now - Timestamp assigned to the Note.
- * @returns Section Note requiring location review.
- */
-function requireSectionConfirmation(
-  note: StoredSectionNote,
-  now: string,
-): StoredSectionNote {
-  return {
-    ...note,
-    status: { content: note.status.content, anchor: "needsConfirmation" },
-    updatedAt: now,
-  };
-}
-
-/**
- * Marks one affected Line Note as requiring anchor confirmation.
- *
- * @param note - Line Note affected by an ambiguous insertion.
- * @param now - Timestamp assigned to the Note.
- * @returns Line Note requiring location review.
- */
-function requireLineConfirmation(note: StoredLineNote, now: string): StoredLineNote {
-  return {
-    ...note,
-    status: { content: note.status.content, anchor: "needsConfirmation" },
-    updatedAt: now,
-  };
 }
 
 /**

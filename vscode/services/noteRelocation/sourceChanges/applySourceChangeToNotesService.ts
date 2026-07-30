@@ -133,9 +133,10 @@ export async function applySourceChangeToNotesService(
     };
   }
 
+  const normalizedBatch = normalizeSourceChangeBatch(change);
   const applyResult = applySourceChangeBatch({
     sourceFile,
-    batch: normalizeSourceChangeBatch(change),
+    batch: normalizedBatch,
     currentSourceText: document.getText(),
     programmingLanguage: document.languageId,
     now,
@@ -161,6 +162,26 @@ export async function applySourceChangeToNotesService(
     applyResult.sourceFile,
     now,
     { canPersist },
+  );
+
+  console.log(
+    "[CZaza relocation] Persisted deterministic source change",
+    JSON.stringify({
+      relativePath,
+      splices: normalizedBatch.kind === "splices" ? normalizedBatch.splices : [],
+      before: {
+        sections: sourceFile.sectionNotes.map(({ id, range }) => ({ id, range })),
+        lines: sourceFile.lineNotes.map(({ id, line }) => ({ id, line })),
+      },
+      after: {
+        sections: applyResult.sourceFile.sectionNotes.map(({ id, range }) => ({
+          id,
+          range,
+        })),
+        lines: applyResult.sourceFile.lineNotes.map(({ id, line }) => ({ id, line })),
+      },
+      events: applyResult.events,
+    }),
   );
 
   return {

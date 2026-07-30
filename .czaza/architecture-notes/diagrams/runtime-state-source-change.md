@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.8.0
+documentVersion: 1.9.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -95,8 +95,10 @@ flowchart TD
 
 当前实现已经创建共享的 `RuntimeNoteStateRegistry`，并在文档首次打开、切换为活动编辑器或内容 Hash 改变时执行被动一致性检查。检查只读取 Note Store 并更新内存状态，不扫描整个工作区，也不持久化检测结果。
 
-File Notes 详情页已经将匹配资源的 Runtime State 覆盖到 File、Section 和 Line Note 的状态及建议位置，并只在当前可见资源的 Registry 状态变化时刷新。纯 stale 且位置未变化的目标可以由用户确认；确认前会重新核对当前 Hash，Hash 过期时只重新检测而不写盘。`location review` 不得由 Clear stale 隐式确认。
+File Notes 详情页和 Navigator 已经将匹配资源的 Runtime State 覆盖到 File、Section 和 Line Note 的状态。Runtime State 中的候选 Section 范围和 Line 行号不会在确认前覆盖正式 Notes 的可见位置，只保留给后续 relocate 流程使用。
 
-Navigator、location review 确认、实时 VS Code 文档事件和文件系统 Watcher 尚未迁移；实时事件仍使用 `GitWorkspaceTransitionGuard`、`GitAwareSourceChangeGate` 和 Git HEAD 监听来延迟或取消自动写入。在这些路径完成迁移和验证前，不应删除现有 Git 防护。
+纯 stale 且位置未变化的目标可以由用户从 Detail 或 Navigator 确认；确认前会重新核对当前 Hash，Hash 过期时只重新检测而不写盘。`location review` 不得由 Clear stale 隐式确认。
+
+Location review 确认、实时 VS Code 文档事件和文件系统 Watcher 尚未迁移；实时事件仍使用 `GitWorkspaceTransitionGuard`、`GitAwareSourceChangeGate` 和 Git HEAD 监听来延迟或取消自动写入。在这些路径完成迁移和验证前，不应删除现有 Git 防护。
 
 检测结果进入内存或磁盘的具体边界见 [Runtime State 与 Note Store 持久化边界](./runtime-state-persistence-boundary.md)。

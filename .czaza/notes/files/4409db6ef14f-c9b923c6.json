@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:6b9b38972d43f21d62e936bce54edf54c61ad641db3bda71fe1d4dfdaa5eb655",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescriptreact"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T01:02:16.821Z",
+    "updatedAt": "2026-07-30T01:02:16.821Z"
+  },
+  "fileNote": {
+    "userNote": "根据 Runtime 状态控制菜单。\nFile、Section、Line context menu：location review 的 Clear stale 显示但禁用。\n批量 Clear all stale：只收集当前可安全确认的项目。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

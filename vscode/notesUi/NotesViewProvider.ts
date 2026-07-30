@@ -49,6 +49,7 @@ import {
   relocateSectionNoteService,
 } from "@vscode/services/noteRelocation";
 import {
+  applyRuntimeStateToNavigatorNotes,
   applyRuntimeStateToResourceNotes,
   confirmRuntimeNoteStaleStatusService,
   type RuntimeNoteStateChange,
@@ -346,13 +347,21 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     ) ?? { dispose() {} };
     this.runtimeNoteStateListener = runtimeNoteStateRegistry?.onDidChange(
       (change) => {
-        if (!this.isRuntimeStateChangeForCurrentResource(change)) {
+        if (this.isRuntimeStateChangeForCurrentResource(change)) {
+          void this.refreshCurrentNotes().catch((error: unknown) => {
+            console.error("Failed to refresh visible CZaza Runtime Note State.", error);
+          });
           return;
         }
 
-        void this.refreshCurrentNotes().catch((error: unknown) => {
-          console.error("Failed to refresh visible CZaza Runtime Note State.", error);
-        });
+        if (
+          this.viewMode === "navigator" &&
+          this.isRuntimeStateChangeForCurrentScope(change)
+        ) {
+          void this.loadNavigatorNotes().catch((error: unknown) => {
+            console.error("Failed to refresh CZaza Navigator Runtime State.", error);
+          });
+        }
       },
     ) ?? { dispose() {} };
   }
@@ -852,6 +861,44 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   /**
+   * Reports whether a Registry mutation affects the active Navigator scope.
+   *
+   * @param change - Runtime Registry mutation.
+   * @returns True for any resource in the current workspace Note Store scope.
+   */
+  private isRuntimeStateChangeForCurrentScope(
+    change: RuntimeNoteStateChange,
+  ): boolean {
+    if (!this.currentResourceUri) {
+      return false;
+    }
+
+    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
+
+    if (!access.allowed) {
+      return false;
+    }
+
+    const matches = (scope: {
+      workspaceRoot: string;
+      outputDirectory: string;
+    }): boolean =>
+      path.resolve(scope.workspaceRoot) === path.resolve(access.root.rootDirectory) &&
+      scope.outputDirectory === access.settings.outputDirectory;
+
+    switch (change.kind) {
+      case "set":
+        return matches(change.state);
+      case "delete":
+        return matches(change.previousState);
+      case "move":
+        return matches(change.state) || matches(change.previousState);
+      case "clear":
+        return matches(change.scope);
+    }
+  }
+
+  /**
    * Replaces stale editable state when the selected resource fails the shared access Gate.
    *
    * @param uri - Rejected resource that should become the current non-editable context.
@@ -945,12 +992,25 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           ? getActiveLine(this.currentResourceUri)
           : undefined;
 
-    this.currentNavigatorPayload = await getNavigatorNotes({
+    const payload = await getNavigatorNotes({
       uri: this.currentResourceUri,
       notes: this.notes,
       selectedSectionId: this.selectedSectionId,
       activeLine,
     });
+    const access = this.currentResourceUri
+      ? evaluateCzazaResourceAccess(this.currentResourceUri)
+      : undefined;
+    this.currentNavigatorPayload =
+      access?.allowed && this.runtimeNoteStateRegistry
+        ? applyRuntimeStateToNavigatorNotes(
+            payload,
+            this.runtimeNoteStateRegistry.listStates({
+              workspaceRoot: access.root.rootDirectory,
+              outputDirectory: access.settings.outputDirectory,
+            }),
+          )
+        : payload;
     await this.postCurrentNavigatorNotes();
   }
 
@@ -1396,23 +1456,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 	    const resourceKey = uri.toString();
 
 	    try {
-        const runtimeResult = this.runtimeNoteStateRegistry
-          ? await confirmRuntimeNoteStaleStatusService({
-              uri,
-              notes: this.notes,
-              registry: this.runtimeNoteStateRegistry,
-              target,
-            })
-          : { kind: "notRuntime" as const };
-        const changed =
-          runtimeResult.kind === "confirmed" ||
-          (
-            runtimeResult.kind === "notRuntime" &&
-            await clearNoteStaleStatusService({ uri, notes: this.notes, target })
-          );
+        const changed = await this.clearStaleStatusForResource(uri, target);
 
 	      if (
-          (changed || runtimeResult.kind === "outdated") &&
+          changed &&
           this.currentResourceUri?.toString() === resourceKey
         ) {
 	        await this.loadResourceNotes(uri, false, getActiveLine(uri));
@@ -1435,11 +1482,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       const { rootDirectory } = resolveCzazaRootDirectory(currentUri);
       const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
-      const changed = await clearNoteStaleStatusService({
-        uri: targetUri,
-        notes: this.notes,
-        target: { level: "file" },
-      });
+      const changed = await this.clearStaleStatusForResource(
+        targetUri,
+        { level: "file" },
+      );
 
       if (changed) {
         await this.loadNavigatorNotes();
@@ -1484,20 +1530,18 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
             path.join(rootDirectory, ...target.relativePath.split("/")),
           );
           changed =
-            (await clearNoteStaleStatusService({
-              uri: targetUri,
-              notes: this.notes,
-              target: { level: "file" },
-            })) || changed;
+            (await this.clearStaleStatusForResource(
+              targetUri,
+              { level: "file" },
+            )) || changed;
           continue;
         }
 
         changed =
-          (await clearNoteStaleStatusService({
-            uri: currentUri,
-            notes: this.notes,
+          (await this.clearStaleStatusForResource(
+            currentUri,
             target,
-          })) || changed;
+          )) || changed;
       }
 
       if (changed) {
@@ -1510,6 +1554,35 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         ...getClearStaleErrorNotice(error),
       });
     }
+  }
+
+  /**
+   * Confirms Runtime stale content or falls back to legacy persistent stale handling.
+   *
+   * @param uri - Source resource that owns the selected Note.
+   * @param target - File, Section, or Line target selected by the user.
+   * @returns True when persistent Notes changed or an outdated Runtime state was refreshed.
+   */
+  private async clearStaleStatusForResource(
+    uri: vscode.Uri,
+    target: UserNoteTarget,
+  ): Promise<boolean> {
+    if (!this.runtimeNoteStateRegistry) {
+      return clearNoteStaleStatusService({ uri, notes: this.notes, target });
+    }
+
+    const result = await confirmRuntimeNoteStaleStatusService({
+      uri,
+      notes: this.notes,
+      registry: this.runtimeNoteStateRegistry,
+      target,
+    });
+
+    if (result.kind === "notRuntime") {
+      return clearNoteStaleStatusService({ uri, notes: this.notes, target });
+    }
+
+    return result.kind === "confirmed" || result.kind === "outdated";
   }
 
   private async viewNavigatorFileNotes(

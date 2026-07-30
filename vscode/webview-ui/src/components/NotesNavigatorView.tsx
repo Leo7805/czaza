@@ -9,6 +9,7 @@ import type {
   NavigatorSectionItem,
   NoteStatus,
 } from "../types";
+import { canClearContentStaleStatus } from "@webview/noteStatusActions";
 import { getVsCodeApi } from "../vscodeApi";
 import {
   NavigatorItemContextMenu,
@@ -570,7 +571,7 @@ function NavigatorList({
       | { level: "line"; line: number }
     >
   >((targets, item) => {
-    if (item.status?.content !== "stale") {
+    if (!canClearContentStaleStatus(item.status, item.runtimeStatus)) {
       return targets;
     }
 
@@ -768,6 +769,7 @@ function NavigatorList({
         <NavigatorItemContextMenu
           items={getFileContextMenuItems(
             fileContextMenu.item.status,
+            fileContextMenu.item.runtimeStatus,
             () =>
               viewNavigatorFileNotes(
                 fileContextMenu.item.relativePath,
@@ -795,6 +797,7 @@ function NavigatorList({
         <NavigatorItemContextMenu
           items={getSectionContextMenuItems(
             sectionContextMenu.item.status,
+            sectionContextMenu.item.runtimeStatus,
             () => openNavigatorSection(sectionContextMenu.item),
             () => clearNavigatorSectionStaleStatus(sectionContextMenu.item.id),
             () => {
@@ -817,6 +820,7 @@ function NavigatorList({
         <NavigatorItemContextMenu
           items={getLineContextMenuItems(
             lineContextMenu.item.status,
+            lineContextMenu.item.runtimeStatus,
             () => openNavigatorLine(lineContextMenu.item.line),
             () => clearNavigatorLineStaleStatus(lineContextMenu.item.line),
             () => {
@@ -933,6 +937,7 @@ function NavigatorList({
 
 function getFileContextMenuItems(
   status: NoteStatus | undefined,
+  runtimeStatus: NoteStatus | undefined,
   onViewNotes: () => void,
   onClearStaleStatus: () => void,
   onRelocate: () => void,
@@ -950,7 +955,10 @@ function getFileContextMenuItems(
           {
             id: "clearStale" as const,
             label: "Clear Content Stale: Mark File Note Reviewed",
-            onSelect: onClearStaleStatus,
+            disabled: !canClearContentStaleStatus(status, runtimeStatus),
+            onSelect: canClearContentStaleStatus(status, runtimeStatus)
+              ? onClearStaleStatus
+              : undefined,
           },
         ]
       : []),
@@ -978,6 +986,7 @@ function getFileContextMenuItems(
 
 function getSectionContextMenuItems(
   status: NoteStatus | undefined,
+  runtimeStatus: NoteStatus | undefined,
   onViewNotes: () => void,
   onClearStaleStatus: () => void,
   onRelocate: () => void,
@@ -994,7 +1003,10 @@ function getSectionContextMenuItems(
           {
             id: "clearStale" as const,
             label: "Clear Content Stale: Mark Section Reviewed",
-            onSelect: onClearStaleStatus,
+            disabled: !canClearContentStaleStatus(status, runtimeStatus),
+            onSelect: canClearContentStaleStatus(status, runtimeStatus)
+              ? onClearStaleStatus
+              : undefined,
           },
         ]
       : []),
@@ -1013,6 +1025,7 @@ function getSectionContextMenuItems(
 
 function getLineContextMenuItems(
   status: NoteStatus | undefined,
+  runtimeStatus: NoteStatus | undefined,
   onViewNotes: () => void,
   onClearStaleStatus: () => void,
   onRelocate: () => void,
@@ -1029,7 +1042,10 @@ function getLineContextMenuItems(
           {
             id: "clearStale" as const,
             label: "Clear Content Stale: Mark Line Reviewed",
-            onSelect: onClearStaleStatus,
+            disabled: !canClearContentStaleStatus(status, runtimeStatus),
+            onSelect: canClearContentStaleStatus(status, runtimeStatus)
+              ? onClearStaleStatus
+              : undefined,
           },
         ]
       : []),

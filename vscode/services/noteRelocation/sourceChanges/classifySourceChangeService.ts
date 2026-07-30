@@ -43,7 +43,6 @@ export type TextDocumentChangeInput = {
 
 import {
   findOverlappingSourceChanges,
-  hasSamePositionInsertions,
   isValidSourceChangeSplice,
   sortSourceChangesForApplication,
 } from "./sourceChangeBatchAnalysis";
@@ -68,7 +67,7 @@ export type ClassifiedSourceChangeBatch =
       /** Valid non-overlapping splices ordered for deterministic application. */
       kind: "splices";
       splices: SourceChangeSplice[];
-      /** Whether same-position insertions require conservative anchor review. */
+      /** Whether the classified batch contains a known anchor ambiguity. */
       requiresConfirmation: boolean;
     }
   | {
@@ -143,7 +142,7 @@ export function classifySourceChangeBatch(
   return {
     kind: "splices",
     splices: sortSourceChangesForApplication(splices),
-    requiresConfirmation: hasSamePositionInsertions(splices),
+    requiresConfirmation: false,
   };
 }
 

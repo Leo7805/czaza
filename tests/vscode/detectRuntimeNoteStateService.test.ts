@@ -87,6 +87,44 @@ describe("detectRuntimeNoteStateService()", () => {
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 
+  it("trusts a persisted source hash after deterministic Section relocation", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("deterministic-relocation");
+    const previousText = "function example() {\n  return true;\n}\n";
+    const currentText = "function example() {\n\n  return true;\n}\n";
+    const sourceFile = createStoredSourceFile(previousText);
+
+    sourceFile.source.sourceHash = createSourceHash(currentText);
+    sourceFile.sectionNotes[0]!.range = { startLine: 1, endLine: 4 };
+    sourceFile.sectionNotes[0]!.status = {
+      content: "stale",
+      anchor: "confirmed",
+    };
+    const notes = createNotes(sourceFile);
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    const result = await detectRuntimeNoteStateService({
+      document: createDocument(path.join(workspaceRoot, "src/index.ts"), currentText),
+      notes: notes.value,
+      now: "2026-07-29T00:30:00.000Z",
+    });
+
+    expect(result).toEqual({
+      kind: "current",
+      relativePath: "src/index.ts",
+      currentSourceHash: createSourceHash(currentText),
+      coordinates: {
+        workspaceRoot,
+        outputDirectory: ".czaza",
+        relativePath: "src/index.ts",
+      },
+    });
+    expect(sourceFile.sectionNotes[0]?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+  });
+
   it("returns stale File Note state after source content changes", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("stale");
     const notes = createNotes(createStoredSourceFile("export const value = 1;\n"));
