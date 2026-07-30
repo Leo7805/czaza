@@ -39,6 +39,9 @@ export type TextDocumentContentChange = {
 export type TextDocumentChangeInput = {
   /** Content changes reported by VS Code for one document change event. */
   contentChanges: readonly TextDocumentContentChange[];
+
+  /** Optional editor history reason attached to the complete event. */
+  editReason?: SourceChangeEditReason;
 };
 
 import {
@@ -46,7 +49,10 @@ import {
   isValidSourceChangeSplice,
   sortSourceChangesForApplication,
 } from "./sourceChangeBatchAnalysis";
-import type { SourceChangeSplice } from "./sourceChangeAnchorTransform";
+import type {
+  SourceChangeEditReason,
+  SourceChangeSplice,
+} from "./sourceChangeAnchorTransform";
 
 /** Normalized document changes currently supported by CZaza. */
 export type ClassifiedSourceChange =
@@ -69,6 +75,8 @@ export type ClassifiedSourceChangeBatch =
       splices: SourceChangeSplice[];
       /** Whether the classified batch contains a known anchor ambiguity. */
       requiresConfirmation: boolean;
+      /** Optional editor history reason for inverse boundary handling. */
+      editReason?: SourceChangeEditReason;
     }
   | {
       /** The complete event must fall back to the recovery mechanism. */
@@ -143,6 +151,7 @@ export function classifySourceChangeBatch(
     kind: "splices",
     splices: sortSourceChangesForApplication(splices),
     requiresConfirmation: false,
+    ...(input.editReason ? { editReason: input.editReason } : {}),
   };
 }
 
@@ -175,6 +184,9 @@ export function classifySourceContentChange(
       insertedLineCount,
       deletedLineCount,
       lineDelta: insertedLineCount - deletedLineCount,
+      ...(isLineBreakInsertion(change.text)
+        ? { isLineBreakInsertion: true }
+        : {}),
     },
   };
 }
@@ -187,6 +199,16 @@ export function classifySourceContentChange(
  */
 function countLineBreaks(text: string): number {
   return text.match(/\r\n|\r|\n/g)?.length ?? 0;
+}
+
+/**
+ * Checks whether inserted text represents one Enter operation with optional indentation.
+ *
+ * @param text - Replacement text reported by VS Code.
+ * @returns True when the text contains one line break followed only by horizontal whitespace.
+ */
+function isLineBreakInsertion(text: string): boolean {
+  return /^(?:\r\n|\r|\n)[\t ]*$/.test(text);
 }
 
 /**

@@ -38,3 +38,12 @@ export {
   type SourceChangeSplice,
 } from "./sourceChangeAnchorTransform";
 export { applySourceChangeToNotesService } from "./applySourceChangeToNotesService";
+export {
+  SourceRelocationHistoryService,
+  type PreparedRelocationHistoryRestore,
+} from "./SourceRelocationHistoryService";
+export {
+  applySourceRelocationHistoryService,
+  type ApplySourceRelocationHistoryInput,
+  type ApplySourceRelocationHistoryResult,
+} from "./applySourceRelocationHistoryService";

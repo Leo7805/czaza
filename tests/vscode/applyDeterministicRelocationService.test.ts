@@ -127,6 +127,64 @@ describe("applyDeterministicRelocation()", () => {
     ].join("\n")));
   });
 
+  it("shrinks and confirms a Section after deleting its complete first line", () => {
+    const currentSourceText = [
+      "const first = 1;",
+      "const third = 3;",
+      "const fourth = 4;",
+      "const fifth = 5;",
+    ].join("\n");
+    const result = applyDeterministicRelocation({
+      sourceFile: createStoredSourceFile(),
+      change: createSpliceChange({
+        startLine: 1,
+        endLine: 2,
+        deletedLineCount: 1,
+        lineDelta: -1,
+      }),
+      currentSourceText,
+      now,
+    });
+
+    expect(result.sourceFile.sectionNotes[0]?.range).toEqual({
+      startLine: 2,
+      endLine: 3,
+    });
+    expect(result.sourceFile.sectionNotes[0]?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+  });
+
+  it("shrinks and confirms a Section after deleting its complete last line", () => {
+    const currentSourceText = [
+      "const first = 1;",
+      "const second = 2;",
+      "const third = 3;",
+      "const fifth = 5;",
+    ].join("\n");
+    const result = applyDeterministicRelocation({
+      sourceFile: createStoredSourceFile(),
+      change: createSpliceChange({
+        startLine: 3,
+        endLine: 4,
+        deletedLineCount: 1,
+        lineDelta: -1,
+      }),
+      currentSourceText,
+      now,
+    });
+
+    expect(result.sourceFile.sectionNotes[0]?.range).toEqual({
+      startLine: 2,
+      endLine: 3,
+    });
+    expect(result.sourceFile.sectionNotes[0]?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+  });
+
   it("moves section and line notes after deleted lines before them", () => {
     const currentSourceText = [
       "const second = 2;",

@@ -2,6 +2,9 @@
  * Computes deterministic Section and Line Note anchor transformations for source splices.
  */
 
+/** Editor history direction relevant to reversible deterministic relocation. */
+export type SourceChangeEditReason = "undo" | "redo";
+
 /** One normalized source replacement expressed in pre-change VS Code coordinates. */
 export type SourceChangeSplice = {
   /** Zero-based line containing the start of the replaced range. */
@@ -18,6 +21,8 @@ export type SourceChangeSplice = {
   deletedLineCount: number;
   /** Net line-count change produced by this splice. */
   lineDelta: number;
+  /** Whether the inserted text is one line break plus optional indentation. */
+  isLineBreakInsertion?: boolean;
 };
 
 /** Minimal one-based inclusive Section Note range used by anchor transformation. */
@@ -51,6 +56,7 @@ export type LineAnchorTransform =
  *
  * @param range - Existing one-based inclusive Section Note range.
  * @param splice - Normalized source change in pre-change coordinates.
+ * @param editReason - Optional editor history reason for reversible boundaries.
  * @returns Deterministic Section anchor transformation.
  *
  * @example
@@ -67,6 +73,7 @@ export type LineAnchorTransform =
 export function transformSectionAnchor(
   range: SectionAnchorRange,
   splice: SourceChangeSplice,
+  editReason?: SourceChangeEditReason,
 ): SectionAnchorTransform {
   const sectionStart = range.startLine - 1;
   const sectionEnd = range.endLine - 1;
@@ -82,7 +89,9 @@ export function transformSectionAnchor(
   if (isInsertion(splice)) {
     if (
       splice.startLine < sectionStart ||
-      (splice.startLine === sectionStart && splice.startCharacter === 0)
+      (splice.startLine === sectionStart &&
+        splice.startCharacter === 0 &&
+        !splice.isLineBreakInsertion)
     ) {
       return {
         kind: "moved",
@@ -103,6 +112,19 @@ export function transformSectionAnchor(
     return { kind: "unchanged", range };
   }
 
+  if (
+    editReason === "undo" &&
+    isSingleLineBreakDeletionInsideSection(sectionStart, sectionEnd, splice)
+  ) {
+    return {
+      kind: "changed",
+      range: {
+        startLine: range.startLine,
+        endLine: range.endLine + splice.lineDelta,
+      },
+    };
+  }
+
   const touchedEndLine = getTouchedEndLine(splice);
 
   if (touchedEndLine < sectionStart) {
@@ -118,6 +140,16 @@ export function transformSectionAnchor(
 
   if (fullyCoversSection(sectionStart, sectionEnd, splice)) {
     return { kind: "orphaned" };
+  }
+
+  if (deterministicallyShrinksSection(sectionStart, sectionEnd, splice)) {
+    return {
+      kind: "changed",
+      range: {
+        startLine: range.startLine,
+        endLine: range.endLine + splice.lineDelta,
+      },
+    };
   }
 
   if (splice.startLine <= sectionStart || touchedEndLine >= sectionEnd) {
@@ -215,6 +247,30 @@ function isLineNeutralReplacement(splice: SourceChangeSplice): boolean {
 }
 
 /**
+ * Checks whether Undo removes one line break previously inserted inside a Section.
+ *
+ * @param sectionStart - Zero-based first Section line after the insertion.
+ * @param sectionEnd - Zero-based last Section line after the insertion.
+ * @param splice - Normalized Undo replacement in pre-change coordinates.
+ * @returns True when shrinking only the Section end exactly reverses the insertion.
+ */
+function isSingleLineBreakDeletionInsideSection(
+  sectionStart: number,
+  sectionEnd: number,
+  splice: SourceChangeSplice,
+): boolean {
+  return (
+    splice.startLine >= sectionStart &&
+    splice.endLine <= sectionEnd &&
+    splice.endLine === splice.startLine + 1 &&
+    splice.endCharacter === 0 &&
+    splice.insertedLineCount === 0 &&
+    splice.deletedLineCount === 1 &&
+    splice.lineDelta === -1
+  );
+}
+
+/**
  * Checks whether a replacement provably covers every complete line in a Section.
  *
  * @param sectionStart - Zero-based first Section line.
@@ -229,6 +285,35 @@ function fullyCoversSection(
 ): boolean {
   return (
     splice.startLine <= sectionStart && splice.startCharacter === 0 && splice.endLine > sectionEnd
+  );
+}
+
+/**
+ * Checks whether a contained replacement deterministically reduces Section lines.
+ *
+ * Character-level selection boundaries do not affect the line delta. A range
+ * ending at the start of the line after the Section is also contained because
+ * VS Code ranges are end-exclusive.
+ *
+ * @param sectionStart - Zero-based first Section line.
+ * @param sectionEnd - Zero-based last Section line.
+ * @param splice - Normalized source change in pre-change coordinates.
+ * @returns True when the Section can shrink by the exact net line delta.
+ */
+function deterministicallyShrinksSection(
+  sectionStart: number,
+  sectionEnd: number,
+  splice: SourceChangeSplice,
+): boolean {
+  const endsInsideSection =
+    splice.endLine <= sectionEnd ||
+    (splice.endLine === sectionEnd + 1 && splice.endCharacter === 0);
+
+  return (
+    splice.lineDelta < 0 &&
+    splice.startLine >= sectionStart &&
+    splice.startLine <= sectionEnd &&
+    endsInsideSection
   );
 }
 

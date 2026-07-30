@@ -23,8 +23,10 @@ import {
   type SourceChangeRevisionToken,
 } from "@vscode/services/workspaceTransition";
 import {
+  applySourceRelocationHistoryService,
   applySourceChangeToNotesService,
   classifySourceChangeBatch,
+  SourceRelocationHistoryService,
 } from "@vscode/services/noteRelocation";
 import {
   refreshRuntimeNoteStateService,
@@ -56,6 +58,7 @@ type TextDocumentSnapshot = {
  * @param notesProvider - Optional notes webview provider to refresh after stored changes.
  * @param workspaceTransitionGuard - Optional Git transition state that suppresses checkout writes.
  * @param runtimeNoteStateRegistry - Optional session registry reconciled after deterministic writes.
+ * @param relocationHistoryService - Optional shared in-memory source relocation history.
  * @returns Nothing.
  *
  * @example
@@ -67,6 +70,7 @@ export function registerNotesContentEvents(
   notesProvider?: NotesViewProvider,
   workspaceTransitionGuard?: GitWorkspaceTransitionGuard,
   runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
+  relocationHistoryService?: SourceRelocationHistoryService,
 ): void {
   const sourceChangeGate = new GitAwareSourceChangeGate(
     EXTERNAL_CHANGE_DEBOUNCE_MS,
@@ -75,15 +79,15 @@ export function registerNotesContentEvents(
   const pendingDocumentChanges = new Map<string, PendingDocumentChangeState>();
   const documentChangeQueues: DocumentChangeQueue = new Map();
   const recentlySavedTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const relocationHistory = relocationHistoryService ?? new SourceRelocationHistoryService();
   const watcher = vscode.workspace.createFileSystemWatcher("**/*", true, false, true);
-  const transitionDisposable = workspaceTransitionGuard?.onDidStartTransition(
-    () => {
-      sourceChangeGate.cancelPending();
-      clearTimers(recentlySavedTimers);
-      pendingDocumentChanges.clear();
-      documentChangeQueues.clear();
-    },
-  );
+  const transitionDisposable = workspaceTransitionGuard?.onDidStartTransition(() => {
+    sourceChangeGate.cancelPending();
+    clearTimers(recentlySavedTimers);
+    pendingDocumentChanges.clear();
+    documentChangeQueues.clear();
+    relocationHistory.clearAll();
+  });
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((event) => {
@@ -96,6 +100,7 @@ export function registerNotesContentEvents(
         workspaceTransitionGuard,
         sourceChangeGate,
         runtimeNoteStateRegistry,
+        relocationHistory,
       );
     }),
     vscode.workspace.onDidSaveTextDocument((document) => {
@@ -111,6 +116,10 @@ export function registerNotesContentEvents(
       );
     }),
     watcher.onDidChange((uri) => {
+      if (!recentlySavedTimers.has(uri.toString())) {
+        relocationHistory.clear(uri.toString());
+      }
+
       scheduleExternalChangeCheck(
         uri,
         notes,
@@ -120,6 +129,9 @@ export function registerNotesContentEvents(
         sourceChangeGate,
       );
     }),
+    vscode.workspace.onDidCloseTextDocument((document) => {
+      relocationHistory.clear(document.uri.toString());
+    }),
     watcher,
     ...(transitionDisposable ? [transitionDisposable] : []),
     {
@@ -128,6 +140,7 @@ export function registerNotesContentEvents(
         clearTimers(recentlySavedTimers);
         pendingDocumentChanges.clear();
         documentChangeQueues.clear();
+        relocationHistory.clearAll();
       },
     },
   );
@@ -143,6 +156,7 @@ export function registerNotesContentEvents(
  * @param documentChangeQueues - Per-document serialized update queues.
  * @param sourceChangeGate - Git-aware revision gate for automatic persistence.
  * @param runtimeNoteStateRegistry - Optional session registry reconciled after persistence.
+ * @param relocationHistory - Session-only reversible relocation history.
  * @returns Promise resolved after the event has been classified and queued.
  */
 async function handleTextDocumentChange(
@@ -154,6 +168,7 @@ async function handleTextDocumentChange(
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
   sourceChangeGate: GitAwareSourceChangeGate,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
+  relocationHistory: SourceRelocationHistoryService,
 ): Promise<void> {
   try {
     if (workspaceTransitionGuard?.isTransitioning()) {
@@ -161,15 +176,20 @@ async function handleTextDocumentChange(
       return;
     }
 
+    const editReason = getSourceChangeEditReason(event.reason);
+
     if (
-      event.document.isDirty === false ||
+      (event.document.isDirty === false && !editReason) ||
       !evaluateCzazaResourceAccess(event.document.uri).allowed
     ) {
       return;
     }
 
     const key = event.document.uri.toString();
-    const classifiedBatch = classifySourceChangeBatch(event);
+    const classifiedBatch = classifySourceChangeBatch({
+      contentChanges: event.contentChanges,
+      editReason,
+    });
     const state = getPendingDocumentChangeState(pendingDocumentChanges, key);
 
     if (classifiedBatch.kind === "unsupported") {
@@ -186,6 +206,42 @@ async function handleTextDocumentChange(
         return;
       }
 
+      if (editReason) {
+        const historyResult = await applySourceRelocationHistoryService({
+          document,
+          notes,
+          history: relocationHistory,
+          direction: editReason,
+          now: new Date().toISOString(),
+          canPersist: () => sourceChangeGate.canPersist(token),
+        });
+
+        if (historyResult.kind === "restored") {
+          state.hasAppliedDeterministicChange = true;
+          await reconcileRuntimeStateAfterDeterministicChange(
+            document,
+            notes,
+            runtimeNoteStateRegistry,
+            () => sourceChangeGate.canPersist(token),
+          );
+          await notesProvider?.refreshCurrentNotes(document.uri);
+          return;
+        }
+
+        if (historyResult.kind === "unavailable" || historyResult.kind === "mismatch") {
+          state.hasUnsupportedChange = true;
+          await reconcileRuntimeStateAfterDeterministicChange(
+            document,
+            notes,
+            runtimeNoteStateRegistry,
+            () => sourceChangeGate.canPersist(token),
+          );
+          await notesProvider?.refreshCurrentNotes(document.uri);
+        }
+
+        return;
+      }
+
       const result = await applySourceChangeToNotesService({
         document,
         change: classifiedBatch,
@@ -198,6 +254,11 @@ async function handleTextDocumentChange(
         return;
       }
 
+      relocationHistory.record(
+        document.uri.toString(),
+        result.sourceFile,
+        result.updatedSourceFile,
+      );
       state.hasAppliedDeterministicChange = true;
       await reconcileRuntimeStateAfterDeterministicChange(
         document,
@@ -210,6 +271,26 @@ async function handleTextDocumentChange(
   } catch (error) {
     console.error("Failed to apply deterministic CZaza note updates after a text change.", error);
   }
+}
+
+/**
+ * Maps VS Code history reasons to the source relocation contract.
+ *
+ * @param reason - Optional VS Code text document change reason.
+ * @returns Undo, redo, or undefined for an ordinary edit.
+ */
+function getSourceChangeEditReason(
+  reason: vscode.TextDocumentChangeReason | undefined,
+): "undo" | "redo" | undefined {
+  if (reason === vscode.TextDocumentChangeReason.Undo) {
+    return "undo";
+  }
+
+  if (reason === vscode.TextDocumentChangeReason.Redo) {
+    return "redo";
+  }
+
+  return undefined;
 }
 
 /**
@@ -302,14 +383,7 @@ async function handleSavedDocument(
     return;
   }
 
-  await handleChangedDocument(
-    notes,
-    document,
-    notesProvider,
-    "save",
-    sourceChangeGate,
-    token,
-  );
+  await handleChangedDocument(notes, document, notesProvider, "save", sourceChangeGate, token);
 }
 
 /**
@@ -442,10 +516,7 @@ function scheduleExternalChangeCheck(
     return;
   }
 
-  if (
-    uri.scheme !== "file" ||
-    recentlySavedTimers.has(uri.toString())
-  ) {
+  if (uri.scheme !== "file" || recentlySavedTimers.has(uri.toString())) {
     return;
   }
 

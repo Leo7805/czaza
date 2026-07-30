@@ -68,7 +68,12 @@ export function applySourceChangeBatch(
   const events: DeterministicRelocationEvent[] = [];
 
   for (const splice of combineSamePositionInsertions(input.batch.splices)) {
-    const result = applySourceSpliceToAnchors(next, splice, input.now);
+    const result = applySourceSpliceToAnchors(
+      next,
+      splice,
+      input.now,
+      input.batch.editReason,
+    );
     next = result.sourceFile;
     events.push(...result.events);
   }
@@ -105,6 +110,9 @@ function combineSamePositionInsertions(
     if (previous && areSamePositionInsertions(previous, splice)) {
       previous.insertedLineCount += splice.insertedLineCount;
       previous.lineDelta += splice.lineDelta;
+      previous.isLineBreakInsertion =
+        previous.isLineBreakInsertion === true &&
+        splice.isLineBreakInsertion === true;
       continue;
     }
 

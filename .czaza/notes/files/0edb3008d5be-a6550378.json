@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:237a32bf05ac4bd727be4e507544a77d3c72281420f60cafd918afbd9f820963",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T02:24:44.286Z",
+    "updatedAt": "2026-07-30T02:24:44.286Z"
+  },
+  "fileNote": {
+    "userNote": "作用：保存每个源文件的内存 Undo/Redo relocation 历史。\nrecord：记录确定性修改前后的 Hash、位置和状态，并清空 Redo 栈。\nprepareUndo：双 Hash 校验通过后准备恢复修改前状态。\nprepareRedo：双 Hash 校验通过后准备恢复修改后状态。\ncommitUndo：成功持久化后将记录移入 Redo 栈。\ncommitRedo：成功持久化后将记录移回 Undo 栈。\nclear：清除单个文件历史。\nclearAll：清除全部会话历史。\nprepare：执行共享的 Hash 校验和恢复准备。\ncommit：执行共享的栈移动。\ngetOrCreateHistory：获取或创建文件历史。\ncreateSnapshot：只提取 relocation 管理的字段。\napplySnapshot：恢复位置和状态，同时保留当前用户笔记内容。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

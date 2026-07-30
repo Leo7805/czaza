@@ -1,6 +1,6 @@
 ---
 type: architecture-outline
-documentVersion: 1.6.0
+documentVersion: 1.8.0
 templateVersion: 1
 createdAt: 2026-07-29
 updatedAt: 2026-07-29
@@ -24,6 +24,7 @@ contentLanguage: zh-CN
 4. [资源变化统一处理](./diagrams/unified-resource-change-handling.md)：说明 reload、外部修改、rename 和 delete 如何归一化为内存待处理状态。
 5. [Relocation Candidate 生命周期](./diagrams/relocation-candidate-lifecycle.md)：说明 Candidate 的创建、累积、保存验证、串行执行及失效路径。
 6. [Source Change Persistence Gate](./diagrams/source-change-persistence-gate.md)：说明确定性 relocation candidate 获得持久化资格的条件与失效路径。
+7. [Source Relocation Undo/Redo 历史](./diagrams/source-relocation-undo-redo-history.md)：说明确定性源码编辑如何通过内存历史安全恢复 Notes 位置和状态。
 
 ## 演进计划
 

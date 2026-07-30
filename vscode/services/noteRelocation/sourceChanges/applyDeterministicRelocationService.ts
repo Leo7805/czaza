@@ -18,6 +18,7 @@ import {
   transformSectionAnchor,
   type LineAnchorTransform,
   type SectionAnchorTransform,
+  type SourceChangeEditReason,
   type SourceChangeSplice,
 } from "./sourceChangeAnchorTransform";
 
@@ -117,12 +118,14 @@ export function applyDeterministicRelocation(
  * @param sourceFile - Stored source bundle before the splice.
  * @param splice - Normalized source splice to apply.
  * @param now - Timestamp assigned to affected Notes.
+ * @param editReason - Optional editor history reason for reversible boundaries.
  * @returns Updated anchors and their relocation events.
  */
 export function applySourceSpliceToAnchors(
   sourceFile: StoredSourceFile,
   splice: SourceChangeSplice,
   now: string,
+  editReason?: SourceChangeEditReason,
 ): ApplySourceSpliceToAnchorsResult {
   const events: DeterministicRelocationEvent[] = [];
 
@@ -130,7 +133,12 @@ export function applySourceSpliceToAnchors(
     sourceFile: {
       ...sourceFile,
       sectionNotes: sourceFile.sectionNotes.map((note) =>
-        applySectionTransform(note, transformSectionAnchor(note.range, splice), now, events),
+        applySectionTransform(
+          note,
+          transformSectionAnchor(note.range, splice, editReason),
+          now,
+          events,
+        ),
       ),
       lineNotes: sourceFile.lineNotes.map((note) =>
         applyLineTransform(note, transformLineAnchor(note.line, splice), now, events),

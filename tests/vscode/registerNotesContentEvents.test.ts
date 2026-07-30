@@ -11,6 +11,7 @@ import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { createSourceHash } from "@shared/utils/hashUtils";
 
 type SaveListener = (document: vscodeTypes.TextDocument) => void;
+type CloseListener = (document: vscodeTypes.TextDocument) => void;
 type ChangeListener = (uri: vscodeTypes.Uri) => void;
 type TextDocumentChangeListener = (event: vscodeTypes.TextDocumentChangeEvent) => void;
 type MockWorkspaceFolder = {
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
   outputDirectory: ".caca",
   textDocumentChangeListeners: [] as TextDocumentChangeListener[],
   saveListeners: [] as SaveListener[],
+  closeListeners: [] as CloseListener[],
   changeListeners: [] as ChangeListener[],
   openTextDocument: vi.fn(),
   watcherDispose: vi.fn(),
@@ -32,6 +34,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("vscode", () => ({
   FileType: { File: 1, Directory: 2 },
+  TextDocumentChangeReason: { Undo: 1, Redo: 2 },
   workspace: {
     get workspaceFolders() {
       return mocks.workspaceFolders;
@@ -66,6 +69,11 @@ vi.mock("vscode", () => ({
       return { dispose: vi.fn() };
     },
 
+    onDidCloseTextDocument: (listener: CloseListener) => {
+      mocks.closeListeners.push(listener);
+      return { dispose: vi.fn() };
+    },
+
     onDidChangeTextDocument: (listener: TextDocumentChangeListener) => {
       mocks.textDocumentChangeListeners.push(listener);
       return { dispose: vi.fn() };
@@ -96,6 +104,7 @@ describe("registerNotesContentEvents()", () => {
     mocks.workspaceFolders.length = 0;
     mocks.textDocumentChangeListeners.length = 0;
     mocks.saveListeners.length = 0;
+    mocks.closeListeners.length = 0;
     mocks.changeListeners.length = 0;
     mocks.openTextDocument.mockReset();
     mocks.watcherDispose.mockReset();
@@ -558,6 +567,119 @@ describe("registerNotesContentEvents()", () => {
               content: "stale",
               anchor: "confirmed",
             },
+          }),
+        ],
+      }),
+      expect.any(String),
+      { canPersist: expect.any(Function) },
+    );
+  });
+
+  it("restores persisted relocation state across real Undo and Redo events", async () => {
+    vi.useFakeTimers();
+
+    const workspaceRoot = await createTempWorkspaceRoot("history-undo-redo");
+    const previousText = "export const value = 1;\n";
+    const enteredText = `\n${previousText}`;
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const documentPath = path.join(workspaceRoot, "src/index.ts");
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(createExtensionContext(), notes.value);
+
+    mocks.textDocumentChangeListeners[0]?.({
+      document: createDocument(documentPath, enteredText, true),
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 },
+          },
+          rangeLength: 0,
+          text: "\n",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
+      workspaceRoot,
+      ".caca",
+      "src/index.ts",
+      expect.objectContaining({
+        sectionNotes: [
+          expect.objectContaining({
+            range: { startLine: 1, endLine: 2 },
+          }),
+        ],
+      }),
+      expect.any(String),
+      { canPersist: expect.any(Function) },
+    );
+
+    mocks.textDocumentChangeListeners[0]?.({
+      document: createDocument(documentPath, previousText, false),
+      reason: 1,
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 1, character: 0 },
+          },
+          rangeLength: 1,
+          text: "",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
+      workspaceRoot,
+      ".caca",
+      "src/index.ts",
+      expect.objectContaining({
+        source: expect.objectContaining({
+          sourceHash: createSourceHash(previousText),
+        }),
+        sectionNotes: [
+          expect.objectContaining({
+            range: { startLine: 1, endLine: 1 },
+            status: { content: "current", anchor: "confirmed" },
+          }),
+        ],
+      }),
+      expect.any(String),
+      { canPersist: expect.any(Function) },
+    );
+
+    mocks.textDocumentChangeListeners[0]?.({
+      document: createDocument(documentPath, enteredText, true),
+      reason: 2,
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 },
+          },
+          rangeLength: 0,
+          text: "\n",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(notes.saveSourceFile).toHaveBeenCalledTimes(3);
+    expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
+      workspaceRoot,
+      ".caca",
+      "src/index.ts",
+      expect.objectContaining({
+        source: expect.objectContaining({
+          sourceHash: createSourceHash(enteredText),
+        }),
+        sectionNotes: [
+          expect.objectContaining({
+            range: { startLine: 1, endLine: 2 },
           }),
         ],
       }),

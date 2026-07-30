@@ -11,6 +11,7 @@ import {
 } from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
+import type { SourceRelocationHistoryService } from "@vscode/services/noteRelocation";
 import {
   GitAwareSourceChangeGate,
   type GitWorkspaceTransitionGuard,
@@ -26,6 +27,7 @@ const RESOURCE_CHANGE_CONFIRMATION_MS = 800;
  * @param notes - Shared workspace note store.
  * @param notesProvider - Optional notes webview provider to refresh after stored changes.
  * @param workspaceTransitionGuard - Optional Git transition state that suppresses checkout events.
+ * @param relocationHistory - Optional shared history invalidated by resource identity changes.
  *
  * @example
  * registerNotesResourceEvents(context, notes);
@@ -35,6 +37,7 @@ export function registerNotesResourceEvents(
   notes: WorkspaceNoteStore,
   notesProvider?: NotesViewProvider,
   workspaceTransitionGuard?: GitWorkspaceTransitionGuard,
+  relocationHistory?: SourceRelocationHistoryService,
 ): void {
   const resourceChangeGate = workspaceTransitionGuard
     ? new GitAwareSourceChangeGate(
@@ -48,6 +51,8 @@ export function registerNotesResourceEvents(
       const token = resourceChangeGate?.captureToken();
 
       for (const file of event.files) {
+        relocationHistory?.clear(file.oldUri.toString());
+        relocationHistory?.clear(file.newUri.toString());
         void handleRename(
           notes,
           file.oldUri,
@@ -62,6 +67,7 @@ export function registerNotesResourceEvents(
       const token = resourceChangeGate?.captureToken();
 
       for (const uri of event.files) {
+        relocationHistory?.clear(uri.toString());
         void handleDelete(
           notes,
           uri,

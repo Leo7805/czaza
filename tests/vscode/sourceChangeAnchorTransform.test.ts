@@ -31,16 +31,59 @@ describe("sourceChangeAnchorTransform", () => {
     });
   });
 
-  it("moves a Section when insertion occurs at its first-line boundary", () => {
+  it("expands a Section when insertion occurs at its first-line boundary", () => {
     const splice = createSplice({
       startLine: 9,
-      insertedLineCount: 2,
-      lineDelta: 2,
+      insertedLineCount: 1,
+      lineDelta: 1,
+      isLineBreakInsertion: true,
     });
 
     expect(transformSectionAnchor({ startLine: 10, endLine: 20 }, splice)).toEqual({
-      kind: "moved",
-      range: { startLine: 12, endLine: 22 },
+      kind: "changed",
+      range: { startLine: 10, endLine: 21 },
+    });
+  });
+
+  it("reverses a first-line Enter when Undo removes its line break", () => {
+    const undoSplice = createSplice({
+      startLine: 9,
+      startCharacter: 0,
+      endLine: 10,
+      endCharacter: 0,
+      deletedLineCount: 1,
+      lineDelta: -1,
+    });
+
+    expect(
+      transformSectionAnchor(
+        { startLine: 10, endLine: 21 },
+        undoSplice,
+        "undo",
+      ),
+    ).toEqual({
+      kind: "changed",
+      range: { startLine: 10, endLine: 20 },
+    });
+  });
+
+  it("reapplies a first-line Enter when Redo inserts its line break", () => {
+    const redoSplice = createSplice({
+      startLine: 9,
+      insertedLineCount: 1,
+      lineDelta: 1,
+      isLineBreakInsertion: true,
+    });
+
+    expect(
+      transformSectionAnchor(
+        { startLine: 10, endLine: 20 },
+        redoSplice,
+        "redo",
+      ),
+    ).toEqual({
+      kind: "changed",
+      range: { startLine: 10, endLine: 21 },
     });
   });
 
@@ -71,6 +114,79 @@ describe("sourceChangeAnchorTransform", () => {
     expect(transformSectionAnchor({ startLine: 10, endLine: 20 }, splice)).toEqual({
       kind: "changed",
       range: { startLine: 10, endLine: 17 },
+    });
+  });
+
+  it("shrinks a Section when its complete first line is deleted", () => {
+    const splice = createSplice({
+      startLine: 9,
+      endLine: 10,
+      deletedLineCount: 1,
+      lineDelta: -1,
+    });
+
+    expect(transformSectionAnchor({ startLine: 10, endLine: 20 }, splice)).toEqual({
+      kind: "changed",
+      range: { startLine: 10, endLine: 19 },
+    });
+  });
+
+  it("shrinks a Section when its complete last line is deleted", () => {
+    const splice = createSplice({
+      startLine: 19,
+      endLine: 20,
+      deletedLineCount: 1,
+      lineDelta: -1,
+    });
+
+    expect(transformSectionAnchor({ startLine: 10, endLine: 20 }, splice)).toEqual({
+      kind: "changed",
+      range: { startLine: 10, endLine: 19 },
+    });
+  });
+
+  it("shrinks a Section when a first-boundary selection removes one net line", () => {
+    const splice = createSplice({
+      startLine: 9,
+      startCharacter: 0,
+      endLine: 10,
+      endCharacter: 12,
+      deletedLineCount: 1,
+      lineDelta: -1,
+    });
+
+    expect(transformSectionAnchor({ startLine: 10, endLine: 20 }, splice)).toEqual({
+      kind: "changed",
+      range: { startLine: 10, endLine: 19 },
+    });
+  });
+
+  it("shrinks a Section when an end-boundary selection removes one net line", () => {
+    const splice = createSplice({
+      startLine: 18,
+      startCharacter: 0,
+      endLine: 19,
+      endCharacter: 12,
+      deletedLineCount: 1,
+      lineDelta: -1,
+    });
+
+    expect(transformSectionAnchor({ startLine: 10, endLine: 20 }, splice)).toEqual({
+      kind: "changed",
+      range: { startLine: 10, endLine: 19 },
+    });
+  });
+
+  it("orphans a one-line Section when its only complete line is deleted", () => {
+    const splice = createSplice({
+      startLine: 9,
+      endLine: 10,
+      deletedLineCount: 1,
+      lineDelta: -1,
+    });
+
+    expect(transformSectionAnchor({ startLine: 10, endLine: 10 }, splice)).toEqual({
+      kind: "orphaned",
     });
   });
 

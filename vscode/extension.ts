@@ -21,6 +21,9 @@ import { WorkspaceNoteStore } from "./notes";
 import { NotesViewProvider } from "./notesUi/NotesViewProvider";
 import { registerNotesUi } from "./notesUi/registerNotesUi";
 import {
+  SourceRelocationHistoryService,
+} from "./services/noteRelocation";
+import {
   GitWorkspaceTransitionGuard,
   registerGitWorkspaceTransition,
 } from "./services/workspaceTransition";
@@ -42,6 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // workspace, read all note files, or run AI analysis during activation.
   const notes = new WorkspaceNoteStore();
   const runtimeNoteStateRegistry = new RuntimeNoteStateRegistry();
+  const sourceRelocationHistory = new SourceRelocationHistoryService();
 
   // React-based notes panel provider for the new notes architecture.
   const notesProvider = new NotesViewProvider(
@@ -89,12 +93,14 @@ export function activate(context: vscode.ExtensionContext): void {
     notesProvider,
     workspaceTransitionGuard,
     runtimeNoteStateRegistry,
+    sourceRelocationHistory,
   );
   registerNotesResourceEvents(
     context,
     notes,
     notesProvider,
     workspaceTransitionGuard,
+    sourceRelocationHistory,
   );
   void registerGitWorkspaceTransition(
     context,

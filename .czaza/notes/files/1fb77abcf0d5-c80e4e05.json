@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:be8dcc555f237fcc588732f9907e2391b96f6b2967546e881cc9051c55d9085e",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T02:24:58.500Z",
+    "updatedAt": "2026-07-30T02:24:58.500Z"
+  },
+  "fileNote": {
+    "userNote": "作用：读取 Note Store、验证 Hash、保存恢复结果并提交历史栈。\napplySourceRelocationHistoryService：完整执行一次 Undo 或 Redo 恢复。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:4fb2fd9ff2c43ae1fe7de4ee2838b28e3eefd6b95fd03032765099c9aba1396e",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T02:25:30.040Z",
+    "updatedAt": "2026-07-30T02:25:30.040Z"
+  },
+  "fileNote": {
+    "userNote": "registerNotesResourceEvents：rename 和 delete 到达时立即清除相关路径历史。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
