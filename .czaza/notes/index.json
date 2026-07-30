@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-30T10:38:33.716Z",
+  "updatedAt": "2026-07-30T10:45:53.847Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -198,9 +198,9 @@
     },
     "docs/context.md": {
       "noteFile": "files/dfd904e21399-eff00be7.json",
-      "sourceHash": "sha256:d532a2e02119387ff660d6df1429a94fa5e33a8f1e4eac94fac78d16a689008c",
+      "sourceHash": "sha256:690faae8bbebdd9a91a85bcb4a77048b4e2131685ca225407a5602c03f7328fc",
       "programmingLanguage": "markdown",
-      "updatedAt": "2026-07-30T10:38:33.716Z"
+      "updatedAt": "2026-07-30T10:45:53.847Z"
     },
     "vscode/services/resourceAccess/CzazaResourceAccessGate.ts": {
       "noteFile": "files/e1a86faa4b50-7bd7a76f.json",

@@ -15,8 +15,10 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:extension": "npm run build:vscode && npm run build:extension-tests && tsx tests/extensionHost/runExtensionTests.ts",
     "test:copy-for-ai": "vitest run tests/copyForAI/copyForAI.test.ts --reporter=verbose",
     "build:vscode": "tsup --config tsup.vscode.config.ts",
+    "build:extension-tests": "tsup --config tsup.extension-tests.config.ts",
     "package:vscode": "npm run build && npm run build:vscode && vsce package --out dist/czaza-${npm_package_version}.vsix",
     "watch:vscode": "tsup vscode/extension.ts --tsconfig tsconfig.node.json --format cjs --platform node --external vscode --out-dir dist/vscode --watch"
   },
