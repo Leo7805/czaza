@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-30T10:51:38.038Z",
+  "updatedAt": "2026-07-30T11:27:16.507Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -139,9 +139,9 @@
     },
     "vscode/events/registerNotesContentEvents.ts": {
       "noteFile": "files/a8ddb5ffcac5-2c97d283.json",
-      "sourceHash": "sha256:12e26d605c9a943730a92138887979f7ed6988dac9678945f96e605dceda4e2f",
+      "sourceHash": "sha256:8ceddc4c54dec922ca81a478938b82f8a2b58b246f262768c4dcbe492a88cc7c",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T10:36:03.238Z"
+      "updatedAt": "2026-07-30T11:26:19.304Z"
     },
     "vscode/services/workspaceTransition/GitWorkspaceTransitionGuard.ts": {
       "noteFile": "files/22f375782ff6-cf3ddbe4.json",
@@ -198,9 +198,9 @@
     },
     "docs/context.md": {
       "noteFile": "files/dfd904e21399-eff00be7.json",
-      "sourceHash": "sha256:e671edc899042702841ad1fd3b57e39ca21a145613e1e0020eb357e41ad12de1",
+      "sourceHash": "sha256:b2cc884114ca8ceb50e6199dd30593fe4b881d12998959612f566670f23e46ca",
       "programmingLanguage": "markdown",
-      "updatedAt": "2026-07-30T10:51:38.038Z"
+      "updatedAt": "2026-07-30T11:27:16.507Z"
     },
     "vscode/services/resourceAccess/CzazaResourceAccessGate.ts": {
       "noteFile": "files/e1a86faa4b50-7bd7a76f.json",
@@ -222,9 +222,9 @@
     },
     "vscode/notesUi/NotesViewProvider.ts": {
       "noteFile": "files/1069afe2ab26-f36deb8d.json",
-      "sourceHash": "sha256:1f871796d4d525760ac240378684f49970f9e874c3d00a8780ffed8a81f9b6e2",
+      "sourceHash": "sha256:6f962f0cbf94e9241ad0617afd16aa3f813c5ae275aec93910ef2fc558b9957f",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T06:44:33.278Z"
+      "updatedAt": "2026-07-30T11:26:19.211Z"
     },
     "vscode/services/getResourceNotesService.ts": {
       "noteFile": "files/9ce73fdaf48d-7eecd1c2.json",
@@ -258,9 +258,9 @@
     },
     "vscode/services/runtimeState/index.ts": {
       "noteFile": "files/cbb305eb5d12-c405e337.json",
-      "sourceHash": "sha256:be30d270f840c926bea82c25c69da9a446c9b4c16ab6b4335ab2fd44de1589f9",
+      "sourceHash": "sha256:86481d4097462943897563a63c07ad1c35971a26ab017313255126bbabb1788c",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T05:45:34.908Z"
+      "updatedAt": "2026-07-30T11:26:18.319Z"
     },
     "vscode/services/runtimeState/detectRuntimeNoteStateService.ts": {
       "noteFile": "files/92b3cfea7bf0-ed5ad632.json",

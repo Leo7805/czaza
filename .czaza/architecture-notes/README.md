@@ -1,6 +1,6 @@
 ---
 type: architecture-outline
-documentVersion: 2.2.0
+documentVersion: 2.3.0
 templateVersion: 1
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -29,6 +29,7 @@ contentLanguage: zh-CN
 ## 演进计划
 
 1. [Git 解耦迁移顺序](./diagrams/git-decoupling-migration.md)：说明从 Git-aware 防护迁移到 Runtime State 架构并安全删除旧代码的阶段顺序。
+2. [状态检测与 UI 状态更新](./diagrams/runtime-state-detection-and-ui-refresh.md)：区分状态检测、Registry 存储和各级 Notes UI 刷新的职责。
 
 ## Future Improvements
 

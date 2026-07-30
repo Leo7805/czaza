@@ -56,7 +56,7 @@ import {
   applyRuntimeStateToNavigatorNotes,
   applyRuntimeStateToResourceNotes,
   confirmRuntimeNoteStaleStatusService,
-  refreshRuntimeNoteStateService,
+  RuntimeNoteStateDetectionController,
   type RuntimeNoteState,
   type RuntimeNoteStateRegistry,
 } from "@vscode/services/runtimeState";
@@ -269,6 +269,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly highlightController = new NotesEditorHighlightController();
   private readonly notesTypographyConfigurationListener: vscode.Disposable;
   private readonly runtimeStateRefreshController?: NotesRuntimeStateRefreshController;
+  private readonly runtimeStateDetectionController?: RuntimeNoteStateDetectionController;
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
   private readonly runtimeNoteStateRegistry?: RuntimeNoteStateRegistry;
@@ -334,6 +335,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.generateSectionNote = generateSectionNote;
     this.generateLineBatchNotes = generateLineBatchNotes;
     this.runtimeNoteStateRegistry = runtimeNoteStateRegistry;
+    this.runtimeStateDetectionController = runtimeNoteStateRegistry
+      ? new RuntimeNoteStateDetectionController(notes, runtimeNoteStateRegistry)
+      : undefined;
     this.notesTypographyConfigurationListener = vscode.workspace.onDidChangeConfiguration?.(
       (event) => {
         if (
@@ -1752,17 +1756,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @returns Promise that resolves after detection reconciles the Registry.
    */
   private async refreshRuntimeStateForResource(uri: vscode.Uri): Promise<void> {
-    if (!this.runtimeNoteStateRegistry) {
+    if (!this.runtimeStateDetectionController) {
       return;
     }
 
     const document = await vscode.workspace.openTextDocument(uri);
-    await refreshRuntimeNoteStateService({
-      document,
-      notes: this.notes,
-      registry: this.runtimeNoteStateRegistry,
-      now: new Date().toISOString(),
-    });
+    await this.runtimeStateDetectionController.detectCurrentFileNotes(document);
   }
 
   private async runMarkNavigatorFileNoteOrphaned(relativePath: string): Promise<void> {

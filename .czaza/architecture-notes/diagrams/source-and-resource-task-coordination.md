@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.2.0
+documentVersion: 1.0.0
 status: current
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -9,7 +9,7 @@ author: Codex
 
 # 源码与资源变化任务协调
 
-本架构说明 CZaza 如何过滤重复事件、合并高频事件、串行执行同一资源的任务，并阻止过期任务应用结果。
+本架构说明 CZaza 如何`过滤重复事件`、`合并高频事件`、`串行执行同一资源的任务`，并`阻止过期任务应用结果`。
 
 ## 简单流程
 
@@ -74,13 +74,5 @@ Watcher 检测任务正在等待
 - Queue 解决同一资源异步任务的执行顺序，不负责判断事件是否重复。
 - Invalidation 保护任务结果的时效性，不负责安排执行顺序。
 - Runtime State 保存检测结果，不负责事件协调。
-
-## 当前实现
-
-- `ChangeTaskCoordinator` 统一拥有 Watcher 防抖、按资源队列、revision token 和任务失效。
-- `ResourceEventSuppressionRegistry` 位于同一 `changeCoordination` 目录，由 Controller 组合并提供 Delete suppression。
-- `registerNotesContentEvents` 使用 Controller 协调确定性文档事件和 Watcher Change/Delete。
-- `registerNotesResourceEvents` 使用同一个 Controller 标记确定性 VS Code Delete。
-- Controller 不读取 Git 状态；checkout、merge 和 restore 产生的文件变化与普通外部变化使用同一协调流程。
 
 源码位置转换规则见 [Source Relocation](./source-relocation.md)，外部资源事件分类见 [Resource Change](./resource-change-handling.md)。

@@ -22,7 +22,7 @@ import {
 import {
   refreshBinaryRuntimeNoteStateService,
   refreshMissingRuntimeNoteStateService,
-  refreshRuntimeNoteStateService,
+  RuntimeNoteStateDetectionController,
   type RuntimeNoteStateRegistry,
 } from "@vscode/services/runtimeState";
 import * as vscode from "vscode";
@@ -386,13 +386,10 @@ async function refreshRuntimeStateAfterDocumentChange(
   }
 
   try {
-    const result = await refreshRuntimeNoteStateService({
-      document,
+    const result = await new RuntimeNoteStateDetectionController(
       notes,
       registry,
-      now: new Date().toISOString(),
-      canApply,
-    });
+    ).detectCurrentFileNotes(document, canApply);
     return result.registryChange !== "none";
   } catch (error) {
     console.error(

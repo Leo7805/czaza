@@ -3,6 +3,11 @@
  */
 
 export { RuntimeNoteStateRegistry } from "./RuntimeNoteStateRegistry";
+export {
+  RuntimeNoteStateDetectionController,
+  type AllFileNotesDetectionResult,
+  type CurrentFileNotesDetectionResult,
+} from "./RuntimeNoteStateDetectionController";
 export { applyRuntimeStateToResourceNotes } from "./applyRuntimeStateToResourceNotesService";
 export { applyRuntimeStateToNavigatorNotes } from "./applyRuntimeStateToNavigatorNotesService";
 export {
