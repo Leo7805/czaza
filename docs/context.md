@@ -62,7 +62,8 @@ The planned Runtime State architecture and Git decoupling are implemented.
 - CZaza's targeted NotesViewProvider tests, full test suite, build, lint, and VSIX packaging passed after removing the integration.
 - The packaged VSIX no longer contains Architecture Notes templates or initialization code.
 - A real VS Code 1.100.0 Extension Host regression now builds and loads the development extension in an isolated temporary workspace, activates CZaza, and verifies its core commands.
+- The real Extension Host suite seeds File, Section, and Line Notes, deletes their source through Node's filesystem, recreates different content at the same path, and verifies every persistent Note Store file remains byte-for-byte unchanged after both real Watcher quiet periods.
 
 ## Next Step
 
-Extend the real Extension Host suite with one high-risk filesystem scenario, starting with external delete and same-path recreation.
+Extend the real Extension Host suite with a rapid Git branch-switch regression that verifies tracked Note Store files remain unchanged.

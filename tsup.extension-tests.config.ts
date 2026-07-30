@@ -12,4 +12,5 @@ export default defineConfig({
   platform: "node",
   outDir: "dist/extension-tests/suite",
   external: ["vscode"],
+  noExternal: ["@noble/hashes"],
 });

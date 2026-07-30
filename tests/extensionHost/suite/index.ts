@@ -1,10 +1,15 @@
 /**
- * Verifies CZaza activation and command registration in a real Extension Host.
+ * Runs CZaza's real Extension Host activation and filesystem regressions.
  */
 
 import assert from "node:assert/strict";
 
 import * as vscode from "vscode";
+
+import {
+  prepareExternalFileLifecycleFixture,
+  runExternalFileLifecycleRegression,
+} from "./externalFileLifecycleScenario";
 
 const REQUIRED_COMMANDS = [
   "czaza.showNotes",
@@ -16,7 +21,7 @@ const REQUIRED_COMMANDS = [
 /**
  * Runs the minimal real Extension Host activation regression.
  *
- * @returns Promise resolved after CZaza activates and exposes its core commands.
+ * @returns Promise resolved after activation and real filesystem checks pass.
  */
 export async function run(): Promise<void> {
   const extension = vscode.extensions.all.find(
@@ -24,6 +29,12 @@ export async function run(): Promise<void> {
   );
 
   assert.ok(extension, "CZaza must be loaded as the development extension.");
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+  assert.ok(workspaceRoot, "The isolated fixture workspace must be open.");
+  const filesystemFixture =
+    await prepareExternalFileLifecycleFixture(workspaceRoot);
+
   await extension.activate();
   assert.equal(extension.isActive, true, "CZaza must activate successfully.");
 
@@ -33,10 +44,6 @@ export async function run(): Promise<void> {
     assert.ok(commands.includes(command), `${command} must be registered.`);
   }
 
-  assert.equal(
-    vscode.workspace.workspaceFolders?.length,
-    1,
-    "The isolated fixture workspace must be open.",
-  );
-  console.log("CZaza Extension Host activation regression passed.");
+  await runExternalFileLifecycleRegression(filesystemFixture);
+  console.log("CZaza Extension Host regressions passed.");
 }
