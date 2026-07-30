@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   sourceFile: undefined as StoredSourceFile | undefined,
+  fingerprintKind: "text" as "text" | "binary",
   fingerprintHash: "sha256:new",
   saveSourceFile: vi.fn(),
   refreshRuntimeNoteStateService: vi.fn(),
@@ -24,16 +25,22 @@ vi.mock("@vscode/services/resourceAccess", () => ({
 }));
 
 vi.mock("@vscode/services/resourceFingerprint/getResourceFingerprintService", () => ({
-  getResourceFingerprint: async () => ({
-    kind: "text",
-    hash: mocks.fingerprintHash,
-    programmingLanguage: "typescript",
-    document: {
-      uri: { scheme: "file", fsPath: "/workspace/src/index.ts" },
-      languageId: "typescript",
-      getText: () => "const value = 1;",
-    },
-  }),
+  getResourceFingerprint: async () =>
+    mocks.fingerprintKind === "binary"
+      ? {
+          kind: "binary",
+          hash: mocks.fingerprintHash,
+        }
+      : {
+          kind: "text",
+          hash: mocks.fingerprintHash,
+          programmingLanguage: "typescript",
+          document: {
+            uri: { scheme: "file", fsPath: "/workspace/src/index.ts" },
+            languageId: "typescript",
+            getText: () => "const value = 1;",
+          },
+        },
 }));
 
 vi.mock("@vscode/services/runtimeState/refreshRuntimeNoteStateService", () => ({
@@ -43,6 +50,7 @@ vi.mock("@vscode/services/runtimeState/refreshRuntimeNoteStateService", () => ({
 describe("confirmRuntimeNoteStaleStatusService()", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.fingerprintKind = "text";
     mocks.fingerprintHash = "sha256:new";
     mocks.sourceFile = createSourceFile();
     mocks.saveSourceFile.mockImplementation(
@@ -104,6 +112,57 @@ describe("confirmRuntimeNoteStaleStatusService()", () => {
     expect(result).toEqual({ kind: "outdated" });
     expect(mocks.saveSourceFile).not.toHaveBeenCalled();
     expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledOnce();
+  });
+
+  it("confirms a matching binary File stale state with its metadata hash", async () => {
+    mocks.fingerprintKind = "binary";
+    mocks.fingerprintHash = "metadata-sha256:new";
+    mocks.sourceFile = {
+      ...createSourceFile(),
+      source: {
+        sourceHash: "metadata-sha256:old",
+        sourceHashKind: "metadata",
+      },
+    };
+    const registry = createRegistry({
+      content: "stale",
+      anchor: "confirmed",
+    });
+    registry.setState({
+      workspaceRoot: "/workspace",
+      outputDirectory: ".czaza",
+      relativePath: "src/index.ts",
+      currentSourceHash: "metadata-sha256:new",
+      issues: ["stale"],
+      reason: "sourceChanged",
+      observedAt: "2026-07-30T00:00:00.000Z",
+      targetChanges: [{
+        kind: "file",
+        status: {
+          content: "stale",
+          anchor: "confirmed",
+        },
+      }],
+    });
+
+    const result = await confirmRuntimeNoteStaleStatusService({
+      uri: {} as never,
+      notes: createNotes(),
+      registry,
+      target: { level: "file" },
+    });
+
+    expect(result).toEqual({ kind: "confirmed" });
+    expect(mocks.sourceFile?.source).toEqual({
+      sourceHash: "metadata-sha256:new",
+      sourceHashKind: "metadata",
+    });
+    expect(mocks.sourceFile?.fileNote?.status.content).toBe("current");
+    expect(registry.getState({
+      workspaceRoot: "/workspace",
+      outputDirectory: ".czaza",
+      relativePath: "src/index.ts",
+    })).toBeUndefined();
   });
 
   it("confirms stale content while preserving location review", async () => {

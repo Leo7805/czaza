@@ -29,5 +29,5 @@ flowchart LR
 
 ## 与其他架构的关系
 
-- [Runtime State 源文件变更检测](./runtime-state-source-change.md)说明当前采用的主线。
+- [Runtime State 总体架构](./runtime-state-architecture.md)说明当前采用的主线。
 - [Source Change Persistence Gate](./source-change-persistence-gate.md)说明本可选方案需要的配套 Gate。

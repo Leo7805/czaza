@@ -1,12 +1,12 @@
 {
   "source": {
-    "sourceHash": "sha256:a1c4fa65d39ff9be4792f39a67d72e97174302a7862525dc2a83c4b3cb59e964",
+    "sourceHash": "sha256:0f7d418e724fb42f0484c431aaea3a65fb057681e2eca58d9cb65577a9bcfe04",
     "sourceHashKind": "text",
     "programmingLanguage": "markdown"
   },
   "defaults": {
     "createdAt": "2026-07-29T06:45:15.131Z",
-    "updatedAt": "2026-07-30T03:51:03.716Z"
+    "updatedAt": "2026-07-30T04:48:05.182Z"
   },
   "fileNote": {
     "userNote": "parseArguments：保留命令参数作为临时覆盖。\nreadSkillConfiguration：读取并验证 config.json。\nvalidateRelativeDirectory：确保目录是安全的项目相对路径。\ninitializeArchitectureNotes：相对于项目根目录创建架构笔记。\nwriteOrSynchronizeReadme：保留已有 README 正文，仅同步语言字段。",

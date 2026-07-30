@@ -501,6 +501,46 @@ describe("registerNotesContentEvents()", () => {
     vi.useRealTimers();
   });
 
+  it("stores binary watcher changes in Runtime State without persisting Notes", async () => {
+    vi.useFakeTimers();
+
+    const workspaceRoot = await createTempWorkspaceRoot("binary-external");
+    const notes = createNotes(createStoredSourceFile("previous binary metadata"));
+    const notesProvider = createNotesProvider();
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
+    const uri = createUri(path.join(workspaceRoot, "assets/image.png"));
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.openTextDocument.mockRejectedValue(
+      new Error("File seems to be binary and cannot be opened as text"),
+    );
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      notesProvider.value,
+      undefined,
+      runtimeRegistry,
+    );
+    mocks.changeListeners[0]?.(uri);
+
+    await vi.advanceTimersByTimeAsync(800);
+
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(
+      runtimeRegistry.getState({
+        workspaceRoot,
+        outputDirectory: ".caca",
+        relativePath: "assets/image.png",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        currentSourceHash: expect.stringMatching(/^metadata-sha256:/),
+        issues: ["stale"],
+      }),
+    );
+    expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(uri);
+  });
+
   it("keeps the latest state when document and watcher events target the same file", async () => {
     vi.useFakeTimers();
 

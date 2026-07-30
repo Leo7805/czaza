@@ -5,15 +5,8 @@
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import { isRecentInternalWorkspaceNoteWrite } from "@vscode/notes/WorkspaceNoteStoreRepository";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
-import {
-  applyFileNoteContentChange,
-  detectFileNoteContentChange,
-} from "@shared/services/notes/fileNoteChangeService";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
-import {
-  getCzazaRelativePath,
-  resolveCzazaRootDirectory,
-} from "@vscode/config/resolveCzazaRootDirectory";
+import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
 import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import {
@@ -28,6 +21,7 @@ import {
   SourceRelocationHistoryService,
 } from "@vscode/services/noteRelocation";
 import {
+  refreshBinaryRuntimeNoteStateService,
   refreshRuntimeNoteStateService,
   type RuntimeNoteStateRegistry,
 } from "@vscode/services/runtimeState";
@@ -630,49 +624,24 @@ async function handleExternalChange(
     }
 
     if (fingerprint.kind === "binary") {
-      const { rootDirectory } = resolveCzazaRootDirectory(uri);
-      const settings = getCzazaSettings(uri);
-      const relativePath = getCzazaRelativePath(uri, rootDirectory);
-      const sourceFile = await notes.cache.getSourceFile(
-        rootDirectory,
-        settings.outputDirectory,
-        relativePath,
-      );
-
-      if (!sourceFile) {
-        return;
-      }
-
-      const detection = detectFileNoteContentChange({
-        previousSourceHash: sourceFile.source.sourceHash,
-        nextSourceHash: fingerprint.hash,
-      });
-      const result = applyFileNoteContentChange({
-        sourceFile,
-        detection,
-        now: new Date().toISOString(),
-      });
-
-      if (result.changed) {
-        const updatedSourceFile = {
-          ...result.sourceFile,
-          source: { ...result.sourceFile.source, sourceHashKind: "metadata" as const },
-        };
-
-        if (!sourceChangeGate.canPersist(token)) {
+      enqueueDocumentChange(documentChangeQueues, uri.toString(), async () => {
+        if (!runtimeNoteStateRegistry) {
           return;
         }
 
-        await notes.cache.saveSourceFile(
-          rootDirectory,
-          settings.outputDirectory,
-          relativePath,
-          updatedSourceFile,
-          new Date().toISOString(),
-          { canPersist: () => sourceChangeGate.canPersist(token) },
-        );
-        await notesProvider?.refreshCurrentNotes(uri);
-      }
+        const result = await refreshBinaryRuntimeNoteStateService({
+          uri,
+          currentSourceHash: fingerprint.hash,
+          notes,
+          registry: runtimeNoteStateRegistry,
+          now: new Date().toISOString(),
+          canApply: () => sourceChangeGate.canPersist(token),
+        });
+
+        if (result.registryChange !== "none") {
+          await notesProvider?.refreshCurrentNotes(uri);
+        }
+      });
     }
   } catch (error) {
     console.error("Failed to inspect externally changed CZaza resource.", error);

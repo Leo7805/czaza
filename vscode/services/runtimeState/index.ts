@@ -23,6 +23,11 @@ export {
   type RuntimeNoteRegistryChange,
 } from "./refreshRuntimeNoteStateService";
 export {
+  refreshBinaryRuntimeNoteStateService,
+  type RefreshBinaryRuntimeNoteStateInput,
+  type RefreshBinaryRuntimeNoteStateResult,
+} from "./refreshBinaryRuntimeNoteStateService";
+export {
   passiveRuntimeNoteCheckService,
   type PassiveRuntimeNoteCheckInput,
   type PassiveRuntimeNoteCheckResult,

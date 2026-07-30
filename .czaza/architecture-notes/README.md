@@ -1,9 +1,9 @@
 ---
 type: architecture-outline
-documentVersion: 1.9.0
+documentVersion: 2.1.0
 templateVersion: 1
 createdAt: 2026-07-29
-updatedAt: 2026-07-29
+updatedAt: 2026-07-30
 author: LJ Arch
 contentLanguage: zh-CN
 ---
@@ -18,14 +18,12 @@ contentLanguage: zh-CN
 
 ## 当前主架构
 
-1. [Runtime State 源文件变更检测](./diagrams/runtime-state-source-change.md)：说明确定性编辑立即更新 Notes，其他变化只更新 Runtime State 的核心规则。
-2. [Runtime State 与 Note Store 持久化边界](./diagrams/runtime-state-persistence-boundary.md)：说明哪些数据写入磁盘，哪些状态只保存在内存。
-3. [Runtime State 生命周期](./diagrams/runtime-state-lifecycle.md)：说明待处理状态如何出现、等待、解决和重新检测。
+1. [Runtime State 总体架构](./diagrams/runtime-state-architecture.md)：统一说明变化分类、持久化边界、数据归属和 Runtime State 生命周期。
 
-## 补充架构
+## 细节架构
 
-1. [资源变化统一处理](./diagrams/unified-resource-change-handling.md)：说明外部修改、reload、rename 和 delete 如何逐步迁移到 Runtime State。
-2. [Source Relocation Undo/Redo 历史](./diagrams/source-relocation-undo-redo-history.md)：说明确定性源码编辑如何安全恢复 Notes 位置和状态。
+1. [Source Relocation](./diagrams/source-relocation.md)：说明确定性源码编辑、Section/Line 位置转换和 Undo/Redo 历史。
+2. [Resource Change](./diagrams/resource-change-handling.md)：说明 VS Code 确定性资源操作与 Watcher 外部变化的不同处理。
 
 ## 演进计划
 

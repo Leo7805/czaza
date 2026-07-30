@@ -99,6 +99,40 @@ export async function confirmRuntimeNoteStaleStatusService(
   const fingerprint = await getResourceFingerprint(input.uri);
 
   if (
+    fingerprint.kind === "binary" &&
+    state.currentSourceHash &&
+    fingerprint.hash === state.currentSourceHash
+  ) {
+    if (change.kind !== "file" || !sourceFile.fileNote) {
+      return { kind: "notConfirmable" };
+    }
+
+    const now = new Date().toISOString();
+    const next = {
+      ...updateFileNoteStatus(
+        updateSourceHash(sourceFile, fingerprint.hash),
+        clearContentStatus(change.status),
+        now,
+      ),
+      source: {
+        ...sourceFile.source,
+        sourceHash: fingerprint.hash,
+        sourceHashKind: "metadata" as const,
+      },
+    };
+
+    await input.notes.cache.saveSourceFile(
+      coordinates.workspaceRoot,
+      coordinates.outputDirectory,
+      coordinates.relativePath,
+      next,
+      now,
+    );
+    input.registry.deleteState(coordinates);
+    return { kind: "confirmed" };
+  }
+
+  if (
     fingerprint.kind !== "text" ||
     !state.currentSourceHash ||
     fingerprint.hash !== state.currentSourceHash

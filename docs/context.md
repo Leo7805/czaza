@@ -14,7 +14,9 @@ Document and then implement the planned runtime-state source-change architecture
 - Runtime State Registry, read-only detection, passive checks, Detail/Navigator status overlays, Clear Stale, manual Relocate, deterministic relocation, and Undo/Redo history are implemented.
 - VS Code document changes that are non-deterministic or non-dirty now refresh session-only Runtime State without mutating persisted Notes; deterministic dirty relocation remains immediate.
 - Text-file watcher changes now share the per-document queue with VS Code events and refresh Runtime State without mutating persisted Notes.
-- The first proposed Runtime State architecture document now lives at `.czaza/architecture-notes/diagrams/runtime-state-source-change.md`.
+- Binary watcher changes now compare metadata hashes and expose File stale Runtime State without mutating persisted Notes.
+- Source and resource changes are now documented under one determinism classification: exact VS Code transformations may persist immediately, while ambiguous Watcher and passive events remain in Runtime State.
+- Runtime State Architecture Notes are organized as one overview at `.czaza/architecture-notes/diagrams/runtime-state-architecture.md` plus Source Relocation and Resource Change detail documents.
 - Candidate Registry and Source Change Persistence Gate are optional future improvements, not current prerequisites.
 
 ## Key Decisions
@@ -28,7 +30,7 @@ Document and then implement the planned runtime-state source-change architecture
 
 ## Planned Runtime State Architecture
 
-This design is being implemented incrementally; binary Watcher migration, resource-event migration, and Git-aware code removal remain pending.
+This design is being implemented incrementally; rename/delete resource-event migration and Git-aware code removal remain pending.
 
 - Decouple source-change handling from Git concepts such as branches, HEAD revisions, checkout, merge, restore, and transition timing.
 - Use three detection sources: precise VS Code document events, file-system watcher events, and passive consistency checks.
@@ -41,6 +43,7 @@ This design is being implemented incrementally; binary Watcher migration, resour
 - Use the runtime source hash to confirm that the file has not changed again before applying a user-approved update.
 - Recompute runtime state after restart through startup, first-open, Navigator, or explicit consistency checks; do not rely on a continuous full-workspace scan.
 - Persist Note content, locations, `sourceHash`, and `updatedAt` after a deterministic dirty edit or explicit user confirmation.
+- Persist deterministic VS Code rename, move, delete, and remove transformations immediately after Resource Access validation.
 - Keep file watchers event-driven, debounce duplicate notifications, and inspect only affected files.
 - Remove the existing Git transition guard and Git-aware source-change gate only after the runtime-state workflow is implemented and validated.
 
@@ -55,4 +58,4 @@ This design is being implemented incrementally; binary Watcher migration, resour
 
 ## Next Step
 
-Add read-only Runtime State detection for binary file-system watcher changes.
+Remove the obsolete Git-aware delay from deterministic VS Code rename/move/delete/remove events, add Resource Access validation, and reconcile Runtime State afterward.

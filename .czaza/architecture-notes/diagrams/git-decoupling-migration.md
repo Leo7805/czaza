@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 2.0.0
+documentVersion: 2.1.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -16,17 +16,18 @@ author: Codex
 ```mermaid
 flowchart LR
     A[Runtime State 和 UI 基础] --> B[迁移非确定性文档事件]
-    B --> C[迁移 Watcher]
-    C --> D[迁移 Rename 和 Delete]
-    D --> E[删除 Git-aware 防护]
-    E --> F[完整回归测试]
+    B --> C[迁移 Watcher Change]
+    C --> D[清理确定性资源事件]
+    D --> E[迁移 Watcher Create Delete]
+    E --> F[删除 Git-aware 防护]
+    F --> G[完整回归测试]
 ```
 
 ## 实施状态
 
-- 已完成：Runtime State Registry、只读检测、被动检查、Detail/Navigator 展示、Clear Stale、Relocate 和确定性 Undo/Redo。
-- 下一步：非确定性 VS Code 文档事件只更新 Runtime State。
-- 后续：依次迁移 Watcher、Rename 和 Delete。
+- 已完成：Runtime State Registry、只读检测、被动检查、Detail/Navigator 展示、Clear Stale、Relocate、确定性 Undo/Redo、非确定性文档事件和 Watcher Change。
+- 下一步：删除 VS Code Rename/Move/Delete/Remove 的旧 Git-aware 延迟，并补齐 Resource Access 与 Runtime State 协调。
+- 后续：迁移 Watcher Create/Delete、`missing` 和 `possible rename`。
 - 最后：新路径稳定后删除 Git HEAD、transition 和延迟确认代码。
 
 ## 阶段说明
@@ -34,7 +35,8 @@ flowchart LR
 ### 迁移规则
 
 - 确定性 dirty 编辑继续立即更新 Notes，不等待保存，也不进入 Candidate Registry。
-- 非确定性文档事件、Watcher、Rename 和 Delete 逐个改成只更新 Runtime State。
+- 非确定性文档事件和 Watcher 只更新 Runtime State。
+- VS Code 明确提供路径映射的 Rename/Move/Delete/Remove 属于确定性变化，可以立即更新 Notes。
 - 每迁移一个入口，先验证 Note JSON 不会被自动事件修改，再处理下一个入口。
 - Git-aware 防护在所有旧入口迁移完成前继续保留。
 
@@ -75,4 +77,4 @@ flowchart LR
 
 ## 与当前实现的关系
 
-当前代码仍在 `extension.ts` 创建共享的 `GitWorkspaceTransitionGuard`，并由内容事件、资源事件和内置 Git HEAD 监听共同使用。本图是尚未实施的迁移计划，因此状态为 `proposed`。
+当前代码仍在 `extension.ts` 创建共享的 `GitWorkspaceTransitionGuard`，并由内容事件、资源事件和内置 Git HEAD 监听共同使用。文档事件和 Watcher Change 已迁移，资源事件与 Git-aware 代码清理仍未完成，因此状态为 `proposed`。
