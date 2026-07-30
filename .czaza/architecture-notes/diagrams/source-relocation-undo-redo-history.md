@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.1.0
+documentVersion: 1.2.0
 status: current
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -90,8 +90,7 @@ flowchart TD
 ## 与其他架构的关系
 
 - [Runtime State 源文件变更检测](./runtime-state-source-change.md)说明历史失效后进入的只读检测路径。
-- [Relocation Candidate 生命周期](./relocation-candidate-lifecycle.md)说明普通确定性编辑在获得持久化资格前的状态。
-- [Source Change Persistence Gate](./source-change-persistence-gate.md)说明普通编辑及历史恢复写入 Note Store 前的校验边界。
+- 普通确定性编辑立即写入 Notes；本历史只负责随后出现的真实 Undo/Redo。
 
 ## 当前实现
 

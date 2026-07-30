@@ -113,6 +113,7 @@ export function registerNotesContentEvents(
         documentChangeQueues,
         workspaceTransitionGuard,
         sourceChangeGate,
+        runtimeNoteStateRegistry,
       );
     }),
     watcher.onDidChange((uri) => {
@@ -178,14 +179,27 @@ async function handleTextDocumentChange(
 
     const editReason = getSourceChangeEditReason(event.reason);
 
-    if (
-      (event.document.isDirty === false && !editReason) ||
-      !evaluateCzazaResourceAccess(event.document.uri).allowed
-    ) {
+    if (!evaluateCzazaResourceAccess(event.document.uri).allowed) {
       return;
     }
 
     const key = event.document.uri.toString();
+    const document = createTextDocumentSnapshot(event.document);
+    const token = sourceChangeGate.captureToken();
+
+    if (event.document.isDirty === false && !editReason) {
+      enqueueRuntimeStateRefresh(
+        documentChangeQueues,
+        key,
+        document,
+        notes,
+        notesProvider,
+        runtimeNoteStateRegistry,
+        () => sourceChangeGate.canPersist(token),
+      );
+      return;
+    }
+
     const classifiedBatch = classifySourceChangeBatch({
       contentChanges: event.contentChanges,
     });
@@ -193,11 +207,17 @@ async function handleTextDocumentChange(
 
     if (classifiedBatch.kind === "unsupported") {
       state.hasUnsupportedChange = true;
+      enqueueRuntimeStateRefresh(
+        documentChangeQueues,
+        key,
+        document,
+        notes,
+        notesProvider,
+        runtimeNoteStateRegistry,
+        () => sourceChangeGate.canPersist(token),
+      );
       return;
     }
-
-    const document = createTextDocumentSnapshot(event.document);
-    const token = sourceChangeGate.captureToken();
 
     enqueueDocumentChange(documentChangeQueues, key, async () => {
       if (workspaceTransitionGuard?.isTransitioning()) {
@@ -217,7 +237,7 @@ async function handleTextDocumentChange(
 
         if (historyResult.kind === "restored") {
           state.hasAppliedDeterministicChange = true;
-          await reconcileRuntimeStateAfterDeterministicChange(
+          await refreshRuntimeStateAfterDocumentChange(
             document,
             notes,
             runtimeNoteStateRegistry,
@@ -229,7 +249,7 @@ async function handleTextDocumentChange(
 
         if (historyResult.kind === "unavailable" || historyResult.kind === "mismatch") {
           state.hasUnsupportedChange = true;
-          await reconcileRuntimeStateAfterDeterministicChange(
+          await refreshRuntimeStateAfterDocumentChange(
             document,
             notes,
             runtimeNoteStateRegistry,
@@ -259,7 +279,7 @@ async function handleTextDocumentChange(
         result.updatedSourceFile,
       );
       state.hasAppliedDeterministicChange = true;
-      await reconcileRuntimeStateAfterDeterministicChange(
+      await refreshRuntimeStateAfterDocumentChange(
         document,
         notes,
         runtimeNoteStateRegistry,
@@ -293,45 +313,81 @@ function getSourceChangeEditReason(
 }
 
 /**
- * Re-detects one resource after deterministic persistence so obsolete Runtime State is removed.
+ * Re-detects one changed resource and reconciles its session-only Runtime State.
  *
  * Runtime reconciliation is best-effort because a transient read failure must not
- * invalidate an already persisted deterministic relocation.
+ * invalidate an already persisted deterministic relocation or modify persistent Notes.
  *
  * @param document - Immutable post-change source snapshot.
  * @param notes - Shared persistent Note Store reader.
  * @param registry - Optional session-only Runtime Note State Registry.
  * @param canApply - Final revision check for the asynchronous registry mutation.
- * @returns Promise resolved after reconciliation or a handled failure.
+ * @returns Whether the Runtime Note State Registry changed.
  */
-async function reconcileRuntimeStateAfterDeterministicChange(
+async function refreshRuntimeStateAfterDocumentChange(
   document: TextDocumentSnapshot,
   notes: WorkspaceNoteStore,
   registry: RuntimeNoteStateRegistry | undefined,
   canApply: () => boolean,
-): Promise<void> {
+): Promise<boolean> {
   if (!registry) {
-    return;
+    return false;
   }
 
   try {
-    await refreshRuntimeNoteStateService({
+    const result = await refreshRuntimeNoteStateService({
       document,
       notes,
       registry,
       now: new Date().toISOString(),
       canApply,
     });
+    return result.registryChange !== "none";
   } catch (error) {
     console.error(
-      "Failed to reconcile CZaza Runtime Note State after deterministic relocation.",
+      "Failed to refresh CZaza Runtime Note State after a document change.",
       error,
     );
+    return false;
   }
 }
 
 /**
- * Handles a document save unless Git is currently replacing workspace files.
+ * Serializes a read-only Runtime State refresh with other changes for the same document.
+ *
+ * @param documentChangeQueues - Per-document serialized update queues.
+ * @param key - Stable document URI key.
+ * @param document - Immutable post-change source snapshot.
+ * @param notes - Shared persistent Note Store reader.
+ * @param notesProvider - Optional Notes view refreshed after Runtime State changes.
+ * @param registry - Optional session-only Runtime Note State Registry.
+ * @param canApply - Final revision check for the asynchronous registry mutation.
+ * @returns Nothing.
+ */
+function enqueueRuntimeStateRefresh(
+  documentChangeQueues: DocumentChangeQueue,
+  key: string,
+  document: TextDocumentSnapshot,
+  notes: WorkspaceNoteStore,
+  notesProvider: NotesViewProvider | undefined,
+  registry: RuntimeNoteStateRegistry | undefined,
+  canApply: () => boolean,
+): void {
+  enqueueDocumentChange(documentChangeQueues, key, async () => {
+    const changed = await refreshRuntimeStateAfterDocumentChange(
+      document,
+      notes,
+      registry,
+      canApply,
+    );
+    if (changed) {
+      await notesProvider?.refreshCurrentNotes(document.uri);
+    }
+  });
+}
+
+/**
+ * Refreshes session-only Runtime State after a save without mutating persistent Notes.
  *
  * @param notes - Shared workspace Note store.
  * @param document - Saved VS Code document.
@@ -340,6 +396,7 @@ async function reconcileRuntimeStateAfterDeterministicChange(
  * @param documentChangeQueues - Per-document serialized update queues.
  * @param workspaceTransitionGuard - Optional Git transition state.
  * @param sourceChangeGate - Git-aware revision gate for automatic persistence.
+ * @param runtimeNoteStateRegistry - Optional session registry receiving read-only detection.
  * @returns Promise resolved after save-time detection or suppression.
  */
 async function handleSavedDocument(
@@ -350,6 +407,7 @@ async function handleSavedDocument(
   documentChangeQueues: DocumentChangeQueue,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
   sourceChangeGate: GitAwareSourceChangeGate,
+  runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
 ): Promise<void> {
   if (workspaceTransitionGuard?.isTransitioning()) {
     workspaceTransitionGuard.touchTransition();
@@ -366,8 +424,6 @@ async function handleSavedDocument(
 
   if (queuedChanges) {
     await queuedChanges;
-  } else if (!(await sourceChangeGate.confirmPersistence(token))) {
-    return;
   }
 
   if (!sourceChangeGate.canPersist(token)) {
@@ -382,7 +438,15 @@ async function handleSavedDocument(
     return;
   }
 
-  await handleChangedDocument(notes, document, notesProvider, "save", sourceChangeGate, token);
+  const changed = await refreshRuntimeStateAfterDocumentChange(
+    createTextDocumentSnapshot(document),
+    notes,
+    runtimeNoteStateRegistry,
+    () => sourceChangeGate.canPersist(token),
+  );
+  if (changed) {
+    await notesProvider?.refreshCurrentNotes(document.uri);
+  }
 }
 
 /**

@@ -116,7 +116,7 @@ describe("registerNotesContentEvents()", () => {
     vi.useRealTimers();
   });
 
-  it("marks file, section, and line notes stale after a saved content change", async () => {
+  it("records saved content changes in Runtime State without persisting Notes", async () => {
     vi.useFakeTimers();
     const workspaceRoot = await createTempWorkspaceRoot("changed");
     const previousText = "export const value = 1;\n";
@@ -124,49 +124,33 @@ describe("registerNotesContentEvents()", () => {
     const sourceFile = createStoredSourceFile(previousText);
     const notes = createNotes(sourceFile);
     const notesProvider = createNotesProvider();
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(createExtensionContext(), notes.value, notesProvider.value);
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      notesProvider.value,
+      undefined,
+      runtimeRegistry,
+    );
     const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
     mocks.saveListeners[0]?.(document);
 
-    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
 
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
-    expect(notes.saveSourceFile).toHaveBeenCalledWith(
-      workspaceRoot,
-      ".caca",
-      "src/index.ts",
-      expect.objectContaining({
-        source: {
-          sourceHash: createSourceHash(nextText),
-          programmingLanguage: "typescript",
-        },
-        fileNote: expect.objectContaining({
-          status: {
-            content: "stale",
-            anchor: "confirmed",
-          },
-        }),
-        sectionNotes: [
-          expect.objectContaining({
-            status: {
-              content: "stale",
-              anchor: "needsConfirmation",
-            },
-          }),
-        ],
-        lineNotes: [
-          expect.objectContaining({
-            status: {
-              content: "stale",
-              anchor: "needsConfirmation",
-            },
-          }),
-        ],
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(
+      runtimeRegistry.getState({
+        workspaceRoot,
+        outputDirectory: ".caca",
+        relativePath: "src/index.ts",
       }),
-      expect.any(String),
-      { canPersist: expect.any(Function) },
+    ).toEqual(
+      expect.objectContaining({
+        currentSourceHash: createSourceHash(nextText),
+        issues: expect.arrayContaining(["stale", "locationReview"]),
+      }),
     );
     expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(document.uri);
   });
@@ -216,7 +200,7 @@ describe("registerNotesContentEvents()", () => {
     mocks.saveListeners[0]?.(document);
     await vi.advanceTimersByTimeAsync(800);
 
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 
   it("blocks bursty checkout events across repeated HEAD transitions and resumes normal edits", async () => {
@@ -504,7 +488,7 @@ describe("registerNotesContentEvents()", () => {
     await vi.advanceTimersByTimeAsync(800);
 
     expect(mocks.openTextDocument).not.toHaveBeenCalled();
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 
   it("persists and refreshes deterministic text changes without a debounce", async () => {
@@ -885,7 +869,7 @@ describe("registerNotesContentEvents()", () => {
     expect(notes.saveSourceFile).toHaveBeenCalledOnce();
   });
 
-  it("applies mixed multi-line replacements without save-time fallback", async () => {
+  it("keeps unsupported dirty replacements in Runtime State after save", async () => {
     vi.useFakeTimers();
 
     const workspaceRoot = await createTempWorkspaceRoot("unsupported-save");
@@ -893,42 +877,87 @@ describe("registerNotesContentEvents()", () => {
     const nextText = "export const value = 2;\n";
     const notes = createNotes(createStoredSourceFile(previousText));
     const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(createExtensionContext(), notes.value);
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      undefined,
+      runtimeRegistry,
+    );
+    mocks.textDocumentChangeListeners[0]?.({
+      document,
+      contentChanges: [],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    mocks.saveListeners[0]?.(document);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(
+      runtimeRegistry.getState({
+        workspaceRoot,
+        outputDirectory: ".caca",
+        relativePath: "src/index.ts",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        currentSourceHash: createSourceHash(nextText),
+        issues: expect.arrayContaining(["stale", "locationReview"]),
+      }),
+    );
+  });
+
+  it("refreshes Runtime State for non-dirty document replacements without persisting Notes", async () => {
+    vi.useFakeTimers();
+
+    const workspaceRoot = await createTempWorkspaceRoot("non-dirty-change");
+    const previousText = "export const value = 1;\n";
+    const nextText = "export const value = 2;\n";
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
+    const document = createDocument(
+      path.join(workspaceRoot, "src/index.ts"),
+      nextText,
+      false,
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      undefined,
+      runtimeRegistry,
+    );
     mocks.textDocumentChangeListeners[0]?.({
       document,
       contentChanges: [
         {
           range: {
-            start: { line: 0, character: 0 },
-            end: { line: 1, character: 0 },
+            start: { line: 0, character: 21 },
+            end: { line: 0, character: 22 },
           },
-          rangeLength: 24,
-          text: "replacement\ntext\n",
+          rangeLength: 1,
+          text: "2",
         },
       ],
     } as unknown as vscodeTypes.TextDocumentChangeEvent);
-    mocks.saveListeners[0]?.(document);
+
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
-    expect(notes.saveSourceFile).toHaveBeenCalledWith(
-      workspaceRoot,
-      ".caca",
-      "src/index.ts",
-      expect.objectContaining({
-        sectionNotes: [
-          expect.objectContaining({
-            status: {
-              content: "stale",
-              anchor: "orphaned",
-            },
-          }),
-        ],
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(
+      runtimeRegistry.getState({
+        workspaceRoot,
+        outputDirectory: ".caca",
+        relativePath: "src/index.ts",
       }),
-      expect.any(String),
-      { canPersist: expect.any(Function) },
+    ).toEqual(
+      expect.objectContaining({
+        currentSourceHash: createSourceHash(nextText),
+      }),
     );
   });
 

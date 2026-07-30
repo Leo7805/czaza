@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.7.0
+documentVersion: 2.0.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -15,56 +15,30 @@ author: Codex
 
 ```mermaid
 flowchart LR
-    A[建立当前行为测试基线] --> B[新增 Runtime State Registry]
-    B --> C[接入统一检测与被动检查]
-    C --> D[Notes UI 展示并处理 Runtime State]
-    D --> E[接入 Candidate Persistence Gate]
-    E --> F[切换内容和资源事件入口]
-    F --> G[删除 Git-aware 防护]
-    G --> H[完整回归与快速分支切换测试]
+    A[Runtime State 和 UI 基础] --> B[迁移非确定性文档事件]
+    B --> C[迁移 Watcher]
+    C --> D[迁移 Rename 和 Delete]
+    D --> E[删除 Git-aware 防护]
+    E --> F[完整回归测试]
 ```
 
 ## 实施状态
 
-- 阶段一已完成：快速 HEAD 切换、内容事件及 rename/delete 事件爆发已有回归测试基线。
-- 阶段二已完成：`RuntimeNoteStateRegistry` 和目标级 Runtime State 类型已经实现并通过纯逻辑测试。
-- 阶段三进行中：单文件只读检测、Registry 协调入口、按打开文件触发的被动检查、Detail 与 Navigator 状态覆盖，以及纯 stale 的 Hash 复核确认已经实现；实时事件归一化和 location review 确认尚未接入。
-- 阶段四至阶段六尚未实施，当前事件入口和 Git-aware 防护保持不变。
+- 已完成：Runtime State Registry、只读检测、被动检查、Detail/Navigator 展示、Clear Stale、Relocate 和确定性 Undo/Redo。
+- 下一步：非确定性 VS Code 文档事件只更新 Runtime State。
+- 后续：依次迁移 Watcher、Rename 和 Delete。
+- 最后：新路径稳定后删除 Git HEAD、transition 和延迟确认代码。
 
 ## 阶段说明
 
-### 阶段一：建立测试基线
+### 迁移规则
 
-- 保留当前实现，补齐内容修改、外部替换、reload、rename、delete、快速分支切换和 VS Code 重启场景。
-- 明确哪些测试验证正式 Note Store 不应改变，哪些测试验证 Runtime State 应出现。
-- 此阶段不改变运行时行为。
+- 确定性 dirty 编辑继续立即更新 Notes，不等待保存，也不进入 Candidate Registry。
+- 非确定性文档事件、Watcher、Rename 和 Delete 逐个改成只更新 Runtime State。
+- 每迁移一个入口，先验证 Note JSON 不会被自动事件修改，再处理下一个入口。
+- Git-aware 防护在所有旧入口迁移完成前继续保留。
 
-### 阶段二：建立 Runtime State 基础
-
-- 新增只存在于 Extension Host 内存中的 `Runtime State Registry`。
-- 定义路径、当前 Hash、状态、原因和更新时间等最小数据模型。
-- 先提供纯逻辑更新、查询、覆盖、清除和资源移动测试，不接管现有事件。
-
-### 阶段三：接入检测和 UI
-
-- 将 VS Code 文档事件、Watcher 和被动一致性检查归一化为统一变化意图。
-- 先以不写 Note Store 的方式计算 Runtime State，并与当前检测结果对照。
-- Notes UI 改为合并正式 Notes 与 Runtime State，用户确认操作通过独立服务完成。
-
-### 阶段四：接入受控持久化
-
-- 将确定性 relocation 结果保留为 Candidate，不在文本变化事件中立即写盘。
-- Candidate 只有通过保存生命周期、版本和当前 Hash 验证后才能持久化。
-- rename、delete 和模糊外部变化只更新 Runtime State，等待用户确认。
-
-### 阶段五：切换事件入口
-
-- `registerNotesContentEvents` 切换到 Runtime State 和 Candidate 路径。
-- `registerNotesResourceEvents` 切换到统一资源变化路径。
-- 加入启动、首次打开、Navigator 刷新或显式检查时的被动一致性检查。
-- 每切换一个入口都先运行对应回归测试，不同时替换所有入口。
-
-### 阶段六：删除 Git-aware 防护
+### 删除 Git-aware 防护
 
 - 从 `extension.ts` 删除 `GitWorkspaceTransitionGuard` 的创建和 Git 监听注册。
 - 删除 `workspaceTransition` 目录中的 Git HEAD 监听、transition timer 和 revision token 实现。
@@ -77,12 +51,12 @@ flowchart LR
 - 删除的是依赖时间猜测 Git checkout 是否完成的延迟确认。
 - Watcher 重复通知合并、UI refresh 合并和同资源任务串行化仍然有独立价值，可以保留。
 - 保留的 debounce 只用于减少重复工作，不得决定是否具有 Note Store 写入权限。
-- 任何持久化资格都必须来自资源 Gate、可信编辑生命周期和当前 Hash，而不是“等待足够久”。
+- 确定性写入资格来自 dirty、可确定计算、资源 Gate 和最终有效性检查，而不是“等待足够久”。
 
 ## 每阶段完成条件
 
 - 新增路径具有纯逻辑单元测试和对应事件集成测试。
-- 自动检测不会修改 Note JSON 或 `index.json`，除非用户确认或 Candidate 通过 Persistence Gate。
+- 非确定性自动检测不会修改 Note JSON 或 `index.json`；确定性 dirty 编辑和用户确认可以修改。
 - 快速来回切换分支、`git restore`、外部文件替换和普通手动编辑具有不同但确定的预期结果。
 - 当前阶段验证通过前不删除上一阶段的安全保护。
 - 最终代码不读取 Git extension API，不保存 HEAD revision，也不依赖 branch transition 状态。
@@ -97,7 +71,7 @@ flowchart LR
 - `registerNotesContentEvents` 与 `registerNotesResourceEvents` 中的 Git-aware 参数和判断
 - 对应的 Git transition 与 Git-aware Gate 测试
 
-删除动作只能在 Runtime State、统一资源变化、Persistence Gate 和被动一致性检查全部接管后进行。
+删除动作只能在 Runtime State、统一资源变化和被动一致性检查全部接管后进行。
 
 ## 与当前实现的关系
 

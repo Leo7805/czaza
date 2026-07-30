@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.11.0
+documentVersion: 2.0.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -9,98 +9,58 @@ author: Codex
 
 # Runtime State 源文件变更检测
 
-本方案将源文件变化检测与 Git 解耦，并在内存中管理尚未由用户确认的笔记状态。
+本方案使用一条核心规则：能准确计算的位置变化立即更新 Notes，其他变化只在内存中提示用户。
 
-## 概览图
-
-概览图只展示源文件变化从分类到正式 Notes 或 Runtime State 的核心去向。
-
-```mermaid
-flowchart LR
-    A[源文件变化] --> B{变化分类}
-    B -->|dirty 且可确定性处理| C[Relocation Candidate]
-    B -->|不明确或不支持| D[Runtime State]
-    C --> E[Persistence Gate]
-    E -->|允许| F[正式 Notes]
-    E -->|拒绝| D
-    D --> G[Notes UI]
-```
-
-- **Dirty**：VS Code 文档的内存内容与磁盘上最后保存的内容不一致，通常表示存在尚未保存的编辑。
-- **Candidate**：暂存“Notes 应如何 relocation”的计算结果，用来分开“能够算出位置变化”和“确认可以安全写盘”；例如在第 10 行前插入 3 行时先保留后续 Line 和 Section 向后移动 3 行的方案，只有匹配的保存、文档版本和当前 Hash 均通过验证后才可写入正式 Notes，详见 [Relocation Candidate 生命周期](./relocation-candidate-lifecycle.md)。
-
-## 详细流程图
-
-详细流程图展示三种变化来源、VS Code 文档事件分类、状态管理、确认失败后的重新检测及最终持久化边界。
-
-1. VS Code 文档变化事件：编辑器内的文件变化（例如：手动输入代码并保存）。
-
-2. 文件系统 Watcher 事件：编辑器外的文件变化（例如：git restore 替换文件）。
-
-3. 被动一致性检查：在特定时机主动比较源文件与 Notes（例如：VS Code 重启后首次打开文件）。
+## 核心流程
 
 ```mermaid
 flowchart TD
-    A[VS Code 文档变化事件] --> B[Czaza Resource Access Gate]
-    B -->|拒绝| C[忽略]
-    B -->|允许| D{document.isDirty}
-    D -->|是| E{contentChanges 能否确定性处理}
-    D -->|否| F[只读检查当前文件]
-    E -->|可以| G[计算 Line 和 Section relocation candidate]
-    E -->|不可以| F
-
-    H[文件系统 watcher 事件] --> I[合并重复通知并读取受影响文件]
-    I --> F
-
-    J[启动、首次打开、Navigator 或显式检查] --> K[被动一致性检查]
-    K --> F
-
-    G --> L[Source Change Persistence Gate]
-    L -->|可信编辑生命周期且 Hash 匹配| M[更新 Note 内容、位置、sourceHash 和 updatedAt]
-    L -->|资格失效| F
-
-    F --> N[Runtime State Registry]
-    N --> O[保存路径、当前 Hash、状态和原因]
-    O --> P[Notes UI 显示 stale、location review、missing 或 possible rename]
-    P --> Q{用户是否确认处理}
-    Q -->|否| R[仅保留内存状态，不写 Note JSON 或 index.json]
-    Q -->|是| S{当前 source hash 是否仍匹配}
-    S -->|是| L
-    S -->|否| F
-
-    M --> T[清除对应 Runtime State]
+    A[源文件变化] --> B{dirty 且能准确计算}
+    B -->|是| C[立即更新 Notes]
+    B -->|否| D[只读检测当前文件]
+    C --> D
+    D --> E{是否仍有问题}
+    E -->|否| F[清除 Runtime State]
+    E -->|是| G[UI 显示待处理状态]
+    G -->|用户处理| H[更新对应 Notes]
+    H --> D
 ```
 
-## 责任边界
+## 名词解释
 
-- 所有 VS Code 文档变化必须先通过 [Czaza 资源访问 Gate](./czaza-resource-access-gate.md)，工作区外、Root 外和 Czaza Note Store 文件不得进入源码检测。
-- 只有 `isDirty=true` 且 `contentChanges` 能够确定性分类的 VS Code 文档变化，才能生成 relocation candidate。
-- 确定性只表示能够准确计算 relocation candidate，不代表具备持久化权限。
-- `Source Change Persistence Gate` 必须独立验证可信编辑生命周期、候选有效性和当前 `sourceHash`。
-- Line Note 所在行的 Enter 按位置分类：行首确定移动锚点，行中拆分需要 Location Review，行尾保持 Line Note 行号和状态不变。
-- 确定性整体移动只更新 Section 范围或 Line 行号，必须保留目标原有的 `content` 与 `anchor` 状态；移动本身不能确认既有 Location Review。
-- 文件系统 watcher 只检查事件涉及的文件，并合并短时间内的重复通知。
-- 被动一致性检查用于重启后的恢复和按需补检，不持续扫描整个工作区。
-- `Runtime State Registry` 只保存非当前状态的受影响文件，不保存全量文件快照。
-- 模糊的外部变化只更新内存状态，不自动改写 Note JSON 或 `index.json`。
-- 用户确认或确定性编辑准备持久化时，必须再次核对当前 `sourceHash`。
-- Runtime State 至少包含文件路径、当前 hash、状态，以及可选的变化原因。
+- **Dirty**：编辑器内容尚未保存到磁盘，例如手动输入或接受 Copilot 建议后，VS Code 通常会标记为 dirty。
+- **确定性修改**：能够准确算出新位置的编辑，例如在 Line Note 前插入一行时，行号确定增加一。
+- **Runtime State**：只保存在 Extension Host 内存中的待处理提醒，不直接修改 Note JSON。
+- **建议位置**：检测器认为 Section 或 Line 可能移动到的位置，只供 Relocate 使用，确认前不覆盖正式位置。
+- **Note Store**：`.czaza/notes` 中正式保存 File、Section 和 Line Notes 的数据。
 
-## 状态范围
+## 三种变化来源
 
-- `stale`：源内容已经变化，笔记内容可能需要更新。
-- `location review`：Section 或 Line 的锚点位置需要确认。
-- `missing`：原路径当前不存在。
-- `possible rename`：发现可能对应同一资源的新路径，但尚未由用户确认。
+1. VS Code 文档事件：编辑器内输入、删除或 Copilot 插入。
+2. 文件系统 Watcher：Git、外部工具或磁盘操作改变文件。
+3. 被动检查：首次打开文件、切换编辑器或显式检查。
 
-## 与当前实现的关系
+## 当前规则
 
-当前实现已经创建共享的 `RuntimeNoteStateRegistry`，并在文档首次打开、切换为活动编辑器或内容 Hash 改变时执行被动一致性检查。检查只读取 Note Store 并更新内存状态，不扫描整个工作区，也不持久化检测结果。
+- `isDirty=true` 且变化可以确定性计算时，立即更新 Section 范围、Line 行号及对应 Notes。
+- 确定性整体移动只改变坐标，保留原有 `content` 和 `anchor` 状态。
+- Line Note 行首 Enter 确定移动，行中 Enter 需要 Location Review，行尾 Enter 不改变该 Line Note。
+- 其他变化只应重新检测，并把 `stale`、`location review`、`missing` 或 `possible rename` 放入 Runtime State。
+- Clear Stale 只处理内容状态；Relocate 只处理位置状态；完成后重新检测整个文件。
+- Runtime State 关闭 VS Code 后可以丢失，重新打开时由被动检查恢复。
 
-File Notes 详情页和 Navigator 已经将匹配资源的 Runtime State 覆盖到 File、Section 和 Line Note 的状态。Runtime State 中的候选 Section 范围和 Line 行号不会在确认前覆盖正式 Notes 的可见位置，只保留给后续 relocate 流程使用。
+## 当前风险
 
-纯 stale 且位置未变化的目标可以由用户从 Detail 或 Navigator 确认；确认前会重新核对当前 Hash，Hash 过期时只重新检测而不写盘。`location review` 不得由 Clear stale 隐式确认。
+- 部分非确定性文档事件和 Watcher 路径仍调用旧服务修改 Note Store。
+- `isDirty` 能覆盖常见编辑场景，但某些插件也可能制造 dirty 编辑。
+- Rename 和 Delete 仍使用旧的 Git-aware 延迟后直接更新 Note Store。
 
-Location review 确认、实时 VS Code 文档事件和文件系统 Watcher 尚未迁移；实时事件仍使用 `GitWorkspaceTransitionGuard`、`GitAwareSourceChangeGate` 和 Git HEAD 监听来延迟或取消自动写入。在这些路径完成迁移和验证前，不应删除现有 Git 防护。
+## 下一步
 
-检测结果进入内存或磁盘的具体边界见 [Runtime State 与 Note Store 持久化边界](./runtime-state-persistence-boundary.md)。
+先让非确定性 VS Code 文档事件只更新 Runtime State，同时保持确定性 dirty 编辑立即写入不变；随后再迁移 Watcher、Rename 和 Delete。
+
+## Future Improvements
+
+- 更可靠地区分用户编辑与其他扩展产生的 dirty 编辑。
+- 多窗口同时编辑同一文件时增加文档版本校验。
+- 如果未来确实需要保存前暂存确定性结果，再评估 [Relocation Candidate 生命周期](./relocation-candidate-lifecycle.md)；当前主线不采用。

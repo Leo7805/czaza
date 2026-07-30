@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-30T03:01:22.610Z",
+  "updatedAt": "2026-07-30T03:42:32.053Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -139,9 +139,9 @@
     },
     "vscode/events/registerNotesContentEvents.ts": {
       "noteFile": "files/a8ddb5ffcac5-2c97d283.json",
-      "sourceHash": "sha256:62223499d0a950e5587d55675415efa441f903ce0a3d7f8f2f8a5efccbc18496",
+      "sourceHash": "sha256:67e835f622ac99bfc6fad6e227a9877d25b779ebf6a9f5d45f19d1da3314e8a8",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T02:29:00.968Z"
+      "updatedAt": "2026-07-30T03:42:32.053Z"
     },
     "vscode/services/workspaceTransition/GitWorkspaceTransitionGuard.ts": {
       "noteFile": "files/22f375782ff6-cf3ddbe4.json",
@@ -198,9 +198,9 @@
     },
     "docs/context.md": {
       "noteFile": "files/dfd904e21399-eff00be7.json",
-      "sourceHash": "sha256:1c33f76323a9d0c860d9ab99aed3835bb5a129864b94dbe9eb1953f9eabbb88d",
+      "sourceHash": "sha256:1583d30b20d79d244ad1e534247f22de61354c921ff5b95e6d5648151e353aaa",
       "programmingLanguage": "markdown",
-      "updatedAt": "2026-07-30T00:58:56.529Z"
+      "updatedAt": "2026-07-30T03:40:56.279Z"
     },
     "vscode/services/resourceAccess/CzazaResourceAccessGate.ts": {
       "noteFile": "files/e1a86faa4b50-7bd7a76f.json",

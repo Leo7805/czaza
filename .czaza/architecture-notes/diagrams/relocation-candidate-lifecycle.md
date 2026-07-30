@@ -1,46 +1,33 @@
 ---
 type: architecture-diagram
-documentVersion: 1.0.0
+documentVersion: 2.0.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-29
 author: Codex
 ---
 
-# Relocation Candidate 生命周期
+# Relocation Candidate 生命周期（Future Improvement）
 
-本方案说明确定性 relocation 结果如何在内存中累积、验证和失效，并避免尚未确认的结果直接改写正式 Notes。
+这是未采用的可选方案：先把确定性 relocation 暂存在内存，保存后再写入 Notes。当前主线采用“确定性 dirty 编辑立即更新 Notes”，不依赖本方案。
 
 ## 生命周期
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Accumulating: dirty 精确编辑
-    Accumulating --> Accumulating: 累积后续精确变化
-    Accumulating --> Validating: 收到匹配的保存
-    Accumulating --> Revalidating: watcher 或 reload 信号
-    Revalidating --> Validating: 保存生命周期、版本和 Hash 匹配
-    Revalidating --> Invalidated: 生命周期或内容不匹配
-    Accumulating --> Invalidated: rename、delete 或 discard
-    Validating --> Queued: Candidate 仍然有效
-    Validating --> Invalidated: 当前版本或 Hash 不匹配
-    Queued --> PersistenceGate: 轮到同文件任务执行
-    PersistenceGate --> Persisted: 最终版本和 Hash 匹配
-    PersistenceGate --> Invalidated: 写入资格已经失效
-    Invalidated --> RuntimeState: 只读重新检测
-    Persisted --> [*]
-    RuntimeState --> [*]
+flowchart LR
+    A[确定性编辑] --> B[内存 Candidate]
+    B --> C{保存后仍匹配}
+    C -->|是| D[写入 Notes]
+    C -->|否| E[Runtime State]
 ```
 
 ## 关键说明
 
-- Candidate 暂存根据 dirty 精确编辑计算出的 relocation 方案，使“能够计算位置变化”和“允许写入正式 Notes”保持分离。
-- 同一文件的后续精确变化累积到当前 Candidate，保存后再按顺序进入同文件任务队列。
-- Watcher 或 reload 只要求重新验证；只有保存生命周期、文档版本或当前 Hash 不匹配时，Candidate 才真正失效。
-- Rename、delete 或 discard 会使旧路径或已放弃内容对应的 Candidate 直接失效。
-- Persistence Gate 在实际写入前再次核对当前版本和 Hash；失败时只生成 Runtime State，不修改 Note JSON 或 `index.json`。
+- 只有未来发现 dirty 与确定性判断仍不足以保护写入时，才重新评估本方案。
+- 引入后会增加内存状态、保存时机、失效和 UI 临时位置等复杂度。
+- 当前不建立 Candidate Registry，也不等待 `onDidSaveTextDocument`。
 
 ## 与其他架构的关系
 
-- [Runtime State 源文件变更检测](./runtime-state-source-change.md)说明 Candidate 在整体变化分类中的位置。
-- [Source Change Persistence Gate](./source-change-persistence-gate.md)说明有效 Candidate 获得正式 Notes 写入资格的条件。
+- [Runtime State 源文件变更检测](./runtime-state-source-change.md)说明当前采用的主线。
+- [Source Change Persistence Gate](./source-change-persistence-gate.md)说明本可选方案需要的配套 Gate。
