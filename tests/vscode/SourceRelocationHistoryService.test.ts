@@ -68,6 +68,49 @@ describe("SourceRelocationHistoryService", () => {
     expect(history.commitRedo(resourceKey, redo.entryId)).toBe(true);
   });
 
+  it("preserves Section and Line location review through Undo and Redo", () => {
+    const history = new SourceRelocationHistoryService();
+    const before = createSourceFile("before", 10, "stale");
+    const after = createSourceFile("after", 11, "stale");
+
+    before.sectionNotes[0]!.status.anchor = "needsConfirmation";
+    before.lineNotes[0]!.status.anchor = "needsConfirmation";
+    after.sectionNotes[0]!.status.anchor = "needsConfirmation";
+    after.lineNotes[0]!.status.anchor = "needsConfirmation";
+    history.record(resourceKey, before, after);
+
+    const undo = history.prepareUndo(resourceKey, after, "before");
+    expect(undo.kind).toBe("ready");
+    if (undo.kind !== "ready") {
+      return;
+    }
+
+    expect(undo.sourceFile.sectionNotes[0]).toMatchObject({
+      range: { startLine: 10, endLine: 12 },
+      status: { content: "stale", anchor: "needsConfirmation" },
+    });
+    expect(undo.sourceFile.lineNotes[0]).toMatchObject({
+      line: 10,
+      status: { content: "stale", anchor: "needsConfirmation" },
+    });
+    history.commitUndo(resourceKey, undo.entryId);
+
+    const redo = history.prepareRedo(resourceKey, undo.sourceFile, "after");
+    expect(redo.kind).toBe("ready");
+    if (redo.kind !== "ready") {
+      return;
+    }
+
+    expect(redo.sourceFile.sectionNotes[0]).toMatchObject({
+      range: { startLine: 11, endLine: 13 },
+      status: { content: "stale", anchor: "needsConfirmation" },
+    });
+    expect(redo.sourceFile.lineNotes[0]).toMatchObject({
+      line: 11,
+      status: { content: "stale", anchor: "needsConfirmation" },
+    });
+  });
+
   it("clears resource history when either validation hash mismatches", () => {
     const history = new SourceRelocationHistoryService();
     const before = createSourceFile("before", 10, "current");

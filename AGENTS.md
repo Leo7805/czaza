@@ -22,6 +22,10 @@
 ## Communication
 
 - Keep explanations concise, practical, and specific to the current task.
+- Explain architecture, state, and workflow concepts in plain language before using technical terms.
+- When introducing a technical term, explain what it means, why it exists, and give one short concrete example.
+- Do not use a technical label as the complete explanation. For example, instead of only saying “there is no Relocation Candidate Registry,” explain: “CZaza currently writes calculated line changes directly to Notes. It does not yet have an in-memory waiting area that temporarily holds those changes until the file is safely saved. That waiting area is called the Relocation Candidate Registry.”
+- Prefer a simple core proposal that covers the main 80–90% of the requirement. Keep optional edge cases, extra safeguards, and broader improvements in a short “Future Improvements” section, and do not include them in the implementation unless the user approves them. Do not defer issues involving data loss, security, or correctness.
 - Before implementation, explain the proposed approach and affected files.
 - After implementation, briefly explain what changed and why.
 - Clearly identify assumptions, risks, side effects, and unresolved limitations.
