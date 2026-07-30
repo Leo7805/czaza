@@ -60,6 +60,7 @@ describe("relocateSectionNoteService()", () => {
       anchorHash: createSourceHash("two\nthree"),
       status: { content: "stale", anchor: "confirmed" },
     });
+    expect(saved.source.sourceHash).toBe("sha256:old");
     expect(mocks.saveSourceFile).toHaveBeenCalledOnce();
   });
 
@@ -98,6 +99,7 @@ describe("relocateLineNoteService()", () => {
       anchorText: "three",
       status: { content: "stale", anchor: "confirmed" },
     });
+    expect(saved.source.sourceHash).toBe("sha256:old");
   });
 
   it("rejects a target line already owned by another Line Note", async () => {

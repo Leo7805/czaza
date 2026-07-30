@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.9.0
+documentVersion: 1.11.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -77,6 +77,8 @@ flowchart TD
 - 只有 `isDirty=true` 且 `contentChanges` 能够确定性分类的 VS Code 文档变化，才能生成 relocation candidate。
 - 确定性只表示能够准确计算 relocation candidate，不代表具备持久化权限。
 - `Source Change Persistence Gate` 必须独立验证可信编辑生命周期、候选有效性和当前 `sourceHash`。
+- Line Note 所在行的 Enter 按位置分类：行首确定移动锚点，行中拆分需要 Location Review，行尾保持 Line Note 行号和状态不变。
+- 确定性整体移动只更新 Section 范围或 Line 行号，必须保留目标原有的 `content` 与 `anchor` 状态；移动本身不能确认既有 Location Review。
 - 文件系统 watcher 只检查事件涉及的文件，并合并短时间内的重复通知。
 - 被动一致性检查用于重启后的恢复和按需补检，不持续扫描整个工作区。
 - `Runtime State Registry` 只保存非当前状态的受影响文件，不保存全量文件快照。

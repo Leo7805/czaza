@@ -101,16 +101,20 @@ export async function clearNoteStaleStatusService(input: ClearNoteStaleStatusInp
         return false;
       }
 
-      if (!isValidRange(section.range.startLine, section.range.endLine, lines.length)) {
-        return false;
-      }
+      next = updateSectionNoteStatus(next, section.id, status, now);
 
-      next = updateSectionAnchorHash(
-        updateSectionNoteStatus(next, section.id, status, now),
-        section.id,
-        createSourceHash(getRangeText(lines, section.range.startLine, section.range.endLine)),
-        now,
-      );
+      if (status.anchor === "confirmed") {
+        if (!isValidRange(section.range.startLine, section.range.endLine, lines.length)) {
+          return false;
+        }
+
+        next = updateSectionAnchorHash(
+          next,
+          section.id,
+          createSourceHash(getRangeText(lines, section.range.startLine, section.range.endLine)),
+          now,
+        );
+      }
 
       await input.notes.cache.saveSourceFile(
         resolvedRoot.rootDirectory,
@@ -130,16 +134,20 @@ export async function clearNoteStaleStatusService(input: ClearNoteStaleStatusInp
         return false;
       }
 
-      if (!isValidLine(line.line, lines.length)) {
-        return false;
-      }
+      next = updateLineNoteStatus(next, line.id, status, now);
 
-      next = updateLineAnchorText(
-        updateLineNoteStatus(next, line.id, status, now),
-        line.id,
-        lines[line.line - 1] ?? "",
-        now,
-      );
+      if (status.anchor === "confirmed") {
+        if (!isValidLine(line.line, lines.length)) {
+          return false;
+        }
+
+        next = updateLineAnchorText(
+          next,
+          line.id,
+          lines[line.line - 1] ?? "",
+          now,
+        );
+      }
 
       await input.notes.cache.saveSourceFile(
         resolvedRoot.rootDirectory,
@@ -153,6 +161,12 @@ export async function clearNoteStaleStatusService(input: ClearNoteStaleStatusInp
   }
 }
 
+/**
+ * Clears content staleness without accepting or changing the Note anchor.
+ *
+ * @param status - Current persistent Note status.
+ * @returns Content-current status, or undefined when no stale content exists.
+ */
 function getClearedStatus(status: NoteStatus | undefined): NoteStatus | undefined {
   if (!status || status.content !== "stale") {
     return undefined;
@@ -160,7 +174,7 @@ function getClearedStatus(status: NoteStatus | undefined): NoteStatus | undefine
 
   return {
     content: "current",
-    anchor: "confirmed",
+    anchor: status.anchor,
   };
 }
 

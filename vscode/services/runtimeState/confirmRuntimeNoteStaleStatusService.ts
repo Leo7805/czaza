@@ -1,8 +1,8 @@
 /**
- * Confirms one pure stale Runtime Note target after revalidating current source content.
+ * Confirms one stale Runtime Note target after revalidating current source content.
  */
 
-import { createCurrentConfirmedStatus } from "@shared/models/domain/common";
+import type { NoteStatus } from "@shared/models/domain/common";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import {
   updateLineAnchorText,
@@ -27,6 +27,7 @@ import type * as vscode from "vscode";
 import { RuntimeNoteStateRegistry } from "./RuntimeNoteStateRegistry";
 import { refreshRuntimeNoteStateService } from "./refreshRuntimeNoteStateService";
 import type {
+  RuntimeNoteIssue,
   RuntimeNoteState,
   RuntimeNoteTargetChange,
 } from "./runtimeNoteState";
@@ -55,7 +56,7 @@ export type ConfirmRuntimeNoteStaleStatusInput = {
 };
 
 /**
- * Confirms pure stale content only when the current source still matches Runtime State.
+ * Confirms stale content while preserving independent location-review state.
  *
  * @param input - Resource, Note Store, Registry, and selected target.
  * @returns Confirmation outcome used to choose Runtime or legacy handling.
@@ -91,11 +92,7 @@ export async function confirmRuntimeNoteStaleStatusService(
     return { kind: "notRuntime" };
   }
 
-  if (
-    change.status.content !== "stale" ||
-    change.status.anchor !== "confirmed" ||
-    !hasUnchangedLocation(change, sourceFile)
-  ) {
+  if (change.status.content !== "stale") {
     return { kind: "notConfirmable" };
   }
 
@@ -119,6 +116,7 @@ export async function confirmRuntimeNoteStaleStatusService(
 
   const now = new Date().toISOString();
   const lines = fingerprint.document.getText().split(/\r\n|\r|\n/);
+  const clearedStatus = clearContentStatus(change.status);
   let next = updateProgrammingLanguage(
     updateSourceHash(sourceFile, fingerprint.hash),
     fingerprint.programmingLanguage,
@@ -128,31 +126,49 @@ export async function confirmRuntimeNoteStaleStatusService(
     if (!sourceFile.fileNote) {
       return { kind: "unchanged" };
     }
-    next = updateFileNoteStatus(next, createCurrentConfirmedStatus(), now);
+    next = updateFileNoteStatus(next, clearedStatus, now);
   } else if (change.kind === "section") {
     const section = sourceFile.sectionNotes.find((note) => note.id === change.noteId);
 
-    if (!section || !isValidRange(section.range.startLine, section.range.endLine, lines.length)) {
+    if (!section) {
       return { kind: "unchanged" };
     }
-    next = updateSectionAnchorHash(
-      updateSectionNoteStatus(next, section.id, createCurrentConfirmedStatus(), now),
-      section.id,
-      createSourceHash(lines.slice(section.range.startLine - 1, section.range.endLine).join("\n")),
-      now,
-    );
+
+    next = updateSectionNoteStatus(next, section.id, clearedStatus, now);
+
+    if (clearedStatus.anchor === "confirmed") {
+      if (!isValidRange(section.range.startLine, section.range.endLine, lines.length)) {
+        return { kind: "unchanged" };
+      }
+
+      next = updateSectionAnchorHash(
+        next,
+        section.id,
+        createSourceHash(lines.slice(section.range.startLine - 1, section.range.endLine).join("\n")),
+        now,
+      );
+    }
   } else {
     const lineNote = sourceFile.lineNotes.find((note) => note.id === change.noteId);
 
-    if (!lineNote || lineNote.line < 1 || lineNote.line > lines.length) {
+    if (!lineNote) {
       return { kind: "unchanged" };
     }
-    next = updateLineAnchorText(
-      updateLineNoteStatus(next, lineNote.id, createCurrentConfirmedStatus(), now),
-      lineNote.id,
-      lines[lineNote.line - 1] ?? "",
-      now,
-    );
+
+    next = updateLineNoteStatus(next, lineNote.id, clearedStatus, now);
+
+    if (clearedStatus.anchor === "confirmed") {
+      if (lineNote.line < 1 || lineNote.line > lines.length) {
+        return { kind: "unchanged" };
+      }
+
+      next = updateLineAnchorText(
+        next,
+        lineNote.id,
+        lines[lineNote.line - 1] ?? "",
+        now,
+      );
+    }
   }
 
   await input.notes.cache.saveSourceFile(
@@ -162,12 +178,7 @@ export async function confirmRuntimeNoteStaleStatusService(
     next,
     now,
   );
-  await refreshRuntimeNoteStateService({
-    document: fingerprint.document,
-    notes: input.notes,
-    registry: input.registry,
-    now,
-  });
+  reconcileConfirmedRuntimeTarget(input.registry, state, change, clearedStatus);
 
   return { kind: "confirmed" };
 }
@@ -206,34 +217,113 @@ function findTargetChange(
 }
 
 /**
- * Reports whether confirming stale content would leave the stored target location unchanged.
+ * Clears only content staleness and preserves the target's anchor-review state.
  *
- * @param change - Runtime target proposed by detection.
- * @param sourceFile - Persistent source file containing current Note anchors.
- * @returns True when no implicit relocation would be accepted.
+ * @param status - Runtime status currently shown for the target.
+ * @returns Content-current status with the original anchor state.
  */
-function hasUnchangedLocation(
-  change: RuntimeNoteTargetChange,
-  sourceFile: StoredSourceFile,
+function clearContentStatus(status: NoteStatus): NoteStatus {
+  return {
+    content: "current",
+    anchor: status.anchor,
+  };
+}
+
+/**
+ * Removes only the confirmed stale dimension from one Runtime target.
+ *
+ * Location-review targets and their proposed positions remain in memory;
+ * fully current targets are removed from the Runtime overlay.
+ *
+ * @param registry - Registry that owns the current resource state.
+ * @param state - Runtime state read before the guarded write.
+ * @param confirmedChange - Target whose content staleness was confirmed.
+ * @param clearedStatus - Content-current status persisted for the target.
+ * @returns Nothing.
+ */
+function reconcileConfirmedRuntimeTarget(
+  registry: RuntimeNoteStateRegistry,
+  state: RuntimeNoteState,
+  confirmedChange: RuntimeNoteTargetChange,
+  clearedStatus: NoteStatus,
+): void {
+  const targetChanges = state.targetChanges
+    .map((change) =>
+      isSameTargetChange(change, confirmedChange)
+        ? { ...change, status: clearedStatus }
+        : change,
+    )
+    .filter((change) =>
+      change.status.content === "stale" || change.status.anchor !== "confirmed",
+    );
+  const issues = createReconciledIssues(state.issues, targetChanges);
+
+  if (issues.length === 0 && targetChanges.length === 0) {
+    registry.deleteState(state);
+    return;
+  }
+
+  registry.setState({
+    ...state,
+    issues,
+    targetChanges,
+  });
+}
+
+/**
+ * Compares Runtime changes by their stable target identity.
+ *
+ * @param left - First Runtime target.
+ * @param right - Second Runtime target.
+ * @returns True when both changes describe the same Note.
+ */
+function isSameTargetChange(
+  left: RuntimeNoteTargetChange,
+  right: RuntimeNoteTargetChange,
 ): boolean {
-  if (change.kind === "file") {
+  if (left.kind !== right.kind) {
+    return false;
+  }
+
+  if (left.kind === "file") {
     return true;
   }
 
-  if (change.kind === "section") {
-    const section = sourceFile.sectionNotes.find((note) => note.id === change.noteId);
-    return Boolean(
-      section &&
-        (!change.range ||
-          (
-            change.range.startLine === section.range.startLine &&
-            change.range.endLine === section.range.endLine
-          )),
-    );
+  if (left.kind === "section" && right.kind === "section") {
+    return left.noteId === right.noteId;
   }
 
-  const line = sourceFile.lineNotes.find((note) => note.id === change.noteId);
-  return Boolean(line && (!change.line || change.line === line.line));
+  return left.kind === "line" &&
+    right.kind === "line" &&
+    left.noteId === right.noteId;
+}
+
+/**
+ * Rebuilds status-derived issues while preserving unrelated resource issues.
+ *
+ * @param previousIssues - Issues stored before confirmation.
+ * @param targetChanges - Runtime targets remaining after confirmation.
+ * @returns Deduplicated issues for the reconciled Runtime state.
+ */
+function createReconciledIssues(
+  previousIssues: readonly RuntimeNoteIssue[],
+  targetChanges: readonly RuntimeNoteTargetChange[],
+): RuntimeNoteIssue[] {
+  const issues = new Set<RuntimeNoteIssue>(
+    previousIssues.filter(
+      (issue) => issue !== "stale" && issue !== "locationReview",
+    ),
+  );
+
+  if (targetChanges.some((change) => change.status.content === "stale")) {
+    issues.add("stale");
+  }
+
+  if (targetChanges.some((change) => change.status.anchor !== "confirmed")) {
+    issues.add("locationReview");
+  }
+
+  return [...issues];
 }
 
 /**

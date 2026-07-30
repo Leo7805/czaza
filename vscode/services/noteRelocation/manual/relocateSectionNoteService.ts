@@ -4,7 +4,6 @@ import {
   updateProgrammingLanguage,
   updateSectionAnchorHash,
   updateSectionRange,
-  updateSourceHash,
 } from "@shared/services/notes/noteAnchorService";
 import { updateSectionNoteStatus } from "@shared/services/notes/noteStatusService";
 import { createSourceHash } from "@shared/utils/hashUtils";
@@ -58,10 +57,7 @@ export async function relocateSectionNoteService(
   const range = { startLine: input.startLine, endLine: input.endLine };
   const lines = fingerprint.document.getText().split(/\r\n|\r|\n/);
   let next = updateSectionRange(
-    updateProgrammingLanguage(
-      updateSourceHash(sourceFile, fingerprint.hash),
-      fingerprint.programmingLanguage,
-    ),
+    updateProgrammingLanguage(sourceFile, fingerprint.programmingLanguage),
     section.id,
     range,
     fingerprint.document.lineCount,

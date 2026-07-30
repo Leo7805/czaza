@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   evaluateCzazaResourceAccess: vi.fn(),
   clearNoteStaleStatusService: vi.fn(),
   confirmRuntimeNoteStaleStatusService: vi.fn(),
+  refreshRuntimeNoteStateService: vi.fn(),
   deleteNavigatorFileNotesService: vi.fn(),
   deleteNavigatorLineNoteService: vi.fn(),
   deleteNavigatorSectionNoteService: vi.fn(),
@@ -65,6 +66,10 @@ vi.mock("@vscode/services/clearNoteStaleStatusService", () => ({
 
 vi.mock("@vscode/services/runtimeState/confirmRuntimeNoteStaleStatusService", () => ({
   confirmRuntimeNoteStaleStatusService: mocks.confirmRuntimeNoteStaleStatusService,
+}));
+
+vi.mock("@vscode/services/runtimeState/refreshRuntimeNoteStateService", () => ({
+  refreshRuntimeNoteStateService: mocks.refreshRuntimeNoteStateService,
 }));
 
 vi.mock("@vscode/services/deleteNavigatorFileNotesService", () => ({
@@ -212,6 +217,7 @@ describe("NotesViewProvider", () => {
     vi.clearAllMocks();
     mocks.clearNoteStaleStatusService.mockReset();
     mocks.confirmRuntimeNoteStaleStatusService.mockReset();
+    mocks.refreshRuntimeNoteStateService.mockReset();
     mocks.deleteNavigatorFileNotesService.mockReset();
     mocks.deleteNavigatorLineNoteService.mockReset();
     mocks.deleteNavigatorSectionNoteService.mockReset();
@@ -479,12 +485,8 @@ describe("NotesViewProvider", () => {
 
   it("opens a Section Note relocate session from the editor selection and saves the range", async () => {
     const uri = createUri("/workspace/src/relocate.ts");
-    const provider = new NotesViewProvider(
-      createUri("/extension"),
-      {} as never,
-      vi.fn().mockResolvedValue(true),
-      vi.fn().mockResolvedValue(undefined),
-    );
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
     const view = createWebviewView();
     const editor = createEditor(uri);
     editor.selection = {
@@ -495,6 +497,15 @@ describe("NotesViewProvider", () => {
       isEmpty: false,
     } as vscodeTypes.Selection;
     mocks.activeTextEditor = editor;
+    mocks.openTextDocument.mockResolvedValue({
+      uri,
+      languageId: "typescript",
+      getText: () => "const value = 1;",
+    });
+    mocks.refreshRuntimeNoteStateService.mockResolvedValue({
+      kind: "current",
+      registryChange: "deleted",
+    });
     mocks.getResourceNotes.mockResolvedValue({
       kind: "file",
       name: "relocate.ts",
@@ -548,6 +559,12 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() =>
       expect(mocks.postMessage).toHaveBeenCalledWith({ type: "noteRelocated" }),
     );
+    expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledWith({
+      document: expect.objectContaining({ uri }),
+      notes: {},
+      registry,
+      now: expect.any(String),
+    });
 
     provider.dispose();
   });

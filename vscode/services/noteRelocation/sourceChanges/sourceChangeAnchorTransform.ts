@@ -152,6 +152,7 @@ export function transformSectionAnchor(
  *
  * @param line - Existing one-based Line Note number.
  * @param splice - Normalized source change in pre-change coordinates.
+ * @param anchorTextLength - Stored source-line length when the anchor is confirmed.
  * @returns Deterministic Line Note anchor transformation.
  *
  * @example
@@ -165,7 +166,11 @@ export function transformSectionAnchor(
  *   lineDelta: 3,
  * });
  */
-export function transformLineAnchor(line: number, splice: SourceChangeSplice): LineAnchorTransform {
+export function transformLineAnchor(
+  line: number,
+  splice: SourceChangeSplice,
+  anchorTextLength?: number,
+): LineAnchorTransform {
   const anchorLine = line - 1;
 
   if (isLineNeutralReplacement(splice)) {
@@ -183,6 +188,14 @@ export function transformLineAnchor(line: number, splice: SourceChangeSplice): L
     }
 
     if (splice.startLine === anchorLine) {
+      if (
+        splice.isLineBreakInsertion &&
+        anchorTextLength !== undefined &&
+        splice.startCharacter === anchorTextLength
+      ) {
+        return { kind: "unchanged", line };
+      }
+
       return { kind: "needsConfirmation" };
     }
 

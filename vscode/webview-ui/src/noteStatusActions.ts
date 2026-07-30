@@ -7,23 +7,16 @@ import type { NoteStatus } from "./types";
 /**
  * Reports whether the visible stale state may be confirmed from the context menu.
  *
- * Persistent stale content remains confirmable during migration. Runtime stale
- * content is confirmable only while its anchor remains confirmed.
+ * Content staleness is independent from anchor review, so Location Review does
+ * not disable this action.
  *
  * @param status - Effective status shown by the card.
- * @param runtimeStatus - Optional Runtime State status that produced the overlay.
+ * @param _runtimeStatus - Optional Runtime State status retained for call-site compatibility.
  * @returns True when Clear stale may be selected.
  */
 export function canClearContentStaleStatus(
   status: NoteStatus | undefined,
-  runtimeStatus: NoteStatus | undefined,
+  _runtimeStatus: NoteStatus | undefined,
 ): boolean {
-  if (status?.content !== "stale") {
-    return false;
-  }
-
-  return !runtimeStatus || (
-    runtimeStatus.content === "stale" &&
-    runtimeStatus.anchor === "confirmed"
-  );
+  return status?.content === "stale";
 }

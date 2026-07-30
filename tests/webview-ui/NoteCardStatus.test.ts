@@ -24,13 +24,13 @@ describe("canClearContentStaleStatus()", () => {
     ).toBe(true);
   });
 
-  it("rejects Runtime stale content that also needs location confirmation", () => {
+  it("allows stale content that also needs location confirmation", () => {
     expect(
       canClearContentStaleStatus(
         { content: "stale", anchor: "needsConfirmation" },
         { content: "stale", anchor: "needsConfirmation" },
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects current content", () => {

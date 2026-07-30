@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:62e9aebbbab8af4fc420f87a39e2ac60170c3e8e99f71a294db1c9be57a36c79",
+    "sourceHash": "sha256:70196eed53b0df807a92df81ed4c28b608787abdd158a6fbc5b20635035221a5",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-23T12:00:28.897Z",
-    "updatedAt": "2026-07-23T12:00:28.897Z"
+    "updatedAt": "2026-07-30T02:50:01.706Z"
   },
   "fileNote": {
     "userNote": "将 Line Note 重新关联到用户指定的代码行。",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

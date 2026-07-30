@@ -218,7 +218,7 @@ describe("applyDeterministicRelocation()", () => {
     });
   });
 
-  it("clears location review when a deterministic move reanchors section and line notes", () => {
+  it("preserves location review when a deterministic move shifts section and line notes", () => {
     const sourceFile = createStoredSourceFile();
     sourceFile.sectionNotes[0]!.status = {
       content: "stale",
@@ -249,12 +249,12 @@ describe("applyDeterministicRelocation()", () => {
     });
     expect(result.sourceFile.sectionNotes[0]?.status).toEqual({
       content: "stale",
-      anchor: "confirmed",
+      anchor: "needsConfirmation",
     });
     expect(result.sourceFile.lineNotes[0]?.line).toBe(4);
     expect(result.sourceFile.lineNotes[0]?.status).toEqual({
       content: "stale",
-      anchor: "confirmed",
+      anchor: "needsConfirmation",
     });
   });
 
@@ -342,6 +342,34 @@ describe("applyDeterministicRelocation()", () => {
       anchor: "confirmed",
     });
     expect(line.anchorText).toBe("const third = 3;");
+  });
+
+  it("keeps a confirmed Line Note current when Enter is pressed at its line end", () => {
+    const sourceFile = createStoredSourceFile();
+    const lineNote = sourceFile.lineNotes[0]!;
+    const result = applyDeterministicRelocation({
+      sourceFile,
+      change: createSpliceChange({
+        startLine: lineNote.line - 1,
+        startCharacter: lineNote.anchorText.length,
+        endLine: lineNote.line - 1,
+        endCharacter: lineNote.anchorText.length,
+        insertedLineCount: 1,
+        lineDelta: 1,
+        isLineBreakInsertion: true,
+      }),
+      currentSourceText: sourceText.replace(
+        lineNote.anchorText,
+        `${lineNote.anchorText}\n`,
+      ),
+      now,
+    });
+
+    expect(result.sourceFile.lineNotes[0]).toEqual(lineNote);
+    expect(result.events).not.toContainEqual({
+      type: "lineNoteNeedsConfirmation",
+      lineId: lineNote.id,
+    });
   });
 
   it("returns unsupported events without changing source notes", () => {

@@ -4,7 +4,6 @@ import {
   updateLineAnchorText,
   updateLineNumber,
   updateProgrammingLanguage,
-  updateSourceHash,
 } from "@shared/services/notes/noteAnchorService";
 import { updateLineNoteStatus } from "@shared/services/notes/noteStatusService";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
@@ -60,10 +59,7 @@ export async function relocateLineNoteService(input: RelocateLineNoteInput): Pro
 
   const now = new Date().toISOString();
   let next = updateLineNumber(
-    updateProgrammingLanguage(
-      updateSourceHash(sourceFile, fingerprint.hash),
-      fingerprint.programmingLanguage,
-    ),
+    updateProgrammingLanguage(sourceFile, fingerprint.programmingLanguage),
     lineNote.id,
     input.line,
     fingerprint.document.lineCount,

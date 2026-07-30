@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.4.0
+documentVersion: 1.6.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -54,6 +54,10 @@ flowchart TD
     M[用户直接编辑 Note 内容] --> N[校验资源和输入]
     N --> L
 
+    S[用户确认 Section 或 Line 位置] --> T[只更新目标位置和 anchor]
+    T --> U[重新检测当前文件的完整 Runtime State]
+    U --> E
+
     L --> O[更新 Note JSON 和 index.json]
     O --> P[清除对应 Runtime State]
 ```
@@ -85,11 +89,14 @@ flowchart TD
 - Runtime State 只有在新的文件事件、用户操作或被动检查触发后才会重新检测。
 - `sourceHash` 用于判断内存状态是否仍对应当前文件内容，不用于依赖 Git 历史。
 - 用户忽略待处理状态时，Note Store 保持不变。
-- 用户确认或有效 Candidate 写入成功后，才清除对应 Runtime State。
+- 用户确认位置后只写入目标范围、行号和 anchor，不更新代表文件内容基线的 `sourceHash`。
+- Section 或 Line relocate 成功后，通过统一检测入口重新计算当前文件的完整 Runtime State，不手动拼接剩余状态。
+- 重新检测只会消除已经确认的 Location Review；仍可由旧 `sourceHash` 检出的 Content stale 必须保留。
+- 用户确认或有效 Candidate 写入成功后，才重新计算或清除对应 Runtime State。
 - Note Store 写入失败时保留 Runtime State，以便重试，不得把 UI 状态误报为已处理。
-- Clear stale 只能确认 `anchor=confirmed` 且建议位置未变化的 Runtime State；需要位置确认的目标必须继续走 relocate。
+- Clear stale 只确认 `content`，必须原样保留 `anchor` 和候选位置；未确认的位置仍继续显示 Location Review，并单独走 relocate。
 - Runtime State 中的候选范围和行号不得直接覆盖 Detail 或 Navigator 的持久化位置；它们只能作为 relocate 的辅助输入。
 
 ## 与当前实现的关系
 
-当前 File Notes 详情页和 Navigator 已经展示 Runtime State，并允许用户在当前 Hash 匹配时确认纯 stale 内容；成功后重新检测并协调 Registry。Location review 确认、Candidate Persistence Gate 和实时事件迁移仍未实现，Git 相关 Gate 继续用于降低旧事件路径在分支切换期间的误写风险。
+当前 File Notes 详情页和 Navigator 已经展示 Runtime State，并允许用户在当前 Hash 匹配时单独确认 stale 内容；该操作不会确认或改写位置锚点。Section 和 Line relocate 已按位置职责写入 Note Store，并在成功后通过统一入口重新检测当前文件。Candidate Persistence Gate 和实时事件迁移仍未实现，Git 相关 Gate 继续用于降低旧事件路径在分支切换期间的误写风险。

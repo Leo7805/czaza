@@ -80,7 +80,11 @@ describe("confirmRuntimeNoteStaleStatusService()", () => {
       content: "current",
       anchor: "confirmed",
     });
-    expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledOnce();
+    expect(registry.getState({
+      workspaceRoot: "/workspace",
+      outputDirectory: ".czaza",
+      relativePath: "src/index.ts",
+    })).toBeUndefined();
   });
 
   it("refreshes detection without persisting when the current hash changed again", async () => {
@@ -102,7 +106,7 @@ describe("confirmRuntimeNoteStaleStatusService()", () => {
     expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledOnce();
   });
 
-  it("rejects stale content whose location still needs confirmation", async () => {
+  it("confirms stale content while preserving location review", async () => {
     const registry = createRegistry({
       content: "stale",
       anchor: "needsConfirmation",
@@ -115,8 +119,85 @@ describe("confirmRuntimeNoteStaleStatusService()", () => {
       target: { level: "file" },
     });
 
-    expect(result).toEqual({ kind: "notConfirmable" });
-    expect(mocks.saveSourceFile).not.toHaveBeenCalled();
+    expect(result).toEqual({ kind: "confirmed" });
+    expect(mocks.saveSourceFile).toHaveBeenCalledOnce();
+    expect(mocks.sourceFile?.fileNote?.status).toEqual({
+      content: "current",
+      anchor: "needsConfirmation",
+    });
+    expect(registry.getState({
+      workspaceRoot: "/workspace",
+      outputDirectory: ".czaza",
+      relativePath: "src/index.ts",
+    })?.targetChanges[0]?.status).toEqual({
+      content: "current",
+      anchor: "needsConfirmation",
+    });
+  });
+
+  it("preserves a Section Note anchor while clearing mixed Runtime stale state", async () => {
+    const sourceFile = createSourceFile();
+    sourceFile.sectionNotes.push({
+      id: "section:intro",
+      title: "Intro",
+      range: { startLine: 1, endLine: 1 },
+      anchorHash: "sha256:original-anchor",
+      userNote: "Section review.",
+      status: {
+        content: "current",
+        anchor: "confirmed",
+      },
+      createdBy: "user",
+      createdAt: "2026-07-29T00:00:00.000Z",
+      updatedAt: "2026-07-29T00:00:00.000Z",
+    });
+    mocks.sourceFile = sourceFile;
+    const registry = new RuntimeNoteStateRegistry();
+    registry.setState({
+      workspaceRoot: "/workspace",
+      outputDirectory: ".czaza",
+      relativePath: "src/index.ts",
+      currentSourceHash: "sha256:new",
+      issues: ["stale", "locationReview"],
+      reason: "sourceChanged",
+      observedAt: "2026-07-29T00:00:00.000Z",
+      targetChanges: [{
+        kind: "section",
+        noteId: "section:intro",
+        status: {
+          content: "stale",
+          anchor: "needsConfirmation",
+        },
+        range: { startLine: 2, endLine: 2 },
+      }],
+    });
+
+    const result = await confirmRuntimeNoteStaleStatusService({
+      uri: {} as never,
+      notes: createNotes(),
+      registry,
+      target: { level: "section", sectionId: "section:intro" },
+    });
+
+    expect(result).toEqual({ kind: "confirmed" });
+    expect(mocks.sourceFile?.sectionNotes[0]?.status).toEqual({
+      content: "current",
+      anchor: "needsConfirmation",
+    });
+    expect(mocks.sourceFile?.sectionNotes[0]?.anchorHash).toBe("sha256:original-anchor");
+    expect(registry.getState({
+      workspaceRoot: "/workspace",
+      outputDirectory: ".czaza",
+      relativePath: "src/index.ts",
+    })?.targetChanges[0]).toEqual({
+      kind: "section",
+      noteId: "section:intro",
+      status: {
+        content: "current",
+        anchor: "needsConfirmation",
+      },
+      range: { startLine: 2, endLine: 2 },
+    });
   });
 
   it("leaves legacy handling available when no Runtime target exists", async () => {
@@ -189,7 +270,7 @@ function createRegistry(status: {
     outputDirectory: ".czaza",
     relativePath: "src/index.ts",
     currentSourceHash: "sha256:new",
-    issues: ["stale"],
+    issues: status.anchor === "confirmed" ? ["stale"] : ["stale", "locationReview"],
     reason: "sourceChanged",
     observedAt: "2026-07-29T00:00:00.000Z",
     targetChanges: [{ kind: "file", status }],

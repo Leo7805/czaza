@@ -138,7 +138,16 @@ export function applySourceSpliceToAnchors(
         ),
       ),
       lineNotes: sourceFile.lineNotes.map((note) =>
-        applyLineTransform(note, transformLineAnchor(note.line, splice), now, events),
+        applyLineTransform(
+          note,
+          transformLineAnchor(
+            note.line,
+            splice,
+            note.status.anchor === "confirmed" ? note.anchorText.length : undefined,
+          ),
+          now,
+          events,
+        ),
       ),
     },
     events,
@@ -169,7 +178,6 @@ function applySectionTransform(
     return {
       ...note,
       range: transform.range,
-      status: confirmAnchor(note.status),
       updatedAt: now,
     };
   }
@@ -212,7 +220,6 @@ function applyLineTransform(
     return {
       ...note,
       line: transform.line,
-      status: confirmAnchor(note.status),
       updatedAt: now,
     };
   }
@@ -237,13 +244,3 @@ const staleNeedsConfirmation: NoteStatus = {
   anchor: "needsConfirmation",
 };
 const staleOrphaned: NoteStatus = { content: "stale", anchor: "orphaned" };
-
-/**
- * Preserves content status while confirming a deterministically moved anchor.
- *
- * @param status - Existing note status.
- * @returns Status with a confirmed anchor.
- */
-function confirmAnchor(status: NoteStatus): NoteStatus {
-  return { content: status.content, anchor: "confirmed" };
-}

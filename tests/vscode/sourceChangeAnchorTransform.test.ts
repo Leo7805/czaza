@@ -240,6 +240,23 @@ describe("sourceChangeAnchorTransform", () => {
     });
   });
 
+  it("leaves a Line Note unchanged when Enter is pressed at the confirmed line end", () => {
+    const splice = createSplice({
+      startLine: 13,
+      startCharacter: 12,
+      endLine: 13,
+      endCharacter: 12,
+      insertedLineCount: 1,
+      lineDelta: 1,
+      isLineBreakInsertion: true,
+    });
+
+    expect(transformLineAnchor(14, splice, 12)).toEqual({
+      kind: "unchanged",
+      line: 14,
+    });
+  });
+
   it("marks anchors changed for a line-neutral replacement on their source line", () => {
     const splice = createSplice({
       startLine: 13,

@@ -98,7 +98,7 @@ describe("clearNoteStaleStatusService()", () => {
     expect(changed).toBe(true);
     expect(sourceFile?.fileNote?.status).toEqual({
       content: "current",
-      anchor: "confirmed",
+      anchor: "orphaned",
     });
     expect(sourceFile?.source).toEqual({
       sourceHash: createSourceHash(mocks.sourceText),
@@ -128,11 +128,9 @@ describe("clearNoteStaleStatusService()", () => {
 
     expect(sourceFile?.sectionNotes[0]?.status).toEqual({
       content: "current",
-      anchor: "confirmed",
+      anchor: "needsConfirmation",
     });
-    expect(sourceFile?.sectionNotes[0]?.anchorHash).toBe(
-      createSourceHash("const value = 1;\nconst next = 2;\nreturn value;\nexport { value };"),
-    );
+    expect(sourceFile?.sectionNotes[0]?.anchorHash).toBe("sha256:section");
     expect(sourceFile?.lineNotes[0]?.status).toEqual({
       content: "current",
       anchor: "confirmed",
