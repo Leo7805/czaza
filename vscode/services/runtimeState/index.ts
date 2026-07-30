@@ -7,6 +7,7 @@ export {
   RuntimeNoteStateDetectionController,
   type AllFileNotesDetectionResult,
   type CurrentFileNotesDetectionResult,
+  type ResourceNotesDetectionResult,
 } from "./RuntimeNoteStateDetectionController";
 export { applyRuntimeStateToResourceNotes } from "./applyRuntimeStateToResourceNotesService";
 export { applyRuntimeStateToNavigatorNotes } from "./applyRuntimeStateToNavigatorNotesService";

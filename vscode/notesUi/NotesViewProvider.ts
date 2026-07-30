@@ -1670,7 +1670,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         toRelativePath,
       });
       this.noteRelocateSession = undefined;
-      await this.refreshRuntimeStateForResource(result.targetUri);
+      await this.runtimeStateDetectionController?.detectResourceNotes(result.targetUri);
       await this.loadNavigatorNotes();
       await this.view?.webview.postMessage({ type: "noteRelocated" });
 
@@ -1710,7 +1710,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         endLine,
       });
       this.noteRelocateSession = undefined;
-      await this.refreshRuntimeStateForResource(session.uri);
+      await this.runtimeStateDetectionController?.detectResourceNotes(session.uri);
       await this.loadResourceNotes(session.uri, false, getActiveLine(session.uri));
       await this.view?.webview.postMessage({ type: "noteRelocated" });
     } catch (error) {
@@ -1737,7 +1737,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         line,
       });
       this.noteRelocateSession = undefined;
-      await this.refreshRuntimeStateForResource(session.uri);
+      await this.runtimeStateDetectionController?.detectResourceNotes(session.uri);
       await this.loadResourceNotes(session.uri, false, getActiveLine(session.uri));
       await this.view?.webview.postMessage({ type: "noteRelocated" });
     } catch (error) {
@@ -1747,21 +1747,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         message: error instanceof Error ? error.message : "Unknown error.",
       });
     }
-  }
-
-  /**
-   * Recalculates the complete Runtime State after a user confirms one Note location.
-   *
-   * @param uri - Source resource whose persisted anchor was relocated.
-   * @returns Promise that resolves after detection reconciles the Registry.
-   */
-  private async refreshRuntimeStateForResource(uri: vscode.Uri): Promise<void> {
-    if (!this.runtimeStateDetectionController) {
-      return;
-    }
-
-    const document = await vscode.workspace.openTextDocument(uri);
-    await this.runtimeStateDetectionController.detectCurrentFileNotes(document);
   }
 
   private async runMarkNavigatorFileNoteOrphaned(relativePath: string): Promise<void> {

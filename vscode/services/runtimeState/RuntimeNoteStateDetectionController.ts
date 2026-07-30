@@ -11,7 +11,10 @@ import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirect
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
 
-import { refreshBinaryRuntimeNoteStateService } from "./refreshBinaryRuntimeNoteStateService";
+import {
+  refreshBinaryRuntimeNoteStateService,
+  type RefreshBinaryRuntimeNoteStateResult,
+} from "./refreshBinaryRuntimeNoteStateService";
 import {
   refreshMissingRuntimeNoteStateService,
   type RefreshMissingRuntimeNoteStateResult,
@@ -25,6 +28,13 @@ import type { RuntimeNoteStateRegistry } from "./RuntimeNoteStateRegistry";
 
 /** Result produced when one current source resource is detected. */
 export type CurrentFileNotesDetectionResult = RefreshRuntimeNoteStateResult;
+
+/** Result produced when one URI is classified and detected. */
+export type ResourceNotesDetectionResult =
+  | CurrentFileNotesDetectionResult
+  | RefreshBinaryRuntimeNoteStateResult
+  | RefreshMissingRuntimeNoteStateResult
+  | { kind: "directory"; registryChange: "none" };
 
 /** Summary produced after checking every resource represented by a File Note. */
 export type AllFileNotesDetectionResult = {
@@ -87,6 +97,40 @@ export class RuntimeNoteStateDetectionController {
   }
 
   /**
+   * Classifies and detects one text, binary, missing, or directory resource.
+   *
+   * @param uri - Source resource to reconcile with persistent Notes.
+   * @returns Resource-specific detection result and Registry mutation.
+   */
+  async detectResourceNotes(uri: vscode.Uri): Promise<ResourceNotesDetectionResult> {
+    try {
+      const fingerprint = await getResourceFingerprint(uri);
+
+      if (fingerprint.kind === "directory") {
+        return { kind: "directory", registryChange: "none" };
+      }
+
+      if (fingerprint.kind === "binary") {
+        return refreshBinaryRuntimeNoteStateService({
+          uri,
+          currentSourceHash: fingerprint.hash,
+          notes: this.notes,
+          registry: this.registry,
+          now: this.now(),
+        });
+      }
+
+      return this.detectCurrentFileNotes(fingerprint.document);
+    } catch (error) {
+      if (isFileNotFoundError(error)) {
+        return this.detectMissingFileNotes(uri);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
    * Detects every source resource represented by a project File Note.
    *
    * @param referenceUri - Resource used to resolve the current CZaza project root.
@@ -120,33 +164,16 @@ export class RuntimeNoteStateDetectionController {
       const uri = vscode.Uri.file(path.join(rootDirectory, relativePath));
 
       try {
-        const fingerprint = await getResourceFingerprint(uri);
+        const result = await this.detectResourceNotes(uri);
 
-        if (fingerprint.kind === "directory") {
+        if (result.kind === "directory") {
           skipped += 1;
           continue;
         }
 
-        if (fingerprint.kind === "binary") {
-          await refreshBinaryRuntimeNoteStateService({
-            uri,
-            currentSourceHash: fingerprint.hash,
-            notes: this.notes,
-            registry: this.registry,
-            now: this.now(),
-          });
-        } else {
-          await this.detectCurrentFileNotes(fingerprint.document);
-        }
-
         checked += 1;
-      } catch (error) {
-        if (isFileNotFoundError(error)) {
-          await this.detectMissingFileNotes(uri);
-          checked += 1;
-        } else {
-          failed.push(relativePath);
-        }
+      } catch {
+        failed.push(relativePath);
       }
     }
 

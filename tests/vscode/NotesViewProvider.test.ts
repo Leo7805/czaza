@@ -241,7 +241,12 @@ describe("NotesViewProvider", () => {
     mocks.relocateLineNoteService.mockReset();
     mocks.ensureFileNoteResourceAvailability.mockReset();
     mocks.getNavigatorNotes.mockReset();
-    mocks.fsStat.mockReset();
+    mocks.fsStat.mockReset().mockResolvedValue({
+      type: 1,
+      size: 0,
+      mtime: 0,
+      ctime: 0,
+    });
     mocks.executeCommand.mockReset();
     mocks.showErrorMessage.mockReset();
     mocks.workspaceFolders.length = 0;
@@ -1763,7 +1768,11 @@ describe("NotesViewProvider", () => {
       nextRelativePath: "src/new.ts",
       targetUri,
     });
-    mocks.openTextDocument.mockResolvedValue({ uri: targetUri });
+    mocks.openTextDocument.mockResolvedValue({
+      uri: targetUri,
+      languageId: "typescript",
+      getText: () => "export const relocated = true;",
+    });
     mocks.getResourceNotes.mockResolvedValue({
       kind: "file",
       name: "new.ts",
@@ -1833,7 +1842,7 @@ describe("NotesViewProvider", () => {
       toRelativePath: "src/new.ts",
     });
     expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledWith({
-      document: { uri: targetUri },
+      document: expect.objectContaining({ uri: targetUri }),
       notes: {},
       registry: runtimeRegistry,
       now: expect.any(String),
@@ -1845,7 +1854,10 @@ describe("NotesViewProvider", () => {
       activeLine: undefined,
     });
     expect(mocks.openTextDocument).toHaveBeenCalledWith(targetUri);
-    expect(mocks.showTextDocument).toHaveBeenCalledWith({ uri: targetUri }, { preview: false });
+    expect(mocks.showTextDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: targetUri }),
+      { preview: false },
+    );
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri: targetUri,
       notes: {},

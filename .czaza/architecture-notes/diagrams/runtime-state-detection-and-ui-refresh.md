@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.1.0
+documentVersion: 1.2.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -33,6 +33,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     subgraph Detection[状态检测]
+        R[detectResourceNotes]
         A[detectCurrentFileNotes]
         B[detectAllFileNotes]
     end
@@ -48,8 +49,9 @@ flowchart LR
         G[refreshCurrentFileNotes]
     end
 
+    R --> A
+    B --> R
     A --> C
-    B --> C
     C --> D
     C --> E
     C --> F
@@ -72,6 +74,6 @@ flowchart LR
 
 ## 当前边界
 
-当前已建立 `detectCurrentFileNotes` 和 `detectAllFileNotes` 公共检测入口，Notes UI 的手动 Relocate 后检测以及源码内容事件已复用当前文件入口。
+当前已建立 `detectResourceNotes`、`detectCurrentFileNotes` 和 `detectAllFileNotes` 公共检测入口。资源入口统一识别文本、二进制、目录和缺失资源；Notes UI 的手动 Relocate 后检测不再负责打开和分类源文件。
 
 尚未完成：File、Section、Line 列表切换时的独立触发消息，以及三个列表级 UI 刷新入口；因此本文整体仍标记为 `proposed`。
