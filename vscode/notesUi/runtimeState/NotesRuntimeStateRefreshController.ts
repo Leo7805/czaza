@@ -35,9 +35,11 @@ export type NotesRuntimeRefreshContext = {
 export class NotesRuntimeStateRefreshController implements RuntimeNoteStateDisposable {
   private readonly listener: RuntimeNoteStateDisposable;
   private readonly getContext: () => NotesRuntimeRefreshContext | undefined;
+  private readonly detectCurrentResource: () => Promise<void>;
   private readonly reloadCurrentResource: () => Promise<void>;
   private readonly overlayMissingState: (state: RuntimeNoteState) => Promise<void>;
   private readonly refreshNavigator: () => Promise<void>;
+  private explicitRefreshDepth = 0;
 
   /**
    * Subscribes to one Runtime State Registry and owns that subscription.
@@ -47,11 +49,13 @@ export class NotesRuntimeStateRefreshController implements RuntimeNoteStateDispo
   constructor(input: {
     registry: RuntimeNoteStateRegistry;
     getContext(): NotesRuntimeRefreshContext | undefined;
+    detectCurrentResource(): Promise<void>;
     reloadCurrentResource(): Promise<void>;
     overlayMissingState(state: RuntimeNoteState): Promise<void>;
     refreshNavigator(): Promise<void>;
   }) {
     this.getContext = input.getContext;
+    this.detectCurrentResource = input.detectCurrentResource;
     this.reloadCurrentResource = input.reloadCurrentResource;
     this.overlayMissingState = input.overlayMissingState;
     this.refreshNavigator = input.refreshNavigator;
@@ -72,12 +76,39 @@ export class NotesRuntimeStateRefreshController implements RuntimeNoteStateDispo
   }
 
   /**
+   * Re-detects and reloads the visible resource after its Note Store baseline changes.
+   *
+   * Registry listener refreshes are suppressed during this explicit cycle so one
+   * detection cannot produce duplicate UI reloads.
+   *
+   * @returns Promise resolved after the current Notes UI is reloaded.
+   */
+  async refreshAfterNoteStoreChange(): Promise<void> {
+    if (!this.getContext()) {
+      return;
+    }
+
+    this.explicitRefreshDepth += 1;
+
+    try {
+      await this.detectCurrentResource();
+      await this.reloadCurrentResource();
+    } finally {
+      this.explicitRefreshDepth -= 1;
+    }
+  }
+
+  /**
    * Selects a direct overlay, resource reload, or Navigator refresh.
    *
    * @param change - Runtime Registry mutation to route.
    * @returns Promise resolved after any required UI refresh.
    */
   private async handleChange(change: RuntimeNoteStateChange): Promise<void> {
+    if (this.explicitRefreshDepth > 0) {
+      return;
+    }
+
     const context = this.getContext();
 
     if (!context) {

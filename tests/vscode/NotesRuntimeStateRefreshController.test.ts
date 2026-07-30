@@ -20,6 +20,7 @@ const coordinates = {
 describe("NotesRuntimeStateRefreshController", () => {
   let registry: RuntimeNoteStateRegistry;
   let context: NotesRuntimeRefreshContext | undefined;
+  let detectCurrentResource: () => Promise<void>;
   let reloadCurrentResource: () => Promise<void>;
   let overlayMissingState: (state: RuntimeNoteState) => Promise<void>;
   let refreshNavigator: () => Promise<void>;
@@ -31,6 +32,7 @@ describe("NotesRuntimeStateRefreshController", () => {
       payloadKind: "file",
       viewMode: "detail",
     };
+    detectCurrentResource = vi.fn().mockResolvedValue(undefined);
     reloadCurrentResource = vi.fn().mockResolvedValue(undefined);
     overlayMissingState = vi.fn().mockResolvedValue(undefined);
     refreshNavigator = vi.fn().mockResolvedValue(undefined);
@@ -45,6 +47,7 @@ describe("NotesRuntimeStateRefreshController", () => {
     return new NotesRuntimeStateRefreshController({
       registry,
       getContext: () => context,
+      detectCurrentResource,
       reloadCurrentResource,
       overlayMissingState,
       refreshNavigator,
@@ -97,6 +100,20 @@ describe("NotesRuntimeStateRefreshController", () => {
 
     expect(reloadCurrentResource).not.toHaveBeenCalled();
     expect(overlayMissingState).not.toHaveBeenCalled();
+  });
+
+  it("detects and reloads once after the Note Store baseline changes", async () => {
+    detectCurrentResource = vi.fn().mockImplementation(async () => {
+      registry.setState(createRuntimeState("src/index.ts", "stale"));
+    });
+    const controller = createController();
+
+    await controller.refreshAfterNoteStoreChange();
+
+    expect(detectCurrentResource).toHaveBeenCalledOnce();
+    expect(reloadCurrentResource).toHaveBeenCalledOnce();
+    expect(overlayMissingState).not.toHaveBeenCalled();
+    controller.dispose();
   });
 });
 

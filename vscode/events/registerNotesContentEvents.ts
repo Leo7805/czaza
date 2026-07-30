@@ -537,7 +537,7 @@ function scheduleExternalChangeCheck(
 
   if (!access.allowed && access.reason === "noteStore") {
     if (!isRecentInternalWorkspaceNoteWrite(uri.fsPath)) {
-      invalidateManagedNoteStore(uri, notes, taskCoordinator);
+      invalidateManagedNoteStore(uri, notes, notesProvider, taskCoordinator);
     }
     return;
   }
@@ -568,12 +568,14 @@ function scheduleExternalChangeCheck(
  *
  * @param uri - Changed CZaza-managed Note Store resource.
  * @param notes - Shared workspace Note store.
+ * @param notesProvider - Optional Notes view synchronized after cache invalidation.
  * @param taskCoordinator - Automatic task coordinator to invalidate.
  * @returns Nothing.
  */
 function invalidateManagedNoteStore(
   uri: vscode.Uri,
   notes: WorkspaceNoteStore,
+  notesProvider: NotesViewProvider | undefined,
   taskCoordinator: ChangeTaskCoordinator,
 ): void {
   try {
@@ -582,6 +584,12 @@ function invalidateManagedNoteStore(
 
     taskCoordinator.invalidate();
     notes.cache.clearCache(rootDirectory, settings.outputDirectory);
+    const refreshKey = `note-store-refresh:${rootDirectory}:${settings.outputDirectory}`;
+    taskCoordinator.schedule(refreshKey, () => {
+      taskCoordinator.enqueue(refreshKey, async () => {
+        await notesProvider?.refreshAfterExternalNoteStoreChange();
+      });
+    });
   } catch {
     // Out-of-scope Note Store events require no cache invalidation.
   }

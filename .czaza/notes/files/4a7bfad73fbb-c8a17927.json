@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:4724d616ab94e118d411a437a370ba252855eefa761837880f884410356f50e8",
+    "sourceHash": "sha256:fe033d4fb667c4222277dc207252dfc542d16cdfc2cf0e898254c2cfa95e25fe",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-30T06:28:42.583Z",
-    "updatedAt": "2026-07-30T06:28:50.874Z"
+    "updatedAt": "2026-07-30T12:00:58.999Z"
   },
   "fileNote": {
-    "userNote": "统一决定 Runtime State 变化后应局部覆盖还是重新加载。\nNotesRuntimeStateRefreshController：管理 Registry 监听生命周期。\nhandleChange()：根据当前资源、视图模式和状态类型选择刷新方式。\ndoesChangeAffectResource()：判断变化是否属于当前文件。\ndoesChangeAffectScope()：判断变化是否属于当前 Navigator 范围。\nmatchesCoordinates()：比较 Runtime State 资源坐标。",
+    "userNote": "统一决定 Runtime State 变化后应局部覆盖还是重新加载。\nNotesRuntimeStateRefreshController：管理 Registry 监听生命周期。\nhandleChange()：根据当前资源、视图模式和状态类型选择刷新方式。\ndoesChangeAffectResource()：判断变化是否属于当前文件。\ndoesChangeAffectScope()：判断变化是否属于当前 Navigator 范围。\nmatchesCoordinates()：比较 Runtime State 资源坐标。\n\n---\n负责外部 Note Store 变化后的检测与 UI 刷新。\nrefreshAfterNoteStoreChange()：检测当前资源并重新加载 UI。\nhandleChange()：显式刷新期间忽略重复的 Registry 刷新通知。",
     "createdBy": "user"
   },
   "sectionNotes": {},

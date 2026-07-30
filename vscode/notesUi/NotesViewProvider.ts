@@ -357,11 +357,27 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       ? new NotesRuntimeStateRefreshController({
           registry: runtimeNoteStateRegistry,
           getContext: () => this.getRuntimeRefreshContext(),
+          detectCurrentResource: async () => {
+            if (this.currentResourceUri) {
+              await this.runtimeStateDetectionController?.detectResourceNotes(
+                this.currentResourceUri,
+              );
+            }
+          },
           reloadCurrentResource: () => this.refreshCurrentNotes(),
           overlayMissingState: (state) => this.overlayMissingRuntimeState(state),
           refreshNavigator: () => this.loadNavigatorNotes(),
         })
       : undefined;
+  }
+
+  /**
+   * Re-detects and reloads the visible resource after external Note Store changes.
+   *
+   * @returns Promise resolved after the current Notes UI is synchronized.
+   */
+  async refreshAfterExternalNoteStoreChange(): Promise<void> {
+    await this.runtimeStateRefreshController?.refreshAfterNoteStoreChange();
   }
 
   /**

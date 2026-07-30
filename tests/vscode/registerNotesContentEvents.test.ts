@@ -1107,8 +1107,10 @@ describe("registerNotesContentEvents()", () => {
   });
 
   it("invalidates cached Notes when the managed Store changes externally", async () => {
+    vi.useFakeTimers();
     const workspaceRoot = await createTempWorkspaceRoot("managed-store-change");
     const notes = createNotes(createStoredSourceFile("export const value = 1;\n"));
+    const notesProvider = createNotesProvider();
     const managedIndex = createDocument(
       path.join(workspaceRoot, ".caca/notes/index.json"),
       "{}",
@@ -1116,11 +1118,14 @@ describe("registerNotesContentEvents()", () => {
     );
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(createExtensionContext(), notes.value);
+    registerNotesContentEvents(createExtensionContext(), notes.value, notesProvider.value);
     mocks.changeListeners[0]?.(managedIndex.uri);
-    await waitForMicrotasks();
+    mocks.changeListeners[0]?.(managedIndex.uri);
+    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(notes.clearCache).toHaveBeenCalledWith(workspaceRoot, ".caca");
+    expect(notesProvider.refreshAfterExternalNoteStoreChange).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 });
@@ -1157,12 +1162,18 @@ function createNotes(sourceFile: StoredSourceFile | undefined): {
 function createNotesProvider(): {
   value: NotesViewProvider;
   refreshCurrentNotes: ReturnType<typeof vi.fn>;
+  refreshAfterExternalNoteStoreChange: ReturnType<typeof vi.fn>;
 } {
   const refreshCurrentNotes = vi.fn().mockResolvedValue(undefined);
+  const refreshAfterExternalNoteStoreChange = vi.fn().mockResolvedValue(undefined);
 
   return {
-    value: { refreshCurrentNotes } as unknown as NotesViewProvider,
+    value: {
+      refreshCurrentNotes,
+      refreshAfterExternalNoteStoreChange,
+    } as unknown as NotesViewProvider,
     refreshCurrentNotes,
+    refreshAfterExternalNoteStoreChange,
   };
 }
 

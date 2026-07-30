@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.2.0
+documentVersion: 1.3.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -70,10 +70,11 @@ flowchart LR
 - 打开 Section Note List：检测当前文件全部 Notes，然后只刷新 Section List。
 - 打开 Line Note List：检测当前文件全部 Notes，然后只刷新 Line List。
 - 打开 File Note List：检测所有 File Notes，然后刷新 File Note List。
+- Note Store 被外部替换：清除缓存并防抖，随后检测和重载当前可见资源。
 - Registry 状态变化：只刷新受影响的当前界面，不重复执行同一次检测。
 
 ## 当前边界
 
-当前已建立 `detectResourceNotes`、`detectCurrentFileNotes` 和 `detectAllFileNotes` 公共检测入口。资源入口统一识别文本、二进制、目录和缺失资源；Notes UI 的手动 Relocate 后检测不再负责打开和分类源文件。
+当前已建立 `detectResourceNotes`、`detectCurrentFileNotes` 和 `detectAllFileNotes` 公共检测入口。资源入口统一识别文本、二进制、目录和缺失资源；Notes UI 的手动 Relocate 后检测不再负责打开和分类源文件。外部 Note Store 变化已使用统一防抖周期重新检测并重载当前可见资源。
 
 尚未完成：File、Section、Line 列表切换时的独立触发消息，以及三个列表级 UI 刷新入口；因此本文整体仍标记为 `proposed`。
