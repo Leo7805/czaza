@@ -235,15 +235,11 @@ export class WorkspaceNoteStoreRepository {
         relativeFilePath,
         this.createNoteFileRandomId(),
       );
-      const nextIndex: WorkspaceNoteIndexV2 = {
-        schemaVersion: 2,
-        updatedAt: now,
-        workspaceRoot: normalizePath(path.resolve(workspaceRoot)),
-        files: {
-          ...(existing?.files ?? {}),
-          [relativeFilePath]: createFileIndexEntry(noteFile, sourceFile, now),
-        },
-      };
+      const indexFieldsChanged = hasIndexedSourceFileChange(
+        existingEntry,
+        noteFile,
+        sourceFile,
+      );
 
       const writtenSourceFileRaw = await writeStoredSourceFile(
         workspaceRoot,
@@ -264,6 +260,20 @@ export class WorkspaceNoteStoreRepository {
       ) {
         return "cancelled";
       }
+
+      if (!indexFieldsChanged) {
+        return "saved";
+      }
+
+      const nextIndex: WorkspaceNoteIndexV2 = {
+        schemaVersion: 2,
+        updatedAt: now,
+        workspaceRoot: normalizePath(path.resolve(workspaceRoot)),
+        files: {
+          ...(existing?.files ?? {}),
+          [relativeFilePath]: createFileIndexEntry(noteFile, sourceFile, now),
+        },
+      };
 
       await this.saveIndex(workspaceRoot, outputDirectory, nextIndex);
       return "saved";
@@ -289,6 +299,30 @@ export class WorkspaceNoteStoreRepository {
       // Missing note JSON is acceptable when deleting an index entry.
     }
   }
+}
+
+/**
+ * Reports whether fields owned by the workspace index have changed.
+ *
+ * Note content, note status, and note-level timestamps belong to the per-file
+ * Note JSON and intentionally do not refresh the workspace index.
+ *
+ * @param existingEntry - Current index entry, when the resource is already tracked.
+ * @param noteFile - Note JSON path selected for the resource.
+ * @param sourceFile - Source metadata and Notes being saved.
+ * @returns True when the index must be created or rewritten.
+ */
+function hasIndexedSourceFileChange(
+  existingEntry: WorkspaceNoteFileIndexEntry | undefined,
+  noteFile: string,
+  sourceFile: StoredSourceFile,
+): boolean {
+  return (
+    !existingEntry ||
+    existingEntry.noteFile !== noteFile ||
+    existingEntry.sourceHash !== sourceFile.source.sourceHash ||
+    existingEntry.programmingLanguage !== sourceFile.source.programmingLanguage
+  );
 }
 
 /**

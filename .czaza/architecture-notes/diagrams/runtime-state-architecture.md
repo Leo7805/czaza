@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.7.0
+documentVersion: 1.8.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -86,6 +86,7 @@ Registry 只保存受影响资源，不保存整个项目快照。状态不会�
 - 已确认的文件路径、Section 范围、Line 行号和 anchor。
 - 正式内容基线 `sourceHash`、状态和 `updatedAt`。
 - 确定性变化或用户确认形成的正式结果。
+- Note 内容、状态和 Note 级 `updatedAt` 只更新对应的单文件 Note JSON；`index.json` 仅在 `sourceHash`、编程语言、Note 文件映射或索引结构变化时更新。
 
 ## 持久化规则
 

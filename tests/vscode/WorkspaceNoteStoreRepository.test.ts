@@ -183,6 +183,65 @@ describe("WorkspaceNoteStoreRepository", () => {
     expect(await readFile(notePath, "utf-8")).toBe(beforeNote);
   });
 
+  it("updates Note content and status without rewriting unchanged index metadata", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
+    const sourceFile: StoredSourceFile = {
+      ...createStoredSourceFile(),
+      fileNote: {
+        id: "file",
+        userNote: "Original file note.",
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
+        createdBy: "user",
+        createdAt: now,
+        updatedAt: now,
+      },
+    };
+
+    await repository.saveSourceFile(root, outputDirectory, "src/index.ts", sourceFile, now);
+
+    const indexPath = getWorkspaceNoteIndexPath(root, outputDirectory);
+    const notePath = getWorkspaceNoteFilePath(
+      root,
+      outputDirectory,
+      createWorkspaceNoteFileName("src/index.ts", firstRandomId),
+    );
+    const beforeIndex = await readFile(indexPath, "utf-8");
+    const nextTime = "2026-07-14T00:00:00.000Z";
+    const updatedSourceFile: StoredSourceFile = {
+      ...sourceFile,
+      fileNote: {
+        id: "file",
+        userNote: "Updated file note.",
+        status: {
+          content: "stale",
+          anchor: "confirmed",
+        },
+        createdBy: "user",
+        createdAt: now,
+        updatedAt: nextTime,
+      },
+    };
+
+    const result = await repository.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/index.ts",
+      updatedSourceFile,
+      nextTime,
+    );
+
+    expect(result).toBe("saved");
+    expect(await readFile(indexPath, "utf-8")).toBe(beforeIndex);
+    expect(await readFile(notePath, "utf-8")).toContain("Updated file note.");
+    expect(await repository.getSourceFile(root, outputDirectory, "src/index.ts")).toEqual(
+      updatedSourceFile,
+    );
+  });
+
   it("cancels saving when an indexed Note JSON temporarily disappears", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => firstRandomId);
