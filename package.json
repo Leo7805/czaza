@@ -1,7 +1,7 @@
 {
   "name": "czaza",
   "private": true,
-  "version": "0.12.19",
+  "version": "0.13.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/Leo7805/czaza.git"
