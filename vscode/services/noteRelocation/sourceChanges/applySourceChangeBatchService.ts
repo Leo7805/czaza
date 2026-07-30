@@ -68,12 +68,7 @@ export function applySourceChangeBatch(
   const events: DeterministicRelocationEvent[] = [];
 
   for (const splice of combineSamePositionInsertions(input.batch.splices)) {
-    const result = applySourceSpliceToAnchors(
-      next,
-      splice,
-      input.now,
-      input.batch.editReason,
-    );
+    const result = applySourceSpliceToAnchors(next, splice, input.now);
     next = result.sourceFile;
     events.push(...result.events);
   }

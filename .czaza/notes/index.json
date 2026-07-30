@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-30T02:25:49.736Z",
+  "updatedAt": "2026-07-30T02:29:22.454Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -97,15 +97,15 @@
     },
     "vscode/services/noteRelocation/sourceChanges/classifySourceChangeService.ts": {
       "noteFile": "files/21516cd2c921-b232bbea.json",
-      "sourceHash": "sha256:0f824df2055858843cc443a956806e1ed8645b47540eadb8ff8b17010526d95b",
+      "sourceHash": "sha256:5bf6ca0f50a907c9e4bcaeda4141dece0970268a9df3e91ef68e954051124b31",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T01:53:03.937Z"
+      "updatedAt": "2026-07-30T02:29:01.415Z"
     },
     "vscode/services/noteRelocation/sourceChanges/applyDeterministicRelocationService.ts": {
       "noteFile": "files/3f833c184add-6b34ff08.json",
-      "sourceHash": "sha256:efcb6c8212671720fb5ce457ade599593c67d4ece18277547f616bdfb77b682c",
+      "sourceHash": "sha256:9dc0163d7608293898c665555bfae0f9733f2b85ccd509f53aa33645051239b1",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T01:51:52.826Z"
+      "updatedAt": "2026-07-30T02:29:01.599Z"
     },
     "vscode/services/noteRelocation/sourceChanges/applySourceChangeToNotesService.ts": {
       "noteFile": "files/f1e4f4de1ba7-ec7a30c1.json",
@@ -115,15 +115,15 @@
     },
     "vscode/services/noteRelocation/sourceChanges/sourceChangeAnchorTransform.ts": {
       "noteFile": "files/0ad29fc79e69-13602646.json",
-      "sourceHash": "sha256:95228da642ce4575cd6201e5763d873d22239b4fedd69fb8c19b17105e885231",
+      "sourceHash": "sha256:34c92d4078b41eb466564448c7d69b96624d17dc585975a2a7d89245f73d77c1",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T02:09:07.380Z"
+      "updatedAt": "2026-07-30T02:29:01.684Z"
     },
     "tests/vscode/sourceChangeAnchorTransform.test.ts": {
       "noteFile": "files/6c1275b28978-a3314e88.json",
-      "sourceHash": "sha256:7391ee1da7aed9145922981928c976976bfecdd8fa30a65b9ed5b6149437bed9",
+      "sourceHash": "sha256:e2ca821727f6ab05b9575efe42359c275c738346f26fb5165fe28f51a17b6a06",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T02:09:07.484Z"
+      "updatedAt": "2026-07-30T02:29:22.454Z"
     },
     "vscode/services/noteRelocation/sourceChanges/sourceChangeBatchAnalysis.ts": {
       "noteFile": "files/a81332316761-0dca7924.json",
@@ -133,15 +133,15 @@
     },
     "vscode/services/noteRelocation/sourceChanges/applySourceChangeBatchService.ts": {
       "noteFile": "files/c6e8a8844303-4ca1c932.json",
-      "sourceHash": "sha256:a1e6e7279956317d921d176db43cf14dfd575d063a349f81c103c52f0f4237b4",
+      "sourceHash": "sha256:1ab52f2e8ee2dffde5cc170eade69c96c16e7f4ee9062da1dfc200b053e00a9c",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T01:52:43.816Z"
+      "updatedAt": "2026-07-30T02:29:01.508Z"
     },
     "vscode/events/registerNotesContentEvents.ts": {
       "noteFile": "files/a8ddb5ffcac5-2c97d283.json",
-      "sourceHash": "sha256:25ab45d15213654c4a83104d742b81621f1fc25aa7999f68e41df9334bc719bb",
+      "sourceHash": "sha256:62223499d0a950e5587d55675415efa441f903ce0a3d7f8f2f8a5efccbc18496",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T02:25:19.752Z"
+      "updatedAt": "2026-07-30T02:29:00.968Z"
     },
     "vscode/services/workspaceTransition/GitWorkspaceTransitionGuard.ts": {
       "noteFile": "files/22f375782ff6-cf3ddbe4.json",

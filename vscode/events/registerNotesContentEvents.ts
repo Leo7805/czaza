@@ -188,7 +188,6 @@ async function handleTextDocumentChange(
     const key = event.document.uri.toString();
     const classifiedBatch = classifySourceChangeBatch({
       contentChanges: event.contentChanges,
-      editReason,
     });
     const state = getPendingDocumentChangeState(pendingDocumentChanges, key);
 
