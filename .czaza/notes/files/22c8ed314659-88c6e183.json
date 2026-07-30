@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:62137398c782411d176ce28b2fa731ab044d6290e9621a918a6084429d6e3ac6",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T05:32:20.329Z",
+    "updatedAt": "2026-07-30T05:32:20.329Z"
+  },
+  "fileNote": {
+    "userNote": "提供 Note Store 资源操作入口。\nmoveSourceEntriesUnderPath：将目录批量移动功能暴露给事件层。\nmarkSourceEntriesUnderPathDeleted：将目录批量删除标记功能暴露给事件层。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

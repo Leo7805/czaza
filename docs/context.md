@@ -15,6 +15,7 @@ Document and then implement the planned runtime-state source-change architecture
 - VS Code document changes that are non-deterministic or non-dirty now refresh session-only Runtime State without mutating persisted Notes; deterministic dirty relocation remains immediate.
 - Text-file watcher changes now share the per-document queue with VS Code events and refresh Runtime State without mutating persisted Notes.
 - Binary watcher changes now compare metadata hashes and expose File stale Runtime State without mutating persisted Notes.
+- File and directory VS Code rename/move/delete/remove events now pass the Resource Access Gate and update all matching Note Store entries immediately without the old Git-aware delay; successful operations also move or clear matching Runtime State.
 - Source and resource changes are now documented under one determinism classification: exact VS Code transformations may persist immediately, while ambiguous Watcher and passive events remain in Runtime State.
 - Runtime State Architecture Notes are organized as one overview at `.czaza/architecture-notes/diagrams/runtime-state-architecture.md` plus Source Relocation and Resource Change detail documents.
 - Candidate Registry and Source Change Persistence Gate are optional future improvements, not current prerequisites.
@@ -30,7 +31,7 @@ Document and then implement the planned runtime-state source-change architecture
 
 ## Planned Runtime State Architecture
 
-This design is being implemented incrementally; rename/delete resource-event migration and Git-aware code removal remain pending.
+This design is being implemented incrementally; Watcher create/delete handling and Git-aware code removal remain pending.
 
 - Decouple source-change handling from Git concepts such as branches, HEAD revisions, checkout, merge, restore, and transition timing.
 - Use three detection sources: precise VS Code document events, file-system watcher events, and passive consistency checks.
@@ -58,4 +59,4 @@ This design is being implemented incrementally; rename/delete resource-event mig
 
 ## Next Step
 
-Remove the obsolete Git-aware delay from deterministic VS Code rename/move/delete/remove events, add Resource Access validation, and reconcile Runtime State afterward.
+Implement Watcher create/delete detection with session-only `missing` and `possibleRename` Runtime State.

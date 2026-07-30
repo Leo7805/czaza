@@ -10,6 +10,17 @@ import {
   type FileNoteChangeEvent,
 } from "@shared/services/notes/fileNoteChangeService";
 import type { WorkspaceNoteStoreCache } from "./WorkspaceNoteStoreCache";
+import {
+  markSourceEntriesUnderPathDeleted,
+  moveSourceEntriesUnderPath,
+  type MarkSourceEntriesUnderPathDeletedResult,
+  type MoveSourceEntriesUnderPathResult,
+} from "./workspaceNoteStoreResourceBatch";
+
+export type {
+  MarkSourceEntriesUnderPathDeletedResult,
+  MoveSourceEntriesUnderPathResult,
+} from "./workspaceNoteStoreResourceBatch";
 
 /** Result of moving a source-file note index entry. */
 export type MoveSourceFileEntryResult =
@@ -118,6 +129,71 @@ export class WorkspaceNoteResourceManager {
       outputDirectory,
       relativePath,
       now,
+    });
+  }
+
+  /**
+   * Moves all tracked source entries at or below one file or directory path.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param previousRelativePath - Existing file or directory path.
+   * @param nextRelativePath - Next file or directory path.
+   * @param now - ISO 8601 timestamp used for updated metadata.
+   * @returns Aggregate move result.
+   */
+  async moveSourceEntriesUnderPath(
+    workspaceRoot: string,
+    outputDirectory: string,
+    previousRelativePath: string,
+    nextRelativePath: string,
+    now: string,
+  ): Promise<MoveSourceEntriesUnderPathResult> {
+    return moveSourceEntriesUnderPath({
+      cache: this.cache,
+      workspaceRoot,
+      outputDirectory,
+      previousRelativePath,
+      nextRelativePath,
+      now,
+      moveEntry: (previousPath, nextPath) =>
+        this.moveSourceFileEntry(
+          workspaceRoot,
+          outputDirectory,
+          previousPath,
+          nextPath,
+          now,
+        ),
+    });
+  }
+
+  /**
+   * Marks all tracked source entries at or below one file or directory path deleted.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativePath - Deleted file or directory path.
+   * @param now - ISO 8601 timestamp used for updated metadata.
+   * @returns Aggregate deletion-marking result.
+   */
+  async markSourceEntriesUnderPathDeleted(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativePath: string,
+    now: string,
+  ): Promise<MarkSourceEntriesUnderPathDeletedResult> {
+    return markSourceEntriesUnderPathDeleted({
+      cache: this.cache,
+      workspaceRoot,
+      outputDirectory,
+      relativePath,
+      markEntryDeleted: (trackedPath) =>
+        this.markSourceFileEntryDeleted(
+          workspaceRoot,
+          outputDirectory,
+          trackedPath,
+          now,
+        ),
     });
   }
 

@@ -108,6 +108,32 @@ describe("RuntimeNoteStateRegistry", () => {
     expect(registry.getState(createCoordinates("src/new.ts"))).toEqual(moved);
   });
 
+  it("moves and deletes every state under one directory path", () => {
+    const registry = new RuntimeNoteStateRegistry();
+
+    registry.setState(createState("src/feature/first.ts"));
+    registry.setState(createState("src/feature/nested/second.ts"));
+    registry.setState(createState("src/other.ts"));
+
+    expect(
+      registry.moveStatesUnderPath(
+        createScope(),
+        "src/feature",
+        "src/domain",
+      ),
+    ).toBe(2);
+    expect(registry.getState(createCoordinates("src/domain/first.ts"))).toBeDefined();
+    expect(
+      registry.getState(createCoordinates("src/domain/nested/second.ts")),
+    ).toBeDefined();
+    expect(
+      registry.deleteStatesUnderPath(createScope(), "src/domain"),
+    ).toBe(2);
+    expect(registry.listStates(createScope()).map((state) => state.relativePath)).toEqual([
+      "src/other.ts",
+    ]);
+  });
+
   it("publishes mutations until the listener is disposed", () => {
     const registry = new RuntimeNoteStateRegistry();
     const listener = vi.fn();

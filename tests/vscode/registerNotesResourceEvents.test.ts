@@ -1,12 +1,12 @@
 /**
- * Unit tests for synchronizing stored notes with VS Code file resource events.
+ * Unit tests for deterministic VS Code file resource events.
  */
 
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
 import type * as vscodeTypes from "vscode";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type RenameListener = (event: vscodeTypes.FileRenameEvent) => void;
 type DeleteListener = (event: vscodeTypes.FileDeleteEvent) => void;
@@ -65,12 +65,12 @@ vi.mock("vscode", () => ({
 import { registerNotesResourceEvents } from "@vscode/events";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
-import { GitWorkspaceTransitionGuard } from "@vscode/services/workspaceTransition";
+import type { SourceRelocationHistoryService } from "@vscode/services/noteRelocation";
+import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
 
 describe("registerNotesResourceEvents()", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
     mocks.workspaceFolders.length = 0;
     mocks.renameListeners.length = 0;
     mocks.deleteListeners.length = 0;
@@ -78,185 +78,143 @@ describe("registerNotesResourceEvents()", () => {
     mocks.outputDirectory = ".caca";
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("moves source file note entries for VS Code rename events", async () => {
-    vi.useFakeTimers();
+  it("moves file Notes and Runtime State immediately after a VS Code rename", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("rename");
-    const workspace = createWorkspaceFolder(workspaceRoot);
     const notes = createNotes();
     const notesProvider = createNotesProvider();
+    const runtimeRegistry = createRuntimeRegistry(workspaceRoot, "src/old.ts");
+    const relocationHistory = createRelocationHistory();
     const context = createExtensionContext();
+    const oldUri = createUri(path.join(workspaceRoot, "src/old.ts"));
     const newUri = createUri(path.join(workspaceRoot, "src/new.ts"));
-    const guard = new GitWorkspaceTransitionGuard(100);
 
-    mocks.workspaceFolders.push(workspace);
-    registerNotesResourceEvents(context, notes.value, notesProvider.value, guard);
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesResourceEvents(
+      context,
+      notes.value,
+      notesProvider.value,
+      runtimeRegistry,
+      relocationHistory.value,
+    );
     mocks.renameListeners[0]?.({
-      files: [
-        {
-          oldUri: createUri(path.join(workspaceRoot, "src/old.ts")),
-          newUri,
-        },
-      ],
+      files: [{ oldUri, newUri }],
     });
+    await waitForMicrotasks();
 
-    await vi.advanceTimersByTimeAsync(800);
-
-    expect(notes.moveSourceFileEntry).toHaveBeenCalledWith(
+    expect(notes.moveSourceEntriesUnderPath).toHaveBeenCalledWith(
       workspaceRoot,
       ".caca",
       "src/old.ts",
       "src/new.ts",
       expect.any(String),
     );
-    expect(notesProvider.refreshAfterResourceMove).toHaveBeenCalledWith(
-      expect.objectContaining({ fsPath: path.join(workspaceRoot, "src/old.ts") }),
-      newUri,
-    );
-    expect(context.subscriptions).toHaveLength(3);
-  });
-
-  it("marks source file note entries deleted for VS Code delete events", async () => {
-    vi.useFakeTimers();
-    const workspaceRoot = await createTempWorkspaceRoot("delete");
-    const workspace = createWorkspaceFolder(workspaceRoot);
-    const notes = createNotes();
-    const notesProvider = createNotesProvider();
-    const deletedUri = createUri(path.join(workspaceRoot, "src/deleted.ts"));
-    const guard = new GitWorkspaceTransitionGuard(100);
-
-    mocks.workspaceFolders.push(workspace);
-    registerNotesResourceEvents(
-      createExtensionContext(),
-      notes.value,
-      notesProvider.value,
-      guard,
-    );
-    mocks.deleteListeners[0]?.({
-      files: [deletedUri],
-    });
-
-    await vi.advanceTimersByTimeAsync(800);
-
-    expect(notes.markSourceFileEntryDeleted).toHaveBeenCalledWith(
+    expect(runtimeRegistry.getState({
       workspaceRoot,
-      ".caca",
-      "src/deleted.ts",
-      expect.any(String),
-    );
-    expect(notesProvider.refreshAfterResourceDelete).toHaveBeenCalledWith(deletedUri);
+      outputDirectory: ".caca",
+      relativePath: "src/old.ts",
+    })).toBeUndefined();
+    expect(runtimeRegistry.getState({
+      workspaceRoot,
+      outputDirectory: ".caca",
+      relativePath: "src/new.ts",
+    })).toBeDefined();
+    expect(relocationHistory.clear).toHaveBeenCalledWith(oldUri.toString());
+    expect(relocationHistory.clear).toHaveBeenCalledWith(newUri.toString());
+    expect(notesProvider.refreshAfterResourceMove).toHaveBeenCalledWith(oldUri, newUri);
+    expect(context.subscriptions).toHaveLength(2);
   });
 
-  it("cancels rename and delete events when HEAD changes during confirmation", async () => {
-    vi.useFakeTimers();
-    const workspaceRoot = await createTempWorkspaceRoot("git-transition");
-    const workspace = createWorkspaceFolder(workspaceRoot);
+  it("marks file Notes deleted and clears Runtime State immediately", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("delete");
     const notes = createNotes();
     const notesProvider = createNotesProvider();
-    const guard = new GitWorkspaceTransitionGuard(100);
-
-    mocks.workspaceFolders.push(workspace);
-    registerNotesResourceEvents(
-      createExtensionContext(),
-      notes.value,
-      notesProvider.value,
-      guard,
-    );
-    mocks.renameListeners[0]?.({
-      files: [
-        {
-          oldUri: createUri(path.join(workspaceRoot, "src/old.ts")),
-          newUri: createUri(path.join(workspaceRoot, "src/new.ts")),
-        },
-      ],
-    });
-    mocks.deleteListeners[0]?.({
-      files: [createUri(path.join(workspaceRoot, "src/deleted.ts"))],
-    });
-
-    await vi.advanceTimersByTimeAsync(799);
-    guard.beginTransition();
-    await vi.advanceTimersByTimeAsync(101);
-
-    expect(notes.moveSourceFileEntry).not.toHaveBeenCalled();
-    expect(notes.markSourceFileEntryDeleted).not.toHaveBeenCalled();
-    expect(notesProvider.refreshAfterResourceMove).not.toHaveBeenCalled();
-    expect(notesProvider.refreshAfterResourceDelete).not.toHaveBeenCalled();
-  });
-
-  it("blocks bursty rename and delete events across repeated HEAD transitions", async () => {
-    vi.useFakeTimers();
-    const workspaceRoot = await createTempWorkspaceRoot("rapid-git-transitions");
-    const notes = createNotes();
-    const notesProvider = createNotesProvider();
-    const guard = new GitWorkspaceTransitionGuard(100);
+    const runtimeRegistry = createRuntimeRegistry(workspaceRoot, "src/deleted.ts");
+    const deletedUri = createUri(path.join(workspaceRoot, "src/deleted.ts"));
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
     registerNotesResourceEvents(
       createExtensionContext(),
       notes.value,
       notesProvider.value,
-      guard,
+      runtimeRegistry,
     );
+    mocks.deleteListeners[0]?.({ files: [deletedUri] });
+    await waitForMicrotasks();
 
-    for (let index = 0; index < 12; index += 1) {
-      mocks.renameListeners[0]?.({
-        files: [
-          {
-            oldUri: createUri(path.join(workspaceRoot, `src/old-${index}.ts`)),
-            newUri: createUri(path.join(workspaceRoot, `src/new-${index}.ts`)),
-          },
-        ],
-      });
-      mocks.deleteListeners[0]?.({
-        files: [createUri(path.join(workspaceRoot, `src/deleted-${index}.ts`))],
-      });
-      await vi.advanceTimersByTimeAsync(20);
-      guard.beginTransition();
-      await vi.advanceTimersByTimeAsync(20);
-    }
+    expect(notes.markSourceEntriesUnderPathDeleted).toHaveBeenCalledWith(
+      workspaceRoot,
+      ".caca",
+      "src/deleted.ts",
+      expect.any(String),
+    );
+    expect(runtimeRegistry.getState({
+      workspaceRoot,
+      outputDirectory: ".caca",
+      relativePath: "src/deleted.ts",
+    })).toBeUndefined();
+    expect(notesProvider.refreshAfterResourceDelete).toHaveBeenCalledWith(deletedUri);
+  });
 
-    await vi.advanceTimersByTimeAsync(800);
+  it("preserves Runtime State when the Note Store rejects a rename or delete", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("rejected");
+    const notes = createNotes();
+    const runtimeRegistry = createRuntimeRegistry(workspaceRoot, "src/original.ts");
+    const oldUri = createUri(path.join(workspaceRoot, "src/original.ts"));
+    const newUri = createUri(path.join(workspaceRoot, "src/renamed.ts"));
 
-    expect(notes.moveSourceFileEntry).not.toHaveBeenCalled();
-    expect(notes.markSourceFileEntryDeleted).not.toHaveBeenCalled();
-    expect(notesProvider.refreshAfterResourceMove).not.toHaveBeenCalled();
-    expect(notesProvider.refreshAfterResourceDelete).not.toHaveBeenCalled();
+    notes.moveSourceEntriesUnderPath.mockResolvedValue({ kind: "conflict" });
+    notes.markSourceEntriesUnderPathDeleted.mockResolvedValue({ kind: "notFound" });
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesResourceEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      runtimeRegistry,
+    );
+    mocks.renameListeners[0]?.({ files: [{ oldUri, newUri }] });
+    mocks.deleteListeners[0]?.({ files: [oldUri] });
+    await waitForMicrotasks();
 
-    const stableNewUri = createUri(path.join(workspaceRoot, "src/stable-new.ts"));
-    const stableDeletedUri = createUri(path.join(workspaceRoot, "src/stable-deleted.ts"));
+    expect(runtimeRegistry.getState({
+      workspaceRoot,
+      outputDirectory: ".caca",
+      relativePath: "src/original.ts",
+    })).toBeDefined();
+    expect(runtimeRegistry.getState({
+      workspaceRoot,
+      outputDirectory: ".caca",
+      relativePath: "src/renamed.ts",
+    })).toBeUndefined();
+  });
+
+  it("ignores source operations involving the managed Note Store", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("managed-store");
+    const notes = createNotes();
+    const managedUri = createUri(path.join(workspaceRoot, ".caca/notes/index.json"));
+    const sourceUri = createUri(path.join(workspaceRoot, "src/index.ts"));
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesResourceEvents(createExtensionContext(), notes.value);
     mocks.renameListeners[0]?.({
-      files: [
-        {
-          oldUri: createUri(path.join(workspaceRoot, "src/stable-old.ts")),
-          newUri: stableNewUri,
-        },
-      ],
+      files: [{ oldUri: managedUri, newUri: sourceUri }],
     });
-    mocks.deleteListeners[0]?.({
-      files: [stableDeletedUri],
-    });
-    await vi.advanceTimersByTimeAsync(800);
+    mocks.deleteListeners[0]?.({ files: [managedUri] });
+    await waitForMicrotasks();
 
-    expect(notes.moveSourceFileEntry).toHaveBeenCalledOnce();
-    expect(notes.markSourceFileEntryDeleted).toHaveBeenCalledOnce();
-    expect(notesProvider.refreshAfterResourceMove).toHaveBeenCalledOnce();
-    expect(notesProvider.refreshAfterResourceDelete).toHaveBeenCalledOnce();
+    expect(notes.moveSourceEntriesUnderPath).not.toHaveBeenCalled();
+    expect(notes.markSourceEntriesUnderPathDeleted).not.toHaveBeenCalled();
   });
 
   it("ignores rename events that cross configured CZaza roots", async () => {
     const firstRoot = await createTempWorkspaceRoot("first");
     const secondRoot = await createTempWorkspaceRoot("second");
-    const firstWorkspace = createWorkspaceFolder(firstRoot, 0);
-    const secondWorkspace = createWorkspaceFolder(secondRoot, 1);
     const notes = createNotes();
-    const notesProvider = createNotesProvider();
 
-    mocks.workspaceFolders.push(firstWorkspace, secondWorkspace);
-    registerNotesResourceEvents(createExtensionContext(), notes.value, notesProvider.value);
+    mocks.workspaceFolders.push(
+      createWorkspaceFolder(firstRoot, 0),
+      createWorkspaceFolder(secondRoot, 1),
+    );
+    registerNotesResourceEvents(createExtensionContext(), notes.value);
     mocks.renameListeners[0]?.({
       files: [
         {
@@ -265,35 +223,86 @@ describe("registerNotesResourceEvents()", () => {
         },
       ],
     });
-
     await waitForMicrotasks();
 
-    expect(notes.moveSourceFileEntry).not.toHaveBeenCalled();
-    expect(notesProvider.refreshAfterResourceMove).not.toHaveBeenCalled();
-    expect(notesProvider.refreshAfterResourceDelete).not.toHaveBeenCalled();
+    expect(notes.moveSourceEntriesUnderPath).not.toHaveBeenCalled();
+  });
+
+  it("moves and deletes directory-scoped Runtime State after aggregate Store changes", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("directory");
+    const notes = createNotes();
+    const runtimeRegistry = createRuntimeRegistry(workspaceRoot, "src/feature/first.ts");
+    runtimeRegistry.setState(createRuntimeState(workspaceRoot, "src/feature/nested/second.ts"));
+    const oldUri = createUri(path.join(workspaceRoot, "src/feature"));
+    const newUri = createUri(path.join(workspaceRoot, "src/domain"));
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesResourceEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      runtimeRegistry,
+    );
+    mocks.renameListeners[0]?.({ files: [{ oldUri, newUri }] });
+    await waitForMicrotasks();
+
+    expect(runtimeRegistry.getState({
+      workspaceRoot,
+      outputDirectory: ".caca",
+      relativePath: "src/domain/first.ts",
+    })).toBeDefined();
+    expect(runtimeRegistry.getState({
+      workspaceRoot,
+      outputDirectory: ".caca",
+      relativePath: "src/domain/nested/second.ts",
+    })).toBeDefined();
+
+    mocks.deleteListeners[0]?.({ files: [newUri] });
+    await waitForMicrotasks();
+
+    expect(runtimeRegistry.listStates({
+      workspaceRoot,
+      outputDirectory: ".caca",
+    })).toEqual([]);
   });
 });
 
+/**
+ * Creates mock Note resource operations.
+ *
+ * @returns Workspace Note Store and operation spies.
+ */
 function createNotes(): {
   value: WorkspaceNoteStore;
-  moveSourceFileEntry: ReturnType<typeof vi.fn>;
-  markSourceFileEntryDeleted: ReturnType<typeof vi.fn>;
+  moveSourceEntriesUnderPath: ReturnType<typeof vi.fn>;
+  markSourceEntriesUnderPathDeleted: ReturnType<typeof vi.fn>;
 } {
-  const moveSourceFileEntry = vi.fn().mockResolvedValue({ kind: "moved" });
-  const markSourceFileEntryDeleted = vi.fn().mockResolvedValue({ kind: "markedDeleted" });
+  const moveSourceEntriesUnderPath = vi.fn().mockResolvedValue({
+    kind: "moved",
+    entries: [],
+  });
+  const markSourceEntriesUnderPathDeleted = vi.fn().mockResolvedValue({
+    kind: "markedDeleted",
+    relativePaths: [],
+  });
 
   return {
     value: {
       resources: {
-        moveSourceFileEntry,
-        markSourceFileEntryDeleted,
+        moveSourceEntriesUnderPath,
+        markSourceEntriesUnderPathDeleted,
       },
     } as unknown as WorkspaceNoteStore,
-    moveSourceFileEntry,
-    markSourceFileEntryDeleted,
+    moveSourceEntriesUnderPath,
+    markSourceEntriesUnderPathDeleted,
   };
 }
 
+/**
+ * Creates mock Notes view refresh operations.
+ *
+ * @returns Notes provider and refresh spies.
+ */
 function createNotesProvider(): {
   value: NotesViewProvider;
   refreshAfterResourceMove: ReturnType<typeof vi.fn>;
@@ -312,12 +321,76 @@ function createNotesProvider(): {
   };
 }
 
+/**
+ * Creates one Runtime State entry for a source file.
+ *
+ * @param workspaceRoot - Absolute workspace root.
+ * @param relativePath - Source path relative to the CZaza root.
+ * @returns Registry containing one stale source state.
+ */
+function createRuntimeRegistry(
+  workspaceRoot: string,
+  relativePath: string,
+): RuntimeNoteStateRegistry {
+  const registry = new RuntimeNoteStateRegistry();
+  registry.setState(createRuntimeState(workspaceRoot, relativePath));
+  return registry;
+}
+
+/**
+ * Creates one stale Runtime State fixture.
+ *
+ * @param workspaceRoot - Absolute workspace root.
+ * @param relativePath - Source path relative to the CZaza root.
+ * @returns Runtime state fixture.
+ */
+function createRuntimeState(workspaceRoot: string, relativePath: string) {
+  return {
+    workspaceRoot,
+    outputDirectory: ".caca",
+    relativePath,
+    currentSourceHash: "sha256:current",
+    issues: ["stale"],
+    reason: "sourceChanged",
+    observedAt: "2026-07-30T00:00:00.000Z",
+    targetChanges: [],
+  } as const;
+}
+
+/**
+ * Creates a mock relocation history service.
+ *
+ * @returns History interface and clear spy.
+ */
+function createRelocationHistory(): {
+  value: SourceRelocationHistoryService;
+  clear: ReturnType<typeof vi.fn>;
+} {
+  const clear = vi.fn();
+  return {
+    value: { clear } as unknown as SourceRelocationHistoryService,
+    clear,
+  };
+}
+
+/**
+ * Creates a minimal extension context.
+ *
+ * @returns Extension context fixture.
+ */
 function createExtensionContext(): vscodeTypes.ExtensionContext {
   return {
     subscriptions: [],
   } as unknown as vscodeTypes.ExtensionContext;
 }
 
+/**
+ * Creates one mock workspace folder.
+ *
+ * @param fsPath - Absolute workspace root.
+ * @param index - Workspace folder index.
+ * @returns Workspace folder fixture.
+ */
 function createWorkspaceFolder(fsPath: string, index = 0): MockWorkspaceFolder {
   return {
     uri: createUri(fsPath),
@@ -326,6 +399,12 @@ function createWorkspaceFolder(fsPath: string, index = 0): MockWorkspaceFolder {
   };
 }
 
+/**
+ * Creates a local file URI fixture.
+ *
+ * @param fsPath - Absolute file path.
+ * @returns VS Code URI fixture.
+ */
 function createUri(fsPath: string): vscodeTypes.Uri {
   return {
     scheme: "file",
@@ -334,10 +413,21 @@ function createUri(fsPath: string): vscodeTypes.Uri {
   } as vscodeTypes.Uri;
 }
 
+/**
+ * Waits for event-handler promises queued by void callbacks.
+ *
+ * @returns Promise resolved after queued microtasks.
+ */
 async function waitForMicrotasks(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+/**
+ * Creates one real temporary workspace root.
+ *
+ * @param name - Test-specific suffix.
+ * @returns Absolute temporary workspace path.
+ */
 async function createTempWorkspaceRoot(name: string): Promise<string> {
   return mkdtemp(path.join(tmpdir(), `czaza-resource-events-${name}-`));
 }

@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:1bc159be355c71c1a488e5c0abb59923e8fa87cf46e2fbb297a74df2f3ef1458",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T05:32:07.648Z",
+    "updatedAt": "2026-07-30T05:32:07.648Z"
+  },
+  "fileNote": {
+    "userNote": "新增文件，规划并执行文件或目录的批量 Note Store 操作。\nmoveSourceEntriesUnderPath：移动路径本身及其全部已跟踪子文件。\nmarkSourceEntriesUnderPathDeleted：批量将删除目录中的 File Notes 标记为 orphaned。\ngetEntriesUnderPath：找出属于目标文件或目录的全部 Notes。\nreplacePathPrefix：将旧目录前缀替换为新目录前缀。\nnormalizeRelativePath：统一相对路径格式。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

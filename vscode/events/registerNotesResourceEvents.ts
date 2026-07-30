@@ -4,21 +4,11 @@
 
 import * as vscode from "vscode";
 
-import { getCzazaSettings } from "@vscode/config/czazaSettings";
-import {
-  getCzazaRelativePath,
-  resolveCzazaRootDirectory,
-} from "@vscode/config/resolveCzazaRootDirectory";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import type { SourceRelocationHistoryService } from "@vscode/services/noteRelocation";
-import {
-  GitAwareSourceChangeGate,
-  type GitWorkspaceTransitionGuard,
-  type SourceChangeRevisionToken,
-} from "@vscode/services/workspaceTransition";
-
-const RESOURCE_CHANGE_CONFIRMATION_MS = 800;
+import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
+import type { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
 
 /**
  * Registers file rename, move, and delete handlers for stored CZaza notes.
@@ -26,7 +16,7 @@ const RESOURCE_CHANGE_CONFIRMATION_MS = 800;
  * @param context - Current VS Code extension context.
  * @param notes - Shared workspace note store.
  * @param notesProvider - Optional notes webview provider to refresh after stored changes.
- * @param workspaceTransitionGuard - Optional Git transition state that suppresses checkout events.
+ * @param runtimeNoteStateRegistry - Optional session registry synchronized after resource changes.
  * @param relocationHistory - Optional shared history invalidated by resource identity changes.
  *
  * @example
@@ -36,20 +26,11 @@ export function registerNotesResourceEvents(
   context: vscode.ExtensionContext,
   notes: WorkspaceNoteStore,
   notesProvider?: NotesViewProvider,
-  workspaceTransitionGuard?: GitWorkspaceTransitionGuard,
+  runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
   relocationHistory?: SourceRelocationHistoryService,
 ): void {
-  const resourceChangeGate = workspaceTransitionGuard
-    ? new GitAwareSourceChangeGate(
-      RESOURCE_CHANGE_CONFIRMATION_MS,
-      workspaceTransitionGuard,
-    )
-    : undefined;
-
   context.subscriptions.push(
     vscode.workspace.onDidRenameFiles((event) => {
-      const token = resourceChangeGate?.captureToken();
-
       for (const file of event.files) {
         relocationHistory?.clear(file.oldUri.toString());
         relocationHistory?.clear(file.newUri.toString());
@@ -58,38 +39,32 @@ export function registerNotesResourceEvents(
           file.oldUri,
           file.newUri,
           notesProvider,
-          resourceChangeGate,
-          token,
+          runtimeNoteStateRegistry,
         );
       }
     }),
     vscode.workspace.onDidDeleteFiles((event) => {
-      const token = resourceChangeGate?.captureToken();
-
       for (const uri of event.files) {
         relocationHistory?.clear(uri.toString());
         void handleDelete(
           notes,
           uri,
           notesProvider,
-          resourceChangeGate,
-          token,
+          runtimeNoteStateRegistry,
         );
       }
     }),
-    ...(resourceChangeGate ? [resourceChangeGate] : []),
   );
 }
 
 /**
- * Applies one VS Code rename event after its Git confirmation window.
+ * Applies one deterministic VS Code file rename immediately after access validation.
  *
  * @param notes - Shared workspace note store.
  * @param oldUri - Resource URI before the rename.
  * @param newUri - Resource URI after the rename.
  * @param notesProvider - Optional Notes view refreshed after the move.
- * @param resourceChangeGate - Optional Git-aware confirmation gate.
- * @param token - Revision captured when the rename event arrived.
+ * @param runtimeNoteStateRegistry - Optional session registry moved with the resource.
  * @returns Promise resolved after the move or cancellation.
  */
 async function handleRename(
@@ -97,38 +72,40 @@ async function handleRename(
   oldUri: vscode.Uri,
   newUri: vscode.Uri,
   notesProvider: NotesViewProvider | undefined,
-  resourceChangeGate: GitAwareSourceChangeGate | undefined,
-  token: SourceChangeRevisionToken | undefined,
+  runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
 ): Promise<void> {
   try {
-    if (oldUri.scheme !== "file" || newUri.scheme !== "file") {
-      return;
-    }
+    const oldResource = evaluateCzazaResourceAccess(oldUri);
+    const newResource = evaluateCzazaResourceAccess(newUri);
 
-    const oldResource = resolveNotesResource(oldUri);
-    const newResource = resolveNotesResource(newUri);
-
-    if (oldResource.rootDirectory !== newResource.rootDirectory) {
+    if (!oldResource.allowed || !newResource.allowed) {
       return;
     }
 
     if (
-      resourceChangeGate &&
-      token &&
-      !(await resourceChangeGate.confirmPersistence(token))
+      oldResource.root.rootDirectory !== newResource.root.rootDirectory ||
+      oldResource.settings.outputDirectory !== newResource.settings.outputDirectory
     ) {
       return;
     }
 
-    const result = await notes.resources.moveSourceFileEntry(
-      oldResource.rootDirectory,
-      oldResource.outputDirectory,
+    const result = await notes.resources.moveSourceEntriesUnderPath(
+      oldResource.root.rootDirectory,
+      oldResource.settings.outputDirectory,
       oldResource.relativePath,
       newResource.relativePath,
       new Date().toISOString(),
     );
 
     if (result.kind === "moved") {
+      runtimeNoteStateRegistry?.moveStatesUnderPath(
+        {
+          workspaceRoot: oldResource.root.rootDirectory,
+          outputDirectory: oldResource.settings.outputDirectory,
+        },
+        oldResource.relativePath,
+        newResource.relativePath,
+      );
       await notesProvider?.refreshAfterResourceMove(oldUri, newUri);
     }
   } catch (error) {
@@ -137,69 +114,42 @@ async function handleRename(
 }
 
 /**
- * Applies one VS Code delete event after its Git confirmation window.
+ * Applies one deterministic VS Code file delete immediately after access validation.
  *
  * @param notes - Shared workspace note store.
  * @param uri - Deleted resource URI.
  * @param notesProvider - Optional Notes view refreshed after deletion.
- * @param resourceChangeGate - Optional Git-aware confirmation gate.
- * @param token - Revision captured when the delete event arrived.
+ * @param runtimeNoteStateRegistry - Optional session registry cleared after deletion.
  * @returns Promise resolved after deletion marking or cancellation.
  */
 async function handleDelete(
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
   notesProvider: NotesViewProvider | undefined,
-  resourceChangeGate: GitAwareSourceChangeGate | undefined,
-  token: SourceChangeRevisionToken | undefined,
+  runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
 ): Promise<void> {
   try {
-    if (uri.scheme !== "file") {
+    const resource = evaluateCzazaResourceAccess(uri);
+
+    if (!resource.allowed) {
       return;
     }
 
-    const resource = resolveNotesResource(uri);
-
-    if (
-      resourceChangeGate &&
-      token &&
-      !(await resourceChangeGate.confirmPersistence(token))
-    ) {
-      return;
-    }
-
-    const result = await notes.resources.markSourceFileEntryDeleted(
-      resource.rootDirectory,
-      resource.outputDirectory,
+    const result = await notes.resources.markSourceEntriesUnderPathDeleted(
+      resource.root.rootDirectory,
+      resource.settings.outputDirectory,
       resource.relativePath,
       new Date().toISOString(),
     );
 
     if (result.kind === "markedDeleted") {
+      runtimeNoteStateRegistry?.deleteStatesUnderPath({
+        workspaceRoot: resource.root.rootDirectory,
+        outputDirectory: resource.settings.outputDirectory,
+      }, resource.relativePath);
       await notesProvider?.refreshAfterResourceDelete(uri);
     }
   } catch (error) {
     console.error("Failed to mark CZaza notes after a file delete.", error);
   }
-}
-
-/**
- * Resolves one file URI into the configured CZaza resource coordinates.
- *
- * @param uri - File resource to resolve.
- * @returns Workspace root, output directory, and CZaza-relative path.
- */
-function resolveNotesResource(uri: vscode.Uri): {
-  rootDirectory: string;
-  outputDirectory: string;
-  relativePath: string;
-} {
-  const resolvedRoot = resolveCzazaRootDirectory(uri);
-  const settings = getCzazaSettings(uri);
-
-  return {
-    rootDirectory: resolvedRoot.rootDirectory,
-    outputDirectory: settings.outputDirectory,
-    relativePath: getCzazaRelativePath(uri, resolvedRoot.rootDirectory),
-  };
 }

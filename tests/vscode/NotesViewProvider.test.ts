@@ -1373,7 +1373,42 @@ describe("NotesViewProvider", () => {
     await provider.refreshAfterResourceMove(oldUri, newUri);
 
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
-      uri: newUri,
+      uri: expect.objectContaining({ fsPath: newUri.fsPath }),
+      notes: {},
+      activeLine: 12,
+    });
+
+    provider.dispose();
+  });
+
+  it("remaps a current file when its parent directory moves", async () => {
+    const oldDirectoryUri = createUri("/workspace/src/feature");
+    const newDirectoryUri = createUri("/workspace/src/domain");
+    const oldFileUri = createUri("/workspace/src/feature/nested/index.ts");
+    const newFileUri = createUri("/workspace/src/domain/nested/index.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.activeTextEditor = createEditor(newFileUri);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/domain/nested/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(oldFileUri);
+    await provider.refreshAfterResourceMove(oldDirectoryUri, newDirectoryUri);
+
+    expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
+      uri: expect.objectContaining({ fsPath: newFileUri.fsPath }),
       notes: {},
       activeLine: 12,
     });

@@ -718,10 +718,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @returns Promise that resolves after the visible payload is refreshed.
    */
   async refreshAfterResourceMove(previousUri: vscode.Uri, nextUri: vscode.Uri): Promise<void> {
-    const targetUri =
-      this.currentResourceUri?.toString() === previousUri.toString()
-        ? nextUri
-        : this.currentResourceUri ?? nextUri;
+    const targetUri = this.currentResourceUri
+      ? remapResourceUri(this.currentResourceUri, previousUri, nextUri)
+      : nextUri;
 
     await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
   }
@@ -734,7 +733,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    */
   async refreshAfterResourceDelete(deletedUri: vscode.Uri): Promise<void> {
     const targetUri =
-      this.currentResourceUri?.toString() === deletedUri.toString()
+      this.currentResourceUri &&
+      isSameOrDescendantResource(this.currentResourceUri, deletedUri)
         ? vscode.Uri.file(path.dirname(deletedUri.fsPath))
         : this.currentResourceUri ?? vscode.Uri.file(path.dirname(deletedUri.fsPath));
 
@@ -1943,6 +1943,49 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       `${getNotesTypographyStyle(getCzazaSettings(this.currentResourceUri))}</head>`,
     );
   }
+}
+
+/**
+ * Remaps one visible resource when it equals or descends from a moved resource.
+ *
+ * @param currentUri - Resource currently shown in the Notes view.
+ * @param previousUri - File or directory path before the move.
+ * @param nextUri - File or directory path after the move.
+ * @returns Remapped URI, or the unchanged current URI when it is outside the move.
+ */
+function remapResourceUri(
+  currentUri: vscode.Uri,
+  previousUri: vscode.Uri,
+  nextUri: vscode.Uri,
+): vscode.Uri {
+  if (!isSameOrDescendantResource(currentUri, previousUri)) {
+    return currentUri;
+  }
+
+  const relativePath = path.relative(previousUri.fsPath, currentUri.fsPath);
+  return vscode.Uri.file(path.join(nextUri.fsPath, relativePath));
+}
+
+/**
+ * Reports whether one file URI equals or descends from another file URI.
+ *
+ * @param candidateUri - Candidate resource URI.
+ * @param parentUri - File or directory URI used as the boundary.
+ * @returns True when the candidate is the same resource or lies below it.
+ */
+function isSameOrDescendantResource(
+  candidateUri: vscode.Uri,
+  parentUri: vscode.Uri,
+): boolean {
+  if (candidateUri.scheme !== "file" || parentUri.scheme !== "file") {
+    return candidateUri.toString() === parentUri.toString();
+  }
+
+  const relativePath = path.relative(parentUri.fsPath, candidateUri.fsPath);
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
+  );
 }
 
 function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage {

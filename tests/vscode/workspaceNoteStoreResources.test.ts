@@ -151,6 +151,97 @@ describe("workspaceNoteStoreResources", () => {
     expect(afterIndex).toEqual(beforeIndex);
   });
 
+  it("moves every tracked source entry under a directory path", async () => {
+    const root = await createTempWorkspaceRoot();
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
+
+    await notes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/feature/first.ts",
+      createStoredSourceFile(),
+      createdAt,
+    );
+    await notes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/feature/nested/second.ts",
+      createStoredSourceFile(),
+      createdAt,
+    );
+    await notes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/other.ts",
+      createStoredSourceFile(),
+      createdAt,
+    );
+
+    const result = await notes.resources.moveSourceEntriesUnderPath(
+      root,
+      outputDirectory,
+      "src/feature",
+      "src/domain",
+      now,
+    );
+    const index = await notes.cache.getRequiredIndex(root, outputDirectory);
+
+    expect(result).toEqual({
+      kind: "moved",
+      entries: [
+        {
+          previousRelativePath: "src/feature/nested/second.ts",
+          nextRelativePath: "src/domain/nested/second.ts",
+        },
+        {
+          previousRelativePath: "src/feature/first.ts",
+          nextRelativePath: "src/domain/first.ts",
+        },
+      ],
+    });
+    expect(index.files["src/feature/first.ts"]).toBeUndefined();
+    expect(index.files["src/feature/nested/second.ts"]).toBeUndefined();
+    expect(index.files["src/domain/first.ts"]).toBeDefined();
+    expect(index.files["src/domain/nested/second.ts"]).toBeDefined();
+    expect(index.files["src/other.ts"]).toBeDefined();
+  });
+
+  it("rejects a directory move before writing when one destination conflicts", async () => {
+    const root = await createTempWorkspaceRoot();
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
+
+    await notes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/feature/first.ts",
+      createStoredSourceFile(),
+      createdAt,
+    );
+    await notes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/domain/first.ts",
+      createStoredSourceFile(),
+      createdAt,
+    );
+
+    const result = await notes.resources.moveSourceEntriesUnderPath(
+      root,
+      outputDirectory,
+      "src/feature",
+      "src/domain",
+      now,
+    );
+
+    expect(result).toEqual({
+      kind: "conflict",
+      nextRelativePath: "src/domain/first.ts",
+    });
+    expect(
+      await notes.cache.getSourceFile(root, outputDirectory, "src/feature/first.ts"),
+    ).toBeDefined();
+  });
+
   it("marks a source file entry deleted by orphaning its file note", async () => {
     const root = await createTempWorkspaceRoot();
     const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
@@ -208,6 +299,51 @@ describe("workspaceNoteStoreResources", () => {
       kind: "notFound",
       relativePath: "src/missing.ts",
     });
+  });
+
+  it("marks every tracked source entry under a deleted directory", async () => {
+    const root = await createTempWorkspaceRoot();
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
+
+    await notes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/feature/first.ts",
+      createStoredSourceFile(),
+      createdAt,
+    );
+    await notes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      "src/feature/nested/second.ts",
+      createStoredSourceFile(),
+      createdAt,
+    );
+
+    const result = await notes.resources.markSourceEntriesUnderPathDeleted(
+      root,
+      outputDirectory,
+      "src/feature",
+      now,
+    );
+
+    expect(result).toEqual({
+      kind: "markedDeleted",
+      relativePaths: [
+        "src/feature/first.ts",
+        "src/feature/nested/second.ts",
+      ],
+    });
+    expect(
+      await notes.cache.getSourceFile(root, outputDirectory, "src/feature/first.ts"),
+    ).toMatchObject({ fileNote: { status: { anchor: "orphaned" } } });
+    expect(
+      await notes.cache.getSourceFile(
+        root,
+        outputDirectory,
+        "src/feature/nested/second.ts",
+      ),
+    ).toMatchObject({ fileNote: { status: { anchor: "orphaned" } } });
   });
 
   it("deletes a source file entry and its stored note JSON", async () => {

@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.0.0
+documentVersion: 1.2.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -29,9 +29,10 @@ flowchart TD
 
 - `onDidRenameFiles` 明确提供 `oldUri` 和 `newUri`，同时覆盖 Rename 和 Move。
 - `onDidDeleteFiles` 明确提供删除路径，同时覆盖 Delete 和 Remove。
-- 文件夹操作只产生一个目录事件，Notes 需要按目录范围批量移动或标记。
+- 文件夹操作只产生一个目录事件，Notes 按该目录路径批量匹配所有已跟踪子文件。
 - 通过 Resource Access Gate 后可以立即更新 Note Store。
-- Rename/Move 更新相对路径；Delete/Remove 更新 deleted 状态；成功后重新计算 Runtime State。
+- 文件或目录 Rename/Move 更新匹配的相对路径，并同步移动对应 Runtime State。
+- 文件或目录 Delete/Remove 将匹配的 File Note anchor 标记为 orphaned，并清除对应 Runtime State。
 
 Create 没有旧 Notes 需要迁移；Copy 是否复制 Notes 属于独立产品功能。
 
@@ -46,8 +47,8 @@ Create 没有旧 Notes 需要迁移；Copy 是否复制 Notes 属于独立产品
 ## 当前实现边界
 
 - 文本和二进制 Watcher Change 已经只更新 Runtime State。
-- `registerNotesResourceEvents` 已接收准确的 VS Code Rename/Delete 信息，但仍带有旧 Git-aware 延迟。
+- 文件和目录的 VS Code Rename/Move/Delete/Remove 已移除旧 Git-aware 延迟，通过 Resource Access Gate 后立即更新 Note Store 和 Runtime State。
 - 当前 Watcher 尚未监听 Create/Delete。
-- 下一步先清理确定性资源事件，再实现 `missing` 和 `possible rename`。
+- 下一步实现 Watcher 的 `missing` 和 `possible rename`。
 
 总体持久化权限和 Runtime 生命周期见 [Runtime State 总体架构](./runtime-state-architecture.md)。

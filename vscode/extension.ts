@@ -99,7 +99,7 @@ export function activate(context: vscode.ExtensionContext): void {
     context,
     notes,
     notesProvider,
-    workspaceTransitionGuard,
+    runtimeNoteStateRegistry,
     sourceRelocationHistory,
   );
   void registerGitWorkspaceTransition(

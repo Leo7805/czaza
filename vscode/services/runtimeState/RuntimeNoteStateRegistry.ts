@@ -165,6 +165,52 @@ export class RuntimeNoteStateRegistry {
   }
 
   /**
+   * Moves every runtime state at or below one file or directory path.
+   *
+   * @param scope - Workspace Note Store scope.
+   * @param previousRelativePath - Existing file or directory path.
+   * @param nextRelativePath - Replacement file or directory path.
+   * @returns Number of moved states.
+   */
+  moveStatesUnderPath(
+    scope: RuntimeNoteStateScope,
+    previousRelativePath: string,
+    nextRelativePath: string,
+  ): number {
+    const states = this.listStates(scope).filter((state) =>
+      isSameOrDescendantPath(state.relativePath, previousRelativePath),
+    );
+
+    for (const state of states) {
+      this.moveState(
+        state,
+        replaceRelativePathPrefix(state.relativePath, previousRelativePath, nextRelativePath),
+      );
+    }
+
+    return states.length;
+  }
+
+  /**
+   * Deletes every runtime state at or below one file or directory path.
+   *
+   * @param scope - Workspace Note Store scope.
+   * @param relativePath - Deleted file or directory path.
+   * @returns Number of deleted states.
+   */
+  deleteStatesUnderPath(scope: RuntimeNoteStateScope, relativePath: string): number {
+    const states = this.listStates(scope).filter((state) =>
+      isSameOrDescendantPath(state.relativePath, relativePath),
+    );
+
+    for (const state of states) {
+      this.deleteState(state);
+    }
+
+    return states.length;
+  }
+
+  /**
    * Registers a listener for runtime state mutations.
    *
    * @param listener - Callback invoked synchronously after each mutation.
@@ -258,6 +304,47 @@ function normalizeRelativePath(value: string): string {
 }
 
 /**
+ * Reports whether a relative path equals or descends from one resource path.
+ *
+ * @param candidate - Candidate source path.
+ * @param parent - File or directory path.
+ * @returns True when the candidate is the same path or one of its descendants.
+ */
+function isSameOrDescendantPath(candidate: string, parent: string): boolean {
+  const normalizedCandidate = normalizeRelativePath(candidate);
+  const normalizedParent = normalizeRelativePath(parent);
+
+  return (
+    normalizedCandidate === normalizedParent ||
+    normalizedCandidate.startsWith(`${normalizedParent}/`)
+  );
+}
+
+/**
+ * Replaces a matching relative path prefix.
+ *
+ * @param candidate - Existing source path.
+ * @param previousPrefix - Existing file or directory prefix.
+ * @param nextPrefix - Replacement prefix.
+ * @returns Moved relative path.
+ */
+function replaceRelativePathPrefix(
+  candidate: string,
+  previousPrefix: string,
+  nextPrefix: string,
+): string {
+  const normalizedCandidate = normalizeRelativePath(candidate);
+  const normalizedPrevious = normalizeRelativePath(previousPrefix);
+  const normalizedNext = normalizeRelativePath(nextPrefix);
+  const suffix =
+    normalizedCandidate === normalizedPrevious
+      ? ""
+      : normalizedCandidate.slice(normalizedPrevious.length + 1);
+
+  return normalizeRelativePath(suffix ? `${normalizedNext}/${suffix}` : normalizedNext);
+}
+
+/**
  * Creates a defensive copy of one runtime state.
  *
  * @param state - Stored runtime state.
@@ -281,8 +368,6 @@ function cloneTargetChange(change: RuntimeNoteTargetChange): RuntimeNoteTargetCh
   return {
     ...change,
     status: { ...change.status },
-    ...(change.kind === "section" && change.range
-      ? { range: { ...change.range } }
-      : {}),
+    ...(change.kind === "section" && change.range ? { range: { ...change.range } } : {}),
   };
 }

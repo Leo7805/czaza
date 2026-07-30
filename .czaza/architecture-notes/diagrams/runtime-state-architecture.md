@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.0.0
+documentVersion: 1.2.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -98,7 +98,6 @@ Registry 只保存受影响资源，不保存整个项目快照。状态不会�
 
 ## 当前实现边界
 
-- 已完成：确定性 dirty relocation、Undo/Redo、非确定性文档检测、文本/二进制 Watcher Change、被动检查、Runtime UI、Clear Stale 和 Relocate。
-- 待完成：删除 VS Code Rename/Move/Delete/Remove 的旧 Git-aware 延迟。
+- 已完成：确定性 dirty relocation、Undo/Redo、非确定性文档检测、文本/二进制 Watcher Change、被动检查、Runtime UI、Clear Stale、Relocate，以及文件和目录的 VS Code Rename/Move/Delete/Remove。
 - 待完成：Watcher Create/Delete、`missing` 和 `possible rename`。
 - 最后删除剩余 Git-aware transition 和 revision 代码。
