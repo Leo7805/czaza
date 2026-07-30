@@ -188,6 +188,8 @@ After implementation:
 - Write persistent context in English.
 - Read it when resuming paused work, recovering from lost context, or switching to a substantially different project area.
 - Update it only when the active goal, implementation state, key decision, blocker, validation result, or next step materially changes.
+- Organize it with `Completed`, `In Progress`, `Next Step`, and `Future Improvements` status sections whenever they apply.
+- Keep each status section concise and outcome-focused: move finished work to `Completed`, keep only active work in `In Progress`, and keep optional ideas separate from committed next steps.
 - Replace stale information instead of appending a chronological conversation log.
 - Keep it concise and link to durable documentation instead of duplicating it.
 - Never store secrets, credentials, tokens, or private user data in it.

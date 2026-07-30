@@ -2,7 +2,28 @@
 
 ## Active Goal
 
-Maintain and validate CZaza's current Runtime State source-change architecture after completing the Git-aware migration.
+Plan the next CZaza workflow: enable an AI Agent to keep affected CZaza Notes semantically current after it changes project code.
+
+## Status
+
+### Completed
+
+- The Runtime State source-change architecture and Git decoupling are implemented and validated.
+- Project-level Architecture Notes were moved from CZaza to the standalone `lj-arch` Skill.
+
+### In Progress
+
+- Maintain the completed Runtime State architecture and investigate any follow-up regression coverage.
+
+### Next Step
+
+- Define the interfaces or Skill through which an AI Agent can identify CZaza Notes affected by its code changes, read the necessary context, and propose or apply Note updates.
+- Decide the update policy: which Note changes are automatic, which require user confirmation, and how the result remains consistent and traceable.
+- Keep this semantic Note-maintenance workflow separate from Runtime State, which handles safe source-location and status changes after code changes.
+
+### Future Improvements
+
+- Consider a Candidate Registry and Source Change Persistence Gate if the Runtime State workflow later needs a temporary review area before safe persistence.
 
 ## Current State
 
@@ -26,7 +47,6 @@ Maintain and validate CZaza's current Runtime State source-change architecture a
 - File and directory VS Code rename/move/delete/remove events now pass the Resource Access Gate and update all matching Note Store entries immediately without the old Git-aware delay; successful operations also move or clear matching Runtime State.
 - Source and resource changes are now documented under one determinism classification: exact VS Code transformations may persist immediately, while ambiguous Watcher and passive events remain in Runtime State.
 - Runtime State Architecture Notes are organized as one overview at `.czaza/architecture-notes/diagrams/runtime-state-architecture.md` plus Source Relocation and Resource Change detail documents.
-- Candidate Registry and Source Change Persistence Gate are optional future improvements, not current prerequisites.
 
 ## Key Decisions
 
@@ -67,7 +87,3 @@ The Runtime State architecture and Git decoupling are implemented.
 - The packaged VSIX no longer contains Architecture Notes templates or initialization code.
 - A real VS Code 1.100.0 Extension Host regression now builds and loads the development extension in an isolated temporary workspace, activates CZaza, and verifies its core commands.
 - The real Extension Host suite seeds File, Section, and Line Notes, deletes their source through Node's filesystem, recreates different content at the same path, and verifies every persistent Note Store file remains byte-for-byte unchanged after both real Watcher quiet periods.
-
-## Next Step
-
-Extend the real Extension Host suite with a rapid Git branch-switch regression that verifies tracked Note Store files remain unchanged.
