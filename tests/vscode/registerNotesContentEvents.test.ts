@@ -423,11 +423,18 @@ describe("registerNotesContentEvents()", () => {
     const nextText = "export const value = 2;\n";
     const notes = createNotes(createStoredSourceFile(previousText));
     const notesProvider = createNotesProvider();
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
     const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
     mocks.openTextDocument.mockResolvedValue(document);
-    registerNotesContentEvents(createExtensionContext(), notes.value, notesProvider.value);
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      notesProvider.value,
+      undefined,
+      runtimeRegistry,
+    );
     mocks.changeListeners[0]?.(document.uri);
 
     await vi.advanceTimersByTimeAsync(799);
@@ -436,7 +443,18 @@ describe("registerNotesContentEvents()", () => {
     await vi.advanceTimersByTimeAsync(1);
 
     expect(mocks.openTextDocument).toHaveBeenCalledWith(document.uri);
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(
+      runtimeRegistry.getState({
+        workspaceRoot,
+        outputDirectory: ".caca",
+        relativePath: "src/index.ts",
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        currentSourceHash: createSourceHash(nextText),
+      }),
+    );
     expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(document.uri);
 
     vi.useRealTimers();
@@ -449,11 +467,18 @@ describe("registerNotesContentEvents()", () => {
     const previousText = "export const value = 1;\n";
     const nextText = "export const value = 2;\n";
     const notes = createNotes(createStoredSourceFile(previousText));
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
     const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
     mocks.openTextDocument.mockResolvedValue(document);
-    registerNotesContentEvents(createExtensionContext(), notes.value);
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      undefined,
+      runtimeRegistry,
+    );
     mocks.changeListeners[0]?.(document.uri);
     await vi.advanceTimersByTimeAsync(400);
     mocks.changeListeners[0]?.(document.uri);
@@ -464,9 +489,67 @@ describe("registerNotesContentEvents()", () => {
     await vi.advanceTimersByTimeAsync(1);
 
     expect(mocks.openTextDocument).toHaveBeenCalledOnce();
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+    expect(
+      runtimeRegistry.getState({
+        workspaceRoot,
+        outputDirectory: ".caca",
+        relativePath: "src/index.ts",
+      }),
+    ).toBeDefined();
 
     vi.useRealTimers();
+  });
+
+  it("keeps the latest state when document and watcher events target the same file", async () => {
+    vi.useFakeTimers();
+
+    const workspaceRoot = await createTempWorkspaceRoot("shared-change-queue");
+    const previousText = "export const value = 1;\n";
+    const nextText = "export const value = 2;\n";
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
+    const document = createDocument(
+      path.join(workspaceRoot, "src/index.ts"),
+      nextText,
+      true,
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.openTextDocument.mockResolvedValue(document);
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      undefined,
+      runtimeRegistry,
+    );
+    mocks.textDocumentChangeListeners[0]?.({
+      document,
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 21 },
+            end: { line: 0, character: 22 },
+          },
+          rangeLength: 1,
+          text: "2",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    mocks.changeListeners[0]?.(document.uri);
+
+    await vi.advanceTimersByTimeAsync(800);
+
+    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
+    expect(mocks.openTextDocument).toHaveBeenCalledOnce();
+    expect(
+      runtimeRegistry.getState({
+        workspaceRoot,
+        outputDirectory: ".caca",
+        relativePath: "src/index.ts",
+      }),
+    ).toBeUndefined();
   });
 
   it("suppresses watcher changes caused by VS Code saves", async () => {

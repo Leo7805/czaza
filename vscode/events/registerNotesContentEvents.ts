@@ -5,7 +5,6 @@
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import { isRecentInternalWorkspaceNoteWrite } from "@vscode/notes/WorkspaceNoteStoreRepository";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
-import { checkChangedFileNotesService } from "@vscode/services/checkChangedFileNotesService";
 import {
   applyFileNoteContentChange,
   detectFileNoteContentChange,
@@ -126,8 +125,10 @@ export function registerNotesContentEvents(
         notes,
         notesProvider,
         recentlySavedTimers,
+        documentChangeQueues,
         workspaceTransitionGuard,
         sourceChangeGate,
+        runtimeNoteStateRegistry,
       );
     }),
     vscode.workspace.onDidCloseTextDocument((document) => {
@@ -449,48 +450,6 @@ async function handleSavedDocument(
   }
 }
 
-/**
- * Runs full stale detection with a final Git revision persistence check.
- *
- * @param notes - Shared workspace Note store.
- * @param document - Current source document.
- * @param notesProvider - Optional Notes view refreshed after persistence.
- * @param trigger - Source event used for error reporting.
- * @param sourceChangeGate - Git-aware revision gate.
- * @param token - Revision captured before the automatic task started.
- * @returns Promise resolved after detection or cancellation.
- */
-async function handleChangedDocument(
-  notes: WorkspaceNoteStore,
-  document: vscode.TextDocument,
-  notesProvider: NotesViewProvider | undefined,
-  trigger: "save" | "externalChange",
-  sourceChangeGate: GitAwareSourceChangeGate,
-  token: SourceChangeRevisionToken,
-): Promise<void> {
-  try {
-    if (document.uri.scheme !== "file") {
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const result = await checkChangedFileNotesService({
-      document,
-      notes,
-      now,
-      canPersist: () => sourceChangeGate.canPersist(token),
-    });
-
-    if (result.kind !== "updated") {
-      return;
-    }
-
-    await notesProvider?.refreshCurrentNotes(document.uri);
-  } catch (error) {
-    console.error(`Failed to update CZaza note freshness after a file ${trigger}.`, error);
-  }
-}
-
 function getPendingDocumentChangeState(
   pendingDocumentChanges: Map<string, PendingDocumentChangeState>,
   key: string,
@@ -549,8 +508,10 @@ function createTextDocumentSnapshot(document: vscode.TextDocument): TextDocument
  * @param notes - Shared workspace Note store.
  * @param notesProvider - Optional Notes view refreshed after persistence.
  * @param recentlySavedTimers - Recently saved resources suppressed from rechecking.
+ * @param documentChangeQueues - Per-document queue shared with VS Code document events.
  * @param workspaceTransitionGuard - Optional Git transition state.
  * @param sourceChangeGate - Git-aware debounce and revision gate.
+ * @param runtimeNoteStateRegistry - Optional session registry receiving text-file detection.
  * @returns Nothing.
  */
 function scheduleExternalChangeCheck(
@@ -558,8 +519,10 @@ function scheduleExternalChangeCheck(
   notes: WorkspaceNoteStore,
   notesProvider: NotesViewProvider | undefined,
   recentlySavedTimers: Map<string, ReturnType<typeof setTimeout>>,
+  documentChangeQueues: DocumentChangeQueue,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
   sourceChangeGate: GitAwareSourceChangeGate,
+  runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
 ): void {
   const access = evaluateCzazaResourceAccess(uri);
 
@@ -589,9 +552,11 @@ function scheduleExternalChangeCheck(
       notes,
       uri,
       notesProvider,
+      documentChangeQueues,
       workspaceTransitionGuard,
       sourceChangeGate,
       token,
+      runtimeNoteStateRegistry,
     ),
   );
 }
@@ -626,18 +591,22 @@ function invalidateManagedNoteStore(
  * @param notes - Shared workspace Note store.
  * @param uri - Changed workspace resource URI.
  * @param notesProvider - Optional Notes view refreshed after persistence.
+ * @param documentChangeQueues - Per-document queue shared with VS Code document events.
  * @param workspaceTransitionGuard - Optional Git transition state.
  * @param sourceChangeGate - Git-aware revision gate.
  * @param token - Revision captured when the delayed task was scheduled.
+ * @param runtimeNoteStateRegistry - Optional session registry receiving text-file detection.
  * @returns Promise resolved after inspection or suppression.
  */
 async function handleExternalChange(
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
   notesProvider: NotesViewProvider | undefined,
+  documentChangeQueues: DocumentChangeQueue,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
   sourceChangeGate: GitAwareSourceChangeGate,
   token: SourceChangeRevisionToken,
+  runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
 ): Promise<void> {
   try {
     if (workspaceTransitionGuard?.isTransitioning()) {
@@ -648,13 +617,14 @@ async function handleExternalChange(
     const fingerprint = await getResourceFingerprint(uri);
 
     if (fingerprint.kind === "text") {
-      await handleChangedDocument(
+      enqueueRuntimeStateRefresh(
+        documentChangeQueues,
+        uri.toString(),
+        createTextDocumentSnapshot(fingerprint.document),
         notes,
-        fingerprint.document,
         notesProvider,
-        "externalChange",
-        sourceChangeGate,
-        token,
+        runtimeNoteStateRegistry,
+        () => sourceChangeGate.canPersist(token),
       );
       return;
     }

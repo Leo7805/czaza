@@ -13,6 +13,7 @@ Document and then implement the planned runtime-state source-change architecture
 - Existing user-generated `.czaza/architecture-notes/` directories remain user data and must not be deleted.
 - Runtime State Registry, read-only detection, passive checks, Detail/Navigator status overlays, Clear Stale, manual Relocate, deterministic relocation, and Undo/Redo history are implemented.
 - VS Code document changes that are non-deterministic or non-dirty now refresh session-only Runtime State without mutating persisted Notes; deterministic dirty relocation remains immediate.
+- Text-file watcher changes now share the per-document queue with VS Code events and refresh Runtime State without mutating persisted Notes.
 - The first proposed Runtime State architecture document now lives at `.czaza/architecture-notes/diagrams/runtime-state-source-change.md`.
 - Candidate Registry and Source Change Persistence Gate are optional future improvements, not current prerequisites.
 
@@ -27,7 +28,7 @@ Document and then implement the planned runtime-state source-change architecture
 
 ## Planned Runtime State Architecture
 
-This design is being implemented incrementally; Watcher migration, resource-event migration, and Git-aware code removal remain pending.
+This design is being implemented incrementally; binary Watcher migration, resource-event migration, and Git-aware code removal remain pending.
 
 - Decouple source-change handling from Git concepts such as branches, HEAD revisions, checkout, merge, restore, and transition timing.
 - Use three detection sources: precise VS Code document events, file-system watcher events, and passive consistency checks.
@@ -54,4 +55,4 @@ This design is being implemented incrementally; Watcher migration, resource-even
 
 ## Next Step
 
-Migrate file-system watcher changes to read-only Runtime State detection without changing deterministic dirty relocation.
+Add read-only Runtime State detection for binary file-system watcher changes.

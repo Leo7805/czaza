@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 2.0.0
+documentVersion: 2.2.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -10,6 +10,24 @@ author: Codex
 # Runtime State 源文件变更检测
 
 本方案使用一条核心规则：能准确计算的位置变化立即更新 Notes，其他变化只在内存中提示用户。
+
+## 变化来源
+
+三个入口最终共享同一条判断规则；入口只说明变化从哪里被发现，不决定是否可以写入 Notes。
+
+```mermaid
+flowchart LR
+    A[VS Code 文档事件] --> D[源文件状态检测]
+    B[文件系统 Watcher] --> D
+    C[被动检查] --> D
+    D --> E{确定性 dirty 编辑}
+    E -->|是| F[立即更新 Notes]
+    E -->|否| G[只更新 Runtime State]
+```
+
+- VS Code 文档事件：编辑器内输入、删除或接受 Copilot 插入。
+- 文件系统 Watcher：Git、外部工具或磁盘操作改变文件。
+- 被动检查：首次打开文件、切换编辑器或显式检查。
 
 ## 核心流程
 
@@ -34,30 +52,26 @@ flowchart TD
 - **建议位置**：检测器认为 Section 或 Line 可能移动到的位置，只供 Relocate 使用，确认前不覆盖正式位置。
 - **Note Store**：`.czaza/notes` 中正式保存 File、Section 和 Line Notes 的数据。
 
-## 三种变化来源
-
-1. VS Code 文档事件：编辑器内输入、删除或 Copilot 插入。
-2. 文件系统 Watcher：Git、外部工具或磁盘操作改变文件。
-3. 被动检查：首次打开文件、切换编辑器或显式检查。
-
 ## 当前规则
 
 - `isDirty=true` 且变化可以确定性计算时，立即更新 Section 范围、Line 行号及对应 Notes。
+- VS Code 非确定性变化、`isDirty=false` 的文档变化和保存检查只更新 Runtime State，不写入 Note Store。
+- Watcher 文本变化经过 debounce 后，与 VS Code 文档事件共用逐文件队列并只更新 Runtime State。
 - 确定性整体移动只改变坐标，保留原有 `content` 和 `anchor` 状态。
 - Line Note 行首 Enter 确定移动，行中 Enter 需要 Location Review，行尾 Enter 不改变该 Line Note。
-- 其他变化只应重新检测，并把 `stale`、`location review`、`missing` 或 `possible rename` 放入 Runtime State。
+- 被动检查只读检测当前内容，并把结果放入 Runtime State。
 - Clear Stale 只处理内容状态；Relocate 只处理位置状态；完成后重新检测整个文件。
 - Runtime State 关闭 VS Code 后可以丢失，重新打开时由被动检查恢复。
 
 ## 当前风险
 
-- 部分非确定性文档事件和 Watcher 路径仍调用旧服务修改 Note Store。
+- Watcher 二进制路径仍可能调用旧服务修改 Note Store。
 - `isDirty` 能覆盖常见编辑场景，但某些插件也可能制造 dirty 编辑。
 - Rename 和 Delete 仍使用旧的 Git-aware 延迟后直接更新 Note Store。
 
 ## 下一步
 
-先让非确定性 VS Code 文档事件只更新 Runtime State，同时保持确定性 dirty 编辑立即写入不变；随后再迁移 Watcher、Rename 和 Delete。
+为 Watcher 二进制变化补充只读 Runtime State 检测；随后再迁移 Rename 和 Delete。
 
 ## Future Improvements
 
