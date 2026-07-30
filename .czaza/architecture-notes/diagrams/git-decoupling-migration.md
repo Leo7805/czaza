@@ -1,13 +1,13 @@
 ---
 type: architecture-diagram
-documentVersion: 3.0.0
+documentVersion: 3.1.0
 status: current
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
 author: Codex
 ---
 
-# Git 解耦迁移顺序
+# Git 解耦迁移记录
 
 本方案记录 CZaza 将 Git-aware 变化防护替换为 Runtime State 和通用任务协调架构的已完成迁移。
 
