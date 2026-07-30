@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 2.5.0
+documentVersion: 2.7.0
 status: proposed
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -25,8 +25,8 @@ flowchart LR
 
 ## 实施状态
 
-- 已完成：Runtime State Registry、只读检测、被动检查、Detail/Navigator 展示、Clear Stale、Relocate、确定性 Undo/Redo、非确定性文档事件、Watcher Change、Watcher Delete `missing`，以及文件和目录的 VS Code Rename/Move/Delete/Remove。
-- 下一步：完成 Watcher Delete 最终存在性检查和 missing UI 立即刷新。
+- 已完成：Runtime State Registry、只读检测、被动检查、Detail/Navigator 展示、Clear Stale、Relocate、确定性 Undo/Redo、非确定性文档事件、Watcher Change、带最终存在性检查的 Watcher Delete、missing UI 立即刷新，以及文件和目录的 VS Code Rename/Move/Delete/Remove。
+- 下一步：删除剩余 Git-aware 防护。
 - 最后：新路径稳定后删除 Git HEAD、transition 和延迟确认代码。
 
 ## 阶段说明
@@ -76,4 +76,4 @@ flowchart LR
 
 ## 与当前实现的关系
 
-当前代码仍在 `extension.ts` 创建共享的 `GitWorkspaceTransitionGuard`，供尚未迁移的入口和内置 Git HEAD 监听使用。文档事件、Watcher Change/Delete 以及文件和目录资源事件已经迁移；Watcher Delete 收尾与最终 Git-aware 代码清理尚未完成，因此状态为 `proposed`。
+当前代码仍在 `extension.ts` 创建共享的 `GitWorkspaceTransitionGuard`，供旧入口和内置 Git HEAD 监听使用。文档事件、Watcher Change/Delete、Runtime State UI 刷新以及文件和目录资源事件已经迁移；下一阶段是删除剩余 Git-aware 代码，因此状态为 `proposed`。

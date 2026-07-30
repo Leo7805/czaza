@@ -37,6 +37,12 @@ export type RelocateFileNoteInput = {
 
 /**
  * Validates and moves one file-note entry to a user-confirmed source path.
+ *
+ * Relocating to the current path confirms that path and succeeds as a no-op
+ * when its persisted anchor is already confirmed.
+ *
+ * @param input - Current resource, Note Store, and old and new relative paths.
+ * @returns The confirmed previous and target paths with the target URI.
  */
 export async function relocateFileNoteService(
   input: RelocateFileNoteInput,
@@ -83,17 +89,15 @@ export async function relocateFileNoteService(
       throw new Error(`${fromRelativePath} no longer has stored notes.`);
     }
 
-    if (!confirmedStatus) {
-      throw new Error(`${fromRelativePath} is already linked.`);
+    if (confirmedStatus) {
+      await input.notes.update.updateFileNoteStatus(
+        rootDirectory,
+        settings.outputDirectory,
+        fromRelativePath,
+        confirmedStatus,
+        new Date().toISOString(),
+      );
     }
-
-    await input.notes.update.updateFileNoteStatus(
-      rootDirectory,
-      settings.outputDirectory,
-      fromRelativePath,
-      confirmedStatus,
-      new Date().toISOString(),
-    );
 
     return {
       previousRelativePath: fromRelativePath,
@@ -130,13 +134,13 @@ export async function relocateFileNoteService(
 }
 
 /**
- * Converts an orphaned File Note status into a confirmed anchor status.
+ * Converts any unconfirmed File Note status into a confirmed anchor status.
  *
  * @param status - Existing File Note status.
  * @returns Confirmed status, or undefined when confirmation is not applicable.
  */
 function getConfirmedStatus(status: NoteStatus | undefined): NoteStatus | undefined {
-  if (!status || status.anchor !== "orphaned") {
+  if (!status || status.anchor === "confirmed") {
     return undefined;
   }
 

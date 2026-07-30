@@ -133,7 +133,6 @@ export function registerNotesContentEvents(
       scheduleExternalDeleteCheck(
         uri,
         notes,
-        notesProvider,
         documentChangeQueues,
         workspaceTransitionGuard,
         sourceChangeGate,
@@ -163,7 +162,6 @@ export function registerNotesContentEvents(
  *
  * @param uri - Resource reported deleted by the filesystem watcher.
  * @param notes - Shared workspace Note Store.
- * @param notesProvider - Optional Notes view refreshed after state changes.
  * @param documentChangeQueues - Per-resource serialized task queues.
  * @param workspaceTransitionGuard - Optional Git transition state.
  * @param sourceChangeGate - Existing external-event debounce gate.
@@ -174,7 +172,6 @@ export function registerNotesContentEvents(
 function scheduleExternalDeleteCheck(
   uri: vscode.Uri,
   notes: WorkspaceNoteStore,
-  notesProvider: NotesViewProvider | undefined,
   documentChangeQueues: DocumentChangeQueue,
   workspaceTransitionGuard: GitWorkspaceTransitionGuard | undefined,
   sourceChangeGate: GitAwareSourceChangeGate,
@@ -198,18 +195,52 @@ function scheduleExternalDeleteCheck(
     }
 
     enqueueDocumentChange(documentChangeQueues, uri.toString(), async () => {
-      const result = await refreshMissingRuntimeNoteStateService({
+      if (await doesWorkspaceResourceExist(uri)) {
+        await handleExternalChange(
+          notes,
+          uri,
+          undefined,
+          documentChangeQueues,
+          workspaceTransitionGuard,
+          sourceChangeGate,
+          token,
+          runtimeNoteStateRegistry,
+        );
+        return;
+      }
+
+      await refreshMissingRuntimeNoteStateService({
         uri,
         notes,
         registry: runtimeNoteStateRegistry,
         now: new Date().toISOString(),
       });
-
-      if (result.registryChange !== "none") {
-        await notesProvider?.refreshCurrentNotes(uri);
-      }
     });
   });
+}
+
+/**
+ * Checks whether a Watcher Delete target has reappeared before marking it missing.
+ *
+ * @param uri - Workspace resource that produced the Delete event.
+ * @returns True when the resource currently exists.
+ */
+async function doesWorkspaceResourceExist(uri: vscode.Uri): Promise<boolean> {
+  try {
+    await vscode.workspace.fs.stat(uri);
+    return true;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error.code === "FileNotFound" || error.code === "ENOENT")
+    ) {
+      return false;
+    }
+
+    throw error;
+  }
 }
 
 /**

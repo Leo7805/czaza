@@ -164,26 +164,6 @@ export async function applySourceChangeToNotesService(
     { canPersist },
   );
 
-  console.log(
-    "[CZaza relocation] Persisted deterministic source change",
-    JSON.stringify({
-      relativePath,
-      splices: normalizedBatch.kind === "splices" ? normalizedBatch.splices : [],
-      before: {
-        sections: sourceFile.sectionNotes.map(({ id, range }) => ({ id, range })),
-        lines: sourceFile.lineNotes.map(({ id, line }) => ({ id, line })),
-      },
-      after: {
-        sections: applyResult.sourceFile.sectionNotes.map(({ id, range }) => ({
-          id,
-          range,
-        })),
-        lines: applyResult.sourceFile.lineNotes.map(({ id, line }) => ({ id, line })),
-      },
-      events: applyResult.events,
-    }),
-  );
-
   return {
     kind: "updated",
     relativePath,

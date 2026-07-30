@@ -1743,11 +1743,17 @@ describe("NotesViewProvider", () => {
     const workspaceRoot = "/tmp";
     const currentUri = createUri(`${workspaceRoot}/current.ts`);
     const targetUri = createUri(`${workspaceRoot}/src/new.ts`);
+    const runtimeRegistry = new RuntimeNoteStateRegistry();
     const provider = new NotesViewProvider(
       createUri("/extension"),
       {} as never,
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      runtimeRegistry,
     );
     const view = createWebviewView();
 
@@ -1825,6 +1831,12 @@ describe("NotesViewProvider", () => {
       notes: {},
       fromRelativePath: "src/old.ts",
       toRelativePath: "src/new.ts",
+    });
+    expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledWith({
+      document: { uri: targetUri },
+      notes: {},
+      registry: runtimeRegistry,
+      now: expect.any(String),
     });
     expect(mocks.getNavigatorNotes).toHaveBeenCalledWith({
       uri: currentUri,
@@ -2280,6 +2292,45 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("overlays missing Runtime State without reopening the deleted source", async () => {
+    const uri = createUri("/workspace/src/missing.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
+    const view = createWebviewView();
+
+    mockAllowedResource("src/missing.ts");
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "missing.ts",
+      relativePath: "src/missing.ts",
+      aiAction: "generate",
+      fileNote: {
+        userNote: "Tracked note.",
+        status: { content: "current", anchor: "confirmed" },
+      },
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.postMessage.mockClear();
+    registry.setState(createMissingRuntimeFileState("src/missing.ts"));
+
+    await vi.waitFor(() => {
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "resourceNotes",
+        payload: expect.objectContaining({
+          fileNote: expect.objectContaining({
+            status: { content: "current", anchor: "needsConfirmation" },
+            runtimeStatus: { content: "current", anchor: "needsConfirmation" },
+          }),
+        }),
+      });
+    });
+    expect(mocks.getResourceNotes).toHaveBeenCalledOnce();
+    provider.dispose();
+  });
+
   it("refreshes Navigator status for another resource in the same scope", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const registry = new RuntimeNoteStateRegistry();
@@ -2414,6 +2465,32 @@ function createRuntimeFileState(relativePath: string) {
       {
         kind: "file" as const,
         status: { content: "stale" as const, anchor: "confirmed" as const },
+      },
+    ],
+  };
+}
+
+/**
+ * Creates one missing File Note Runtime State fixture.
+ *
+ * @param relativePath - Source path represented by the state.
+ * @returns Runtime State with a missing File Note overlay.
+ */
+function createMissingRuntimeFileState(relativePath: string) {
+  return {
+    workspaceRoot: "/workspace",
+    outputDirectory: ".czaza",
+    relativePath,
+    issues: ["missing", "locationReview"] as const,
+    reason: "resourceMissing" as const,
+    observedAt: "2026-07-30T00:00:00.000Z",
+    targetChanges: [
+      {
+        kind: "file" as const,
+        status: {
+          content: "current" as const,
+          anchor: "needsConfirmation" as const,
+        },
       },
     ],
   };

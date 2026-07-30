@@ -165,21 +165,58 @@ describe("relocateFileNoteService()", () => {
     });
   });
 
-  it("rejects relocating a confirmed file note to its current path", async () => {
+  it("confirms a location-review file note when relocating to its current path", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("self-review");
+    const notes = await createStoreWithSourceFile(
+      workspaceRoot,
+      "src/index.ts",
+      "needsConfirmation",
+    );
+
+    await writeSourceFile(workspaceRoot, "src/index.ts");
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+
+    await relocateFileNoteService({
+      currentUri: createUri(path.join(workspaceRoot, "src/index.ts")),
+      notes,
+      fromRelativePath: "src/index.ts",
+      toRelativePath: "src/index.ts",
+    });
+    const sourceFile = await notes.cache.getSourceFile(
+      workspaceRoot,
+      ".caca",
+      "src/index.ts",
+    );
+
+    expect(sourceFile?.fileNote?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+  });
+
+  it("accepts a confirmed file note relocated to its current path", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("self-confirmed");
     const notes = await createStoreWithSourceFile(workspaceRoot, "src/index.ts", "confirmed");
 
     await writeSourceFile(workspaceRoot, "src/index.ts");
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
 
-    await expect(
-      relocateFileNoteService({
-        currentUri: createUri(path.join(workspaceRoot, "src/index.ts")),
-        notes,
-        fromRelativePath: "src/index.ts",
-        toRelativePath: "src/index.ts",
-      }),
-    ).rejects.toThrow("src/index.ts is already linked.");
+    const result = await relocateFileNoteService({
+      currentUri: createUri(path.join(workspaceRoot, "src/index.ts")),
+      notes,
+      fromRelativePath: "src/index.ts",
+      toRelativePath: "src/index.ts",
+    });
+    const sourceFile = await notes.cache.getSourceFile(workspaceRoot, ".caca", "src/index.ts");
+
+    expect(result).toMatchObject({
+      previousRelativePath: "src/index.ts",
+      nextRelativePath: "src/index.ts",
+    });
+    expect(sourceFile?.fileNote?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
   });
 
   it("rejects a target path that already has stored notes", async () => {

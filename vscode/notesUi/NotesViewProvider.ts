@@ -26,6 +26,10 @@ import {
   type ResourceSectionNoteContent,
 } from "@vscode/services/getResourceNotesService";
 import { NotesEditorHighlightController } from "@vscode/notesUi/highlights/NotesEditorHighlightController";
+import {
+  NotesRuntimeStateRefreshController,
+  type NotesRuntimeRefreshContext,
+} from "@vscode/notesUi/runtimeState/NotesRuntimeStateRefreshController";
 import { compareSectionsForAutomaticSelection } from "@vscode/services/sectionSelection/sectionComparators";
 import { getStoredNavigatorFileNotes } from "@vscode/services/getStoredNavigatorFileNotesService";
 import { clearNoteStaleStatusService } from "@vscode/services/clearNoteStaleStatusService";
@@ -53,8 +57,7 @@ import {
   applyRuntimeStateToResourceNotes,
   confirmRuntimeNoteStaleStatusService,
   refreshRuntimeNoteStateService,
-  type RuntimeNoteStateChange,
-  type RuntimeNoteStateDisposable,
+  type RuntimeNoteState,
   type RuntimeNoteStateRegistry,
 } from "@vscode/services/runtimeState";
 
@@ -265,7 +268,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly allNotesProgress = new Map<string, AllNotesProgress>();
   private readonly highlightController = new NotesEditorHighlightController();
   private readonly notesTypographyConfigurationListener: vscode.Disposable;
-  private readonly runtimeNoteStateListener: RuntimeNoteStateDisposable;
+  private readonly runtimeStateRefreshController?: NotesRuntimeStateRefreshController;
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
   private readonly runtimeNoteStateRegistry?: RuntimeNoteStateRegistry;
@@ -346,25 +349,15 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         }
       },
     ) ?? { dispose() {} };
-    this.runtimeNoteStateListener = runtimeNoteStateRegistry?.onDidChange(
-      (change) => {
-        if (this.isRuntimeStateChangeForCurrentResource(change)) {
-          void this.refreshCurrentNotes().catch((error: unknown) => {
-            console.error("Failed to refresh visible CZaza Runtime Note State.", error);
-          });
-          return;
-        }
-
-        if (
-          this.viewMode === "navigator" &&
-          this.isRuntimeStateChangeForCurrentScope(change)
-        ) {
-          void this.loadNavigatorNotes().catch((error: unknown) => {
-            console.error("Failed to refresh CZaza Navigator Runtime State.", error);
-          });
-        }
-      },
-    ) ?? { dispose() {} };
+    this.runtimeStateRefreshController = runtimeNoteStateRegistry
+      ? new NotesRuntimeStateRefreshController({
+          registry: runtimeNoteStateRegistry,
+          getContext: () => this.getRuntimeRefreshContext(),
+          reloadCurrentResource: () => this.refreshCurrentNotes(),
+          overlayMissingState: (state) => this.overlayMissingRuntimeState(state),
+          refreshNavigator: () => this.loadNavigatorNotes(),
+        })
+      : undefined;
   }
 
   /**
@@ -751,7 +744,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.highlightController.clear();
     this.noteRelocateSession = undefined;
     this.notesTypographyConfigurationListener.dispose();
-    this.runtimeNoteStateListener.dispose();
+    this.runtimeStateRefreshController?.dispose();
     this.highlightController.dispose();
   }
 
@@ -822,81 +815,55 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   /**
-   * Reports whether a Registry mutation affects the currently visible resource.
+   * Resolves the current resource coordinates for Runtime State refresh routing.
    *
-   * @param change - Runtime Registry mutation.
-   * @returns True when the current File Notes payload should be reloaded.
+   * @returns Current refresh context, or undefined outside a CZaza resource.
    */
-  private isRuntimeStateChangeForCurrentResource(
-    change: RuntimeNoteStateChange,
-  ): boolean {
-    if (!this.currentResourceUri || this.currentPayload?.kind !== "file") {
-      return false;
+  private getRuntimeRefreshContext(): NotesRuntimeRefreshContext | undefined {
+    if (!this.currentResourceUri || !this.currentPayload) {
+      return undefined;
     }
 
     const access = evaluateCzazaResourceAccess(this.currentResourceUri);
 
     if (!access.allowed) {
-      return false;
+      return undefined;
     }
 
-    const matches = (state: {
-      workspaceRoot: string;
-      outputDirectory: string;
-      relativePath: string;
-    }): boolean =>
-      path.resolve(state.workspaceRoot) === path.resolve(access.root.rootDirectory) &&
-      state.outputDirectory === access.settings.outputDirectory &&
-      state.relativePath === access.relativePath;
-
-    switch (change.kind) {
-      case "set":
-        return matches(change.state);
-      case "delete":
-        return matches(change.previousState);
-      case "move":
-        return matches(change.state) || matches(change.previousState);
-      case "clear":
-        return change.previousStates.some(matches);
-    }
+    return {
+      coordinates: {
+        workspaceRoot: path.resolve(access.root.rootDirectory),
+        outputDirectory: access.settings.outputDirectory,
+        relativePath: access.relativePath,
+      },
+      payloadKind: this.currentPayload.kind === "file" ? "file" : "other",
+      viewMode: this.viewMode,
+    };
   }
 
   /**
-   * Reports whether a Registry mutation affects the active Navigator scope.
+   * Applies missing Runtime State to the existing payload without reopening the source.
    *
-   * @param change - Runtime Registry mutation.
-   * @returns True for any resource in the current workspace Note Store scope.
+   * @param state - Missing state for the currently visible resource.
+   * @returns Promise resolved after the existing Detail payload is reposted.
    */
-  private isRuntimeStateChangeForCurrentScope(
-    change: RuntimeNoteStateChange,
-  ): boolean {
-    if (!this.currentResourceUri) {
-      return false;
+  private async overlayMissingRuntimeState(state: RuntimeNoteState): Promise<void> {
+    const context = this.getRuntimeRefreshContext();
+
+    if (
+      !context ||
+      context.payloadKind !== "file" ||
+      context.coordinates.workspaceRoot !== state.workspaceRoot ||
+      context.coordinates.outputDirectory !== state.outputDirectory ||
+      context.coordinates.relativePath !== state.relativePath ||
+      !this.currentPayload
+    ) {
+      return;
     }
 
-    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
-
-    if (!access.allowed) {
-      return false;
-    }
-
-    const matches = (scope: {
-      workspaceRoot: string;
-      outputDirectory: string;
-    }): boolean =>
-      path.resolve(scope.workspaceRoot) === path.resolve(access.root.rootDirectory) &&
-      scope.outputDirectory === access.settings.outputDirectory;
-
-    switch (change.kind) {
-      case "set":
-        return matches(change.state);
-      case "delete":
-        return matches(change.previousState);
-      case "move":
-        return matches(change.state) || matches(change.previousState);
-      case "clear":
-        return matches(change.scope);
-    }
+    this.currentPayload = applyRuntimeStateToResourceNotes(this.currentPayload, state);
+    await this.postCurrentResourceNotes();
+    this.updateEditorHighlights();
   }
 
   /**
@@ -1670,6 +1637,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
+  /**
+   * Relocates or confirms one File Note path and recalculates its Runtime State.
+   *
+   * @param fromRelativePath - Currently stored File Note path.
+   * @param toRelativePath - User-confirmed target path.
+   * @returns Promise resolved after Notes UI and Runtime State are refreshed.
+   */
   private async runRelocateFileNote(
     fromRelativePath: string,
     toRelativePath: string,
@@ -1692,6 +1666,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         toRelativePath,
       });
       this.noteRelocateSession = undefined;
+      await this.refreshRuntimeStateForResource(result.targetUri);
       await this.loadNavigatorNotes();
       await this.view?.webview.postMessage({ type: "noteRelocated" });
 

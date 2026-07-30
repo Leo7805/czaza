@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.5.0
+documentVersion: 1.7.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -56,7 +56,7 @@ flowchart TD
 ```
 
 - Change 只读检测文本内容或二进制 metadata hash。
-- Delete 延迟确认资源仍不存在后记录 session-only `missing`。
+- Delete 延迟后再次检查当前路径：仍不存在才记录 session-only `missing`，已经恢复则按 Change 重新比较。
 - Create 直接忽略，不与 Delete 关联。
 - 外部 Rename/Move 不自动更新 Notes，由用户手动 Relocate。
 - 系统不保存候选新路径，也不自动修改 Note JSON 或 `index.json`。
@@ -68,6 +68,7 @@ flowchart TD
 - Watcher Change 和 Delete 已接入 Runtime State，均不修改 Note Store。
 - VS Code Delete 在 `onWillDeleteFiles` 阶段写入短期标记，抑制随后到达的重复 Watcher Delete；目录标记同时覆盖其子文件事件。
 - Watcher Create 保持忽略，外部 Delete/Create 不做 Rename 或 Move 推测。
-- 待完成：Watcher Delete 的最终存在性检查，以及 missing 状态的 UI 立即刷新。
+- Runtime State 的 UI 刷新由独立控制器统一处理；missing 状态直接覆盖已显示的 Notes，不重新打开已删除的源文件。
+- Watcher Delete 在排队任务执行时完成最终存在性检查，避免把已经恢复的路径误标为 missing。
 
 总体持久化权限和 Runtime 生命周期见 [Runtime State 总体架构](./runtime-state-architecture.md)。
