@@ -1,7 +1,7 @@
 ---
 type: architecture-diagram
-documentVersion: 2.7.0
-status: proposed
+documentVersion: 3.0.0
+status: current
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
 author: Codex
@@ -9,7 +9,7 @@ author: Codex
 
 # Git 解耦迁移顺序
 
-本方案按可验证阶段将当前 Git-aware 变化防护替换为 Runtime State 架构，确保新路径稳定后再删除 HEAD、transition 和延迟确认代码。
+本方案记录 CZaza 将 Git-aware 变化防护替换为 Runtime State 和通用任务协调架构的已完成迁移。
 
 ## 迁移流程
 
@@ -26,8 +26,8 @@ flowchart LR
 ## 实施状态
 
 - 已完成：Runtime State Registry、只读检测、被动检查、Detail/Navigator 展示、Clear Stale、Relocate、确定性 Undo/Redo、非确定性文档事件、Watcher Change、带最终存在性检查的 Watcher Delete、missing UI 立即刷新，以及文件和目录的 VS Code Rename/Move/Delete/Remove。
-- 下一步：删除剩余 Git-aware 防护。
-- 最后：新路径稳定后删除 Git HEAD、transition 和延迟确认代码。
+- 已完成：Watcher 防抖、按资源队列、任务失效和 Delete suppression 由通用 `ChangeTaskCoordinator` 接管。
+- 已删除：Git HEAD 监听、transition Guard、Git-aware Gate、revision 判断及其专用测试。
 
 ## 阶段说明
 
@@ -37,7 +37,7 @@ flowchart LR
 - 非确定性文档事件和 Watcher 只更新 Runtime State。
 - VS Code 明确提供路径映射的 Rename/Move/Delete/Remove 属于确定性变化，可以立即更新 Notes。
 - 每迁移一个入口，先验证 Note JSON 不会被自动事件修改，再处理下一个入口。
-- Git-aware 防护在所有旧入口迁移完成前继续保留。
+- Git checkout、merge 和 restore 与其他外部磁盘变化一样由 Watcher 和 Runtime State 处理。
 
 ### 删除 Git-aware 防护
 
@@ -62,7 +62,7 @@ flowchart LR
 - 当前阶段验证通过前不删除上一阶段的安全保护。
 - 最终代码不读取 Git extension API，不保存 HEAD revision，也不依赖 branch transition 状态。
 
-## 当前代码删除范围
+## 已删除代码范围
 
 - `vscode/services/workspaceTransition/GitWorkspaceTransitionGuard.ts`
 - `vscode/services/workspaceTransition/GitAwareSourceChangeGate.ts`
@@ -72,8 +72,6 @@ flowchart LR
 - `registerNotesContentEvents` 与 `registerNotesResourceEvents` 中的 Git-aware 参数和判断
 - 对应的 Git transition 与 Git-aware Gate 测试
 
-删除动作只能在 Runtime State、统一资源变化和被动一致性检查全部接管后进行。
-
 ## 与当前实现的关系
 
-当前代码仍在 `extension.ts` 创建共享的 `GitWorkspaceTransitionGuard`，供旧入口和内置 Git HEAD 监听使用。文档事件、Watcher Change/Delete、Runtime State UI 刷新以及文件和目录资源事件已经迁移；下一阶段是删除剩余 Git-aware 代码，因此状态为 `proposed`。
+当前生产代码不读取 VS Code Git extension API，不保存 branch 或 HEAD revision，也不依赖 transition timer。确定性 VS Code 变化可以立即持久化；Watcher 和其他非确定性变化只更新 Runtime State。

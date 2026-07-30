@@ -5,7 +5,7 @@
 import type * as vscodeTypes from "vscode";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ResourceEventSuppressionRegistry } from "@vscode/services/resourceEvents";
+import { ResourceEventSuppressionRegistry } from "@vscode/services/changeCoordination";
 
 describe("ResourceEventSuppressionRegistry", () => {
   afterEach(() => {

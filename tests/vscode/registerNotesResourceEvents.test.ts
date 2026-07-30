@@ -73,7 +73,7 @@ import { registerNotesResourceEvents } from "@vscode/events";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import type { SourceRelocationHistoryService } from "@vscode/services/noteRelocation";
-import type { ResourceEventSuppressionRegistry } from "@vscode/services/resourceEvents";
+import type { ChangeTaskCoordinator } from "@vscode/services/changeCoordination";
 import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
 
 describe("registerNotesResourceEvents()", () => {
@@ -395,12 +395,12 @@ function createRelocationHistory(): {
  * @returns Registry interface and deletion marker spy.
  */
 function createResourceEventSuppression(): {
-  value: ResourceEventSuppressionRegistry;
+  value: ChangeTaskCoordinator;
   markDeleted: ReturnType<typeof vi.fn>;
 } {
   const markDeleted = vi.fn();
   return {
-    value: { markDeleted } as unknown as ResourceEventSuppressionRegistry,
+    value: { markDeleted } as unknown as ChangeTaskCoordinator,
     markDeleted,
   };
 }

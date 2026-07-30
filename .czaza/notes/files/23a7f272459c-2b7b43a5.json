@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:61cbebfcf1de6b76fcc51c3cc5118745e211afe5350f166543ed807ea3cab12c",
+    "sourceHash": "sha256:a2e406fa4babac36cbcca1678b78a5d5c7c404faa47746579896c71c93338c9a",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-30T02:25:30.040Z",
-    "updatedAt": "2026-07-30T05:48:40.626Z"
+    "updatedAt": "2026-07-30T10:26:49.171Z"
   },
   "fileNote": {
-    "userNote": "registerNotesResourceEvents：rename 和 delete 到达时立即清除相关路径历史。\n\n处理确定性文件资源事件。\n1. registerNotesResourceEvents：注册文件重命名和删除事件，并清理 relocation history。\n2. handleRename：通过 Resource Access Gate 后立即移动 Notes 和 Runtime State。\n3. handleDelete：立即标记文件 Notes 为 deleted，并清除对应 Runtime State。\n\n---\n\n响应 VS Code 确定性资源事件。\nhandleRename：改为同时处理文件和目录的批量移动。\nhandleDelete：改为同时处理文件和目录的批量删除标记。",
+    "userNote": "registerNotesResourceEvents：rename 和 delete 到达时立即清除相关路径历史。\n\n处理确定性文件资源事件。\n1. registerNotesResourceEvents：注册文件重命名和删除事件，并清理 relocation history。\n2. handleRename：通过 Resource Access Gate 后立即移动 Notes 和 Runtime State。\n3. handleDelete：立即标记文件 Notes 为 deleted，并清除对应 Runtime State。\n\n---\n\n响应 VS Code 确定性资源事件。\nhandleRename：改为同时处理文件和目录的批量移动。\nhandleDelete：改为同时处理文件和目录的批量删除标记。\n\n---\n\n确定性 Delete 通过共享 Controller 记录 suppression marker。\nregisterNotesResourceEvents()：接收 ChangeTaskCoordinator。",
     "createdBy": "user",
     "status": {
       "content": "stale",

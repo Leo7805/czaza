@@ -17,6 +17,8 @@ Document and then implement the planned runtime-state source-change architecture
 - Binary watcher changes now compare metadata hashes and expose File stale Runtime State without mutating persisted Notes.
 - Watcher delete events now recheck final path existence before creating session-only `missing` and `locationReview` state; a restored path is inspected as a normal Change instead, and `onWillDeleteFiles` records short-lived deterministic deletion markers so duplicate Watcher notifications are suppressed.
 - Runtime State UI refreshes are owned by `NotesRuntimeStateRefreshController`; missing resources overlay the current Notes payload without reopening a deleted source, while other changes reload only the affected current view or Navigator scope.
+- Generic source/resource coordination belongs to `ChangeTaskCoordinator`, which owns Watcher debounce, per-resource serialization, task invalidation, and deterministic Delete suppression.
+- Git HEAD listeners, transition guards, Git-aware gates, and their dedicated tests have been removed; Git-driven disk changes now use the same Watcher and Runtime State path as other external changes.
 - File and directory VS Code rename/move/delete/remove events now pass the Resource Access Gate and update all matching Note Store entries immediately without the old Git-aware delay; successful operations also move or clear matching Runtime State.
 - Source and resource changes are now documented under one determinism classification: exact VS Code transformations may persist immediately, while ambiguous Watcher and passive events remain in Runtime State.
 - Runtime State Architecture Notes are organized as one overview at `.czaza/architecture-notes/diagrams/runtime-state-architecture.md` plus Source Relocation and Resource Change detail documents.
@@ -33,7 +35,7 @@ Document and then implement the planned runtime-state source-change architecture
 
 ## Planned Runtime State Architecture
 
-This design is being implemented incrementally; only Git-aware code removal remains pending.
+The planned Runtime State architecture and Git decoupling are implemented.
 
 - Decouple source-change handling from Git concepts such as branches, HEAD revisions, checkout, merge, restore, and transition timing.
 - Use three detection sources: precise VS Code document events, file-system watcher events, and passive consistency checks.
@@ -49,7 +51,7 @@ This design is being implemented incrementally; only Git-aware code removal rema
 - Persist Note content, locations, `sourceHash`, and `updatedAt` after a deterministic dirty edit or explicit user confirmation.
 - Persist deterministic VS Code rename, move, delete, and remove transformations immediately after Resource Access validation.
 - Keep file watchers event-driven, debounce duplicate notifications, and inspect only affected files.
-- Remove the existing Git transition guard and Git-aware source-change gate only after the runtime-state workflow is implemented and validated.
+- Keep source-change handling independent of Git branch, HEAD, checkout, merge, restore, and transition timing.
 
 ## Validation
 
@@ -62,4 +64,4 @@ This design is being implemented incrementally; only Git-aware code removal rema
 
 ## Next Step
 
-Remove the remaining Git HEAD, transition, revision-token, and Git-aware delay code now that Runtime State owns ambiguous external changes.
+Add a small real Extension Host regression suite for high-risk filesystem and UI scenarios.

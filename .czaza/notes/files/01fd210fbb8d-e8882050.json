@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:adce226b2a4bb1ad40e4e97171cd509c24955aa064c691c529b95b68854ef6da",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T10:25:52.365Z",
+    "updatedAt": "2026-07-30T10:25:52.365Z"
+  },
+  "fileNote": {
+    "userNote": "导出协调 Controller、token 和 suppression registry。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

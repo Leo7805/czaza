@@ -75,7 +75,7 @@ export type CheckChangedFileNotesResult =
       relativePath: string;
     }
   | {
-      /** A Git HEAD transition invalidated the automatic update before persistence. */
+      /** A newer coordinated change invalidated the automatic update before persistence. */
       kind: "cancelled";
       relativePath: string;
     };

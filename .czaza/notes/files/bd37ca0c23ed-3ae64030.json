@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:3e6cc27845d9d55519590591ff51cf1d95addf4bd522e073b79b939fbace2fa6",
+    "sourceHash": "sha256:11604f6bfac6a721da47a9f53b86128553f2f2d243c4e921399ed36c72e48ac8",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-30T05:51:26.986Z",
-    "updatedAt": "2026-07-30T05:51:26.986Z"
+    "updatedAt": "2026-07-30T10:21:28.521Z"
   },
   "fileNote": {
     "userNote": "验证标记过期及目录子路径抑制。",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

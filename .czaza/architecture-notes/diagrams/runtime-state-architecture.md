@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.6.0
+documentVersion: 1.7.0
 status: proposed
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
@@ -100,4 +100,4 @@ Registry 只保存受影响资源，不保存整个项目快照。状态不会�
 
 - 已完成：确定性 dirty relocation、Undo/Redo、非确定性文档检测、文本/二进制 Watcher Change、带最终存在性检查的 Watcher Delete、Runtime State UI 刷新、被动检查、Clear Stale、Relocate，以及文件和目录的 VS Code Rename/Move/Delete/Remove。
 - missing 状态直接覆盖当前 UI payload，不重新读取已经删除的源文件；其他 Runtime State 变化按当前资源或 Navigator 范围刷新。
-- 最后删除剩余 Git-aware transition 和 revision 代码。
+- Git HEAD、branch 和 transition 代码已经删除；Git 文件变化与其他外部变化共用 Watcher 和 Runtime State。

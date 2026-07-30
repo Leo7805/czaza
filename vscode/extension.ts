@@ -23,12 +23,8 @@ import { registerNotesUi } from "./notesUi/registerNotesUi";
 import {
   SourceRelocationHistoryService,
 } from "./services/noteRelocation";
-import {
-  GitWorkspaceTransitionGuard,
-  registerGitWorkspaceTransition,
-} from "./services/workspaceTransition";
 import { RuntimeNoteStateRegistry } from "./services/runtimeState";
-import { ResourceEventSuppressionRegistry } from "./services/resourceEvents";
+import { ChangeTaskCoordinator } from "./services/changeCoordination";
 
 /**
  * Activates the CZaza VS Code extension.
@@ -47,8 +43,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const notes = new WorkspaceNoteStore();
   const runtimeNoteStateRegistry = new RuntimeNoteStateRegistry();
   const sourceRelocationHistory = new SourceRelocationHistoryService();
-  const resourceEventSuppression = new ResourceEventSuppressionRegistry();
-  context.subscriptions.push(resourceEventSuppression);
+  const changeTaskCoordinator = new ChangeTaskCoordinator(800);
+  context.subscriptions.push(changeTaskCoordinator);
 
   // React-based notes panel provider for the new notes architecture.
   const notesProvider = new NotesViewProvider(
@@ -63,8 +59,6 @@ export function activate(context: vscode.ExtensionContext): void {
     runtimeNoteStateRegistry,
   );
   context.subscriptions.push(notesProvider);
-  const workspaceTransitionGuard = new GitWorkspaceTransitionGuard();
-  context.subscriptions.push(workspaceTransitionGuard);
 
   // ---------------------------------------------------------------------------
   // 2. Register command palette and context-menu commands.
@@ -94,10 +88,9 @@ export function activate(context: vscode.ExtensionContext): void {
     context,
     notes,
     notesProvider,
-    workspaceTransitionGuard,
     runtimeNoteStateRegistry,
     sourceRelocationHistory,
-    resourceEventSuppression,
+    changeTaskCoordinator,
   );
   registerNotesResourceEvents(
     context,
@@ -105,16 +98,8 @@ export function activate(context: vscode.ExtensionContext): void {
     notesProvider,
     runtimeNoteStateRegistry,
     sourceRelocationHistory,
-    resourceEventSuppression,
+    changeTaskCoordinator,
   );
-  void registerGitWorkspaceTransition(
-    context,
-    notes,
-    notesProvider,
-    workspaceTransitionGuard,
-  ).catch((error) => {
-    console.error("Failed to register CZaza Git workspace transition protection.", error);
-  });
 }
 
 /**

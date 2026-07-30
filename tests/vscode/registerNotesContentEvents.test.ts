@@ -102,8 +102,9 @@ import { registerNotesContentEvents } from "@vscode/events";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
-import { ResourceEventSuppressionRegistry } from "@vscode/services/resourceEvents";
-import { GitWorkspaceTransitionGuard } from "@vscode/services/workspaceTransition";
+import {
+  ChangeTaskCoordinator,
+} from "@vscode/services/changeCoordination";
 
 describe("registerNotesContentEvents()", () => {
   beforeEach(() => {
@@ -146,7 +147,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       notesProvider.value,
-      undefined,
       runtimeRegistry,
     );
     const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
@@ -170,125 +170,7 @@ describe("registerNotesContentEvents()", () => {
     expect(notesProvider.refreshCurrentNotes).toHaveBeenCalledWith(document.uri);
   });
 
-  it("ignores content and external changes during a Git workspace transition", async () => {
-    vi.useFakeTimers();
-    const workspaceRoot = await createTempWorkspaceRoot("git-transition");
-    const previousText = "export const value = 1;\n";
-    const nextText = "export const value = 2;\n";
-    const notes = createNotes(createStoredSourceFile(previousText));
-    const guard = new GitWorkspaceTransitionGuard(100);
-    const document = createDocument(
-      path.join(workspaceRoot, "src/index.ts"),
-      nextText,
-    );
-
-    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(
-      createExtensionContext(),
-      notes.value,
-      undefined,
-      guard,
-    );
-    guard.beginTransition();
-    mocks.textDocumentChangeListeners[0]?.({
-      document,
-      contentChanges: [
-        {
-          range: {
-            start: { line: 0, character: 21 },
-            end: { line: 0, character: 22 },
-          },
-          rangeLength: 1,
-          text: "2",
-        },
-      ],
-    } as unknown as vscodeTypes.TextDocumentChangeEvent);
-    mocks.saveListeners[0]?.(document);
-    mocks.changeListeners[0]?.(document.uri);
-
-    await vi.advanceTimersByTimeAsync(99);
-
-    expect(notes.saveSourceFile).not.toHaveBeenCalled();
-    expect(guard.isTransitioning()).toBe(true);
-
-    await vi.advanceTimersByTimeAsync(1);
-    mocks.saveListeners[0]?.(document);
-    await vi.advanceTimersByTimeAsync(800);
-
-    expect(notes.saveSourceFile).not.toHaveBeenCalled();
-  });
-
-  it("blocks bursty checkout events across repeated HEAD transitions and resumes normal edits", async () => {
-    vi.useFakeTimers();
-    const workspaceRoot = await createTempWorkspaceRoot("rapid-git-transitions");
-    const previousText = "export const value = 1;\n";
-    const nextText = "export const value = 2;\n";
-    const notes = createNotes(createStoredSourceFile(previousText));
-    const guard = new GitWorkspaceTransitionGuard(100);
-    const documentPath = path.join(workspaceRoot, "src/index.ts");
-
-    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(
-      createExtensionContext(),
-      notes.value,
-      undefined,
-      guard,
-    );
-
-    for (let index = 0; index < 12; index += 1) {
-      guard.beginTransition();
-      const checkoutDocument = createDocument(
-        documentPath,
-        `export const value = ${index + 10};\n`,
-        false,
-      );
-      mocks.textDocumentChangeListeners[0]?.({
-        document: checkoutDocument,
-        contentChanges: [
-          {
-            range: {
-              start: { line: 0, character: 21 },
-              end: { line: 0, character: 22 },
-            },
-            rangeLength: 1,
-            text: String(index),
-          },
-        ],
-      } as unknown as vscodeTypes.TextDocumentChangeEvent);
-      mocks.saveListeners[0]?.(checkoutDocument);
-      mocks.changeListeners[0]?.(checkoutDocument.uri);
-      await vi.advanceTimersByTimeAsync(20);
-    }
-
-    await vi.advanceTimersByTimeAsync(79);
-
-    expect(guard.isTransitioning()).toBe(true);
-    expect(notes.saveSourceFile).not.toHaveBeenCalled();
-
-    await vi.advanceTimersByTimeAsync(1);
-
-    expect(guard.isTransitioning()).toBe(false);
-
-    const editedDocument = createDocument(documentPath, nextText, true);
-    mocks.textDocumentChangeListeners[0]?.({
-      document: editedDocument,
-      contentChanges: [
-        {
-          range: {
-            start: { line: 0, character: 21 },
-            end: { line: 0, character: 22 },
-          },
-          rangeLength: 1,
-          text: "2",
-        },
-      ],
-    } as unknown as vscodeTypes.TextDocumentChangeEvent);
-    await vi.advanceTimersByTimeAsync(0);
-
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
-  });
-
-  it("ignores clean document reloads caused by a Git checkout", async () => {
+  it("treats clean external document reloads as read-only detection", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("clean-checkout-reload");
     const previousText = createNumberedSourceLines(35);
     const nextText = createNumberedSourceLines(6, 30);
@@ -413,7 +295,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       undefined,
-      undefined,
       runtimeRegistry,
     );
     mocks.deleteListeners[0]?.(document.uri);
@@ -469,7 +350,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       notesProvider.value,
-      undefined,
       runtimeRegistry,
     );
     mocks.saveListeners[0]?.(document);
@@ -504,7 +384,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       notesProvider.value,
-      undefined,
       runtimeRegistry,
     );
     mocks.changeListeners[0]?.(document.uri);
@@ -548,7 +427,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       undefined,
-      undefined,
       runtimeRegistry,
     );
     mocks.changeListeners[0]?.(document.uri);
@@ -590,7 +468,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       notesProvider.value,
-      undefined,
       runtimeRegistry,
     );
     mocks.changeListeners[0]?.(uri);
@@ -632,7 +509,6 @@ describe("registerNotesContentEvents()", () => {
     registerNotesContentEvents(
       createExtensionContext(),
       notes.value,
-      undefined,
       undefined,
       runtimeRegistry,
     );
@@ -704,7 +580,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       notesProvider.value,
-      undefined,
       runtimeRegistry,
     );
     mocks.deleteListeners[0]?.(uri);
@@ -739,7 +614,7 @@ describe("registerNotesContentEvents()", () => {
     const workspaceRoot = await createTempWorkspaceRoot("suppressed-delete");
     const notes = createNotes(createStoredSourceFile("export const value = 1;\n"));
     const runtimeRegistry = new RuntimeNoteStateRegistry();
-    const suppression = new ResourceEventSuppressionRegistry();
+    const coordinator = new ChangeTaskCoordinator(800);
     const uri = createUri(path.join(workspaceRoot, "src/index.ts"));
 
     mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
@@ -747,13 +622,12 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       undefined,
-      undefined,
       runtimeRegistry,
       undefined,
-      suppression,
+      coordinator,
     );
     mocks.deleteListeners[0]?.(uri);
-    suppression.markDeleted(uri);
+    coordinator.markDeleted(uri);
 
     await vi.advanceTimersByTimeAsync(800);
     await vi.advanceTimersByTimeAsync(0);
@@ -762,7 +636,7 @@ describe("registerNotesContentEvents()", () => {
       workspaceRoot,
       outputDirectory: ".caca",
     })).toEqual([]);
-    suppression.dispose();
+    coordinator.dispose();
   });
 
   it("persists and refreshes deterministic text changes without a debounce", async () => {
@@ -1042,7 +916,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       notesProvider.value,
-      undefined,
       runtimeRegistry,
     );
     mocks.textDocumentChangeListeners[0]?.({
@@ -1158,7 +1031,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       undefined,
-      undefined,
       runtimeRegistry,
     );
     mocks.textDocumentChangeListeners[0]?.({
@@ -1202,7 +1074,6 @@ describe("registerNotesContentEvents()", () => {
       createExtensionContext(),
       notes.value,
       undefined,
-      undefined,
       runtimeRegistry,
     );
     mocks.textDocumentChangeListeners[0]?.({
@@ -1233,71 +1104,6 @@ describe("registerNotesContentEvents()", () => {
         currentSourceHash: createSourceHash(nextText),
       }),
     );
-  });
-
-  it("persists a dirty deterministic change before a later HEAD transition", async () => {
-    vi.useFakeTimers();
-    const workspaceRoot = await createTempWorkspaceRoot("pre-head-change");
-    const previousText = "export const value = 1;\n";
-    const nextText = "export const value = 2;\n";
-    const notes = createNotes(createStoredSourceFile(previousText));
-    const guard = new GitWorkspaceTransitionGuard(100);
-    const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
-
-    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(
-      createExtensionContext(),
-      notes.value,
-      undefined,
-      guard,
-    );
-    mocks.textDocumentChangeListeners[0]?.({
-      document,
-      contentChanges: [
-        {
-          range: {
-            start: { line: 0, character: 21 },
-            end: { line: 0, character: 22 },
-          },
-          rangeLength: 1,
-          text: "2",
-        },
-      ],
-    } as unknown as vscodeTypes.TextDocumentChangeEvent);
-
-    await vi.advanceTimersByTimeAsync(0);
-    expect(notes.saveSourceFile).toHaveBeenCalledOnce();
-
-    guard.beginTransition();
-    await vi.advanceTimersByTimeAsync(101);
-
-    expect(guard.isTransitioning()).toBe(false);
-  });
-
-  it("cancels save-time fallback when HEAD changes during confirmation", async () => {
-    vi.useFakeTimers();
-    const workspaceRoot = await createTempWorkspaceRoot("pre-head-save");
-    const previousText = "export const value = 1;\n";
-    const nextText = "export const value = 2;\n";
-    const notes = createNotes(createStoredSourceFile(previousText));
-    const guard = new GitWorkspaceTransitionGuard(100);
-    const document = createDocument(path.join(workspaceRoot, "src/index.ts"), nextText);
-
-    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
-    registerNotesContentEvents(
-      createExtensionContext(),
-      notes.value,
-      undefined,
-      guard,
-    );
-    mocks.saveListeners[0]?.(document);
-
-    await vi.advanceTimersByTimeAsync(799);
-    guard.beginTransition();
-    await vi.advanceTimersByTimeAsync(101);
-
-    expect(notes.saveSourceFile).not.toHaveBeenCalled();
-    expect(guard.isTransitioning()).toBe(false);
   });
 
   it("invalidates cached Notes when the managed Store changes externally", async () => {
