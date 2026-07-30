@@ -1,6 +1,6 @@
 ---
 type: architecture-outline
-documentVersion: 2.3.0
+documentVersion: 2.4.0
 templateVersion: 1
 createdAt: 2026-07-29
 updatedAt: 2026-07-30
@@ -25,11 +25,11 @@ contentLanguage: zh-CN
 1. [Source Relocation](./diagrams/source-relocation.md)：说明确定性源码编辑、Section/Line 位置转换和 Undo/Redo 历史。
 2. [Resource Change](./diagrams/resource-change-handling.md)：说明 VS Code 确定性资源操作与 Watcher 外部变化的不同处理。
 3. [源码与资源变化任务协调](./diagrams/source-and-resource-task-coordination.md)：说明事件抑制、防抖、同资源队列和任务失效的不同职责。
+4. [状态检测与 UI 状态更新](./diagrams/runtime-state-detection-and-ui-refresh.md)：区分状态检测、Registry 存储和各级 Notes UI 刷新的职责。
 
 ## 演进计划
 
 1. [Git 解耦迁移顺序](./diagrams/git-decoupling-migration.md)：说明从 Git-aware 防护迁移到 Runtime State 架构并安全删除旧代码的阶段顺序。
-2. [状态检测与 UI 状态更新](./diagrams/runtime-state-detection-and-ui-refresh.md)：区分状态检测、Registry 存储和各级 Notes UI 刷新的职责。
 
 ## Future Improvements
 

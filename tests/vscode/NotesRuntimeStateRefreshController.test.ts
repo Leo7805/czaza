@@ -21,6 +21,7 @@ describe("NotesRuntimeStateRefreshController", () => {
   let registry: RuntimeNoteStateRegistry;
   let context: NotesRuntimeRefreshContext | undefined;
   let detectCurrentResource: () => Promise<void>;
+  let detectAllFileNotes: () => Promise<void>;
   let reloadCurrentResource: () => Promise<void>;
   let overlayMissingState: (state: RuntimeNoteState) => Promise<void>;
   let refreshNavigator: () => Promise<void>;
@@ -33,6 +34,7 @@ describe("NotesRuntimeStateRefreshController", () => {
       viewMode: "detail",
     };
     detectCurrentResource = vi.fn().mockResolvedValue(undefined);
+    detectAllFileNotes = vi.fn().mockResolvedValue(undefined);
     reloadCurrentResource = vi.fn().mockResolvedValue(undefined);
     overlayMissingState = vi.fn().mockResolvedValue(undefined);
     refreshNavigator = vi.fn().mockResolvedValue(undefined);
@@ -48,6 +50,7 @@ describe("NotesRuntimeStateRefreshController", () => {
       registry,
       getContext: () => context,
       detectCurrentResource,
+      detectAllFileNotes,
       reloadCurrentResource,
       overlayMissingState,
       refreshNavigator,
@@ -115,6 +118,34 @@ describe("NotesRuntimeStateRefreshController", () => {
     expect(overlayMissingState).not.toHaveBeenCalled();
     controller.dispose();
   });
+
+  it("detects all File Notes and refreshes Navigator once for the Files list", async () => {
+    detectAllFileNotes = vi.fn().mockImplementation(async () => {
+      registry.setState(createRuntimeState("src/other.ts", "stale"));
+    });
+    const controller = createController();
+
+    await controller.refreshNavigatorList("files");
+
+    expect(detectAllFileNotes).toHaveBeenCalledOnce();
+    expect(detectCurrentResource).not.toHaveBeenCalled();
+    expect(refreshNavigator).toHaveBeenCalledOnce();
+    controller.dispose();
+  });
+
+  it.each(["sections", "lines"] as const)(
+    "detects only the current resource for the %s list",
+    async (list) => {
+      const controller = createController();
+
+      await controller.refreshNavigatorList(list);
+
+      expect(detectCurrentResource).toHaveBeenCalledOnce();
+      expect(detectAllFileNotes).not.toHaveBeenCalled();
+      expect(refreshNavigator).toHaveBeenCalledOnce();
+      controller.dispose();
+    },
+  );
 });
 
 /**

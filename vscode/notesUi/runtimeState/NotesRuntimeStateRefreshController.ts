@@ -17,6 +17,9 @@ export type NotesRuntimeRefreshContext = {
   viewMode: "detail" | "navigator";
 };
 
+/** Navigator list whose status should be detected and refreshed. */
+export type NotesNavigatorList = "files" | "sections" | "lines";
+
 /**
  * Routes Runtime State mutations to the smallest valid Notes UI refresh.
  *
@@ -36,6 +39,7 @@ export class NotesRuntimeStateRefreshController implements RuntimeNoteStateDispo
   private readonly listener: RuntimeNoteStateDisposable;
   private readonly getContext: () => NotesRuntimeRefreshContext | undefined;
   private readonly detectCurrentResource: () => Promise<void>;
+  private readonly detectAllFileNotes: () => Promise<void>;
   private readonly reloadCurrentResource: () => Promise<void>;
   private readonly overlayMissingState: (state: RuntimeNoteState) => Promise<void>;
   private readonly refreshNavigator: () => Promise<void>;
@@ -50,12 +54,14 @@ export class NotesRuntimeStateRefreshController implements RuntimeNoteStateDispo
     registry: RuntimeNoteStateRegistry;
     getContext(): NotesRuntimeRefreshContext | undefined;
     detectCurrentResource(): Promise<void>;
+    detectAllFileNotes(): Promise<void>;
     reloadCurrentResource(): Promise<void>;
     overlayMissingState(state: RuntimeNoteState): Promise<void>;
     refreshNavigator(): Promise<void>;
   }) {
     this.getContext = input.getContext;
     this.detectCurrentResource = input.detectCurrentResource;
+    this.detectAllFileNotes = input.detectAllFileNotes;
     this.reloadCurrentResource = input.reloadCurrentResource;
     this.overlayMissingState = input.overlayMissingState;
     this.refreshNavigator = input.refreshNavigator;
@@ -88,14 +94,27 @@ export class NotesRuntimeStateRefreshController implements RuntimeNoteStateDispo
       return;
     }
 
-    this.explicitRefreshDepth += 1;
+    await this.runExplicitRefresh(
+      () => this.detectCurrentResource(),
+      () => this.reloadCurrentResource(),
+    );
+  }
 
-    try {
-      await this.detectCurrentResource();
-      await this.reloadCurrentResource();
-    } finally {
-      this.explicitRefreshDepth -= 1;
+  /**
+   * Detects the scope represented by one Navigator list and refreshes it once.
+   *
+   * @param list - Files, Sections, or Lines Navigator list.
+   * @returns Promise resolved after detection and one Navigator reload.
+   */
+  async refreshNavigatorList(list: NotesNavigatorList): Promise<void> {
+    if (!this.getContext()) {
+      return;
     }
+
+    await this.runExplicitRefresh(
+      list === "files" ? () => this.detectAllFileNotes() : () => this.detectCurrentResource(),
+      () => this.refreshNavigator(),
+    );
   }
 
   /**
@@ -115,10 +134,7 @@ export class NotesRuntimeStateRefreshController implements RuntimeNoteStateDispo
       return;
     }
 
-    if (
-      context.payloadKind === "file" &&
-      doesChangeAffectResource(change, context.coordinates)
-    ) {
+    if (context.payloadKind === "file" && doesChangeAffectResource(change, context.coordinates)) {
       if (change.kind === "set" && change.state.issues.includes("missing")) {
         await this.overlayMissingState(change.state);
 
@@ -131,11 +147,29 @@ export class NotesRuntimeStateRefreshController implements RuntimeNoteStateDispo
       return;
     }
 
-    if (
-      context.viewMode === "navigator" &&
-      doesChangeAffectScope(change, context.coordinates)
-    ) {
+    if (context.viewMode === "navigator" && doesChangeAffectScope(change, context.coordinates)) {
       await this.refreshNavigator();
+    }
+  }
+
+  /**
+   * Runs one explicit detection and UI reload without listener-driven duplicates.
+   *
+   * @param detect - Detection work that may mutate the Registry.
+   * @param refresh - Single UI reload performed after detection.
+   * @returns Promise resolved after the explicit refresh cycle.
+   */
+  private async runExplicitRefresh(
+    detect: () => Promise<void>,
+    refresh: () => Promise<void>,
+  ): Promise<void> {
+    this.explicitRefreshDepth += 1;
+
+    try {
+      await detect();
+      await refresh();
+    } finally {
+      this.explicitRefreshDepth -= 1;
     }
   }
 }
@@ -177,10 +211,7 @@ function doesChangeAffectScope(
   change: RuntimeNoteStateChange,
   coordinates: RuntimeNoteStateCoordinates,
 ): boolean {
-  const matches = (state: {
-    workspaceRoot: string;
-    outputDirectory: string;
-  }): boolean =>
+  const matches = (state: { workspaceRoot: string; outputDirectory: string }): boolean =>
     state.workspaceRoot === coordinates.workspaceRoot &&
     state.outputDirectory === coordinates.outputDirectory;
 

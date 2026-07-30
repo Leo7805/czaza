@@ -361,6 +361,13 @@ export type WebviewToExtensionMessage =
       type: "ready";
     }
   | {
+      /** Reports the Navigator list selected by the user. */
+      type: "navigatorTabChanged";
+
+      /** Files, Sections, or Lines list that became visible. */
+      tab: "files" | "sections" | "lines";
+    }
+  | {
       /** Requests combined file and section AI note generation. */
       type: "generateFileNotes";
     }

@@ -70,6 +70,11 @@ type NotesWebviewMessage =
       type: "ready";
     }
   | {
+      /** Reports the Navigator list selected by the user. */
+      type: "navigatorTabChanged";
+      tab: "files" | "sections" | "lines";
+    }
+  | {
       /** Requests combined file and section AI note generation. */
       type: "generateFileNotes";
     }
@@ -364,6 +369,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
               );
             }
           },
+          detectAllFileNotes: async () => {
+            if (this.currentResourceUri) {
+              await this.runtimeStateDetectionController?.detectAllFileNotes(
+                this.currentResourceUri,
+              );
+            }
+          },
           reloadCurrentResource: () => this.refreshCurrentNotes(),
           overlayMissingState: (state) => this.overlayMissingRuntimeState(state),
           refreshNavigator: () => this.loadNavigatorNotes(),
@@ -431,6 +443,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
       if (message.type === "generateFileNotes") {
         void this.runNotesGeneration("fileSection");
+        return;
+      }
+
+      if (message.type === "navigatorTabChanged") {
+        void this.runtimeStateRefreshController?.refreshNavigatorList(message.tab);
         return;
       }
 
@@ -1984,10 +2001,15 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     anchor?: unknown;
     action?: unknown;
     targets?: unknown;
+    tab?: unknown;
   };
 
   return (
     candidate.type === "ready" ||
+    (candidate.type === "navigatorTabChanged" &&
+      (candidate.tab === "files" ||
+        candidate.tab === "sections" ||
+        candidate.tab === "lines")) ||
     candidate.type === "generateFileNotes" ||
     candidate.type === "generateAllNotes" ||
     (candidate.type === "runNoticeAction" &&

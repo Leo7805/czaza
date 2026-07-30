@@ -1,7 +1,7 @@
 ---
 type: architecture-diagram
-documentVersion: 1.3.0
-status: proposed
+documentVersion: 2.0.0
+status: current
 createdAt: 2026-07-30
 updatedAt: 2026-07-30
 author: Codex
@@ -77,4 +77,4 @@ flowchart LR
 
 当前已建立 `detectResourceNotes`、`detectCurrentFileNotes` 和 `detectAllFileNotes` 公共检测入口。资源入口统一识别文本、二进制、目录和缺失资源；Notes UI 的手动 Relocate 后检测不再负责打开和分类源文件。外部 Note Store 变化已使用统一防抖周期重新检测并重载当前可见资源。
 
-尚未完成：File、Section、Line 列表切换时的独立触发消息，以及三个列表级 UI 刷新入口；因此本文整体仍标记为 `proposed`。
+Navigator 的 Files、Sections 和 Lines 标签现在会把可见列表通知 Extension Host。Files 检测所有带 File Note 的资源，Sections 和 Lines 只检测当前资源；检测期间的多次 Registry 变化会合并为一次 Navigator 刷新。

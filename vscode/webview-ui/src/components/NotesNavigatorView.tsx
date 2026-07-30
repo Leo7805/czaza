@@ -1,6 +1,6 @@
 /** Renders the initial Files, Sections, and Lines navigator shell. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   NavigatorFileItem,
@@ -138,6 +138,13 @@ export function NotesNavigatorView({
     Boolean(filters[activeTab].trim()) ||
     activeSort.field !== defaultSort.field ||
     activeSort.direction !== defaultSort.direction;
+
+  useEffect(() => {
+    getVsCodeApi()?.postMessage({
+      type: "navigatorTabChanged",
+      tab: activeTab,
+    });
+  }, [activeTab]);
 
   return (
     <section className="notes-navigator" aria-label="Notes Navigator">
