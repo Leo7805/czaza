@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-30T00:28:03.665Z",
-    "updatedAt": "2026-07-30T04:01:07.191Z"
+    "updatedAt": "2026-07-30T13:05:05.559Z"
   },
   "fileNote": {
     "userNote": "安全确认 Runtime stale 状态。\n\nconfirmRuntimeNoteStaleStatusService：核对状态来源、位置和 Hash，确认后持久化并重新检测。\nfindTargetChange：查找 File、Section 或 Line 对应的 Runtime target。\nhasUnchangedLocation：防止 Clear stale 隐式接受位置变化。\nisValidRange：校验 Section 范围。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

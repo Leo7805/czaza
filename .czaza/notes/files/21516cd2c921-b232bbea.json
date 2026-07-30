@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-23T12:01:29.910Z",
-    "updatedAt": "2026-07-30T02:29:01.415Z"
+    "updatedAt": "2026-07-30T13:07:23.563Z"
   },
   "fileNote": {
     "userNote": "把 VS Code 内容变化统一归一化成 source splice。\n\n1. classifySourceChange：分类一次 VS Code 文档变化事件。\n2. classifySourceChangeBatch：原子化分类一次事件中的全部变化，校验后返回倒序 splice 批次。\n3. classifySourceContentChange：将单个 content change 转换成标准 splice。\n4. countLineBreaks：统计插入文本中的换行数量。\n5. extractSourceChangeSplice：从已分类结果中安全提取 splice，并防止遗漏异常分支。\n",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

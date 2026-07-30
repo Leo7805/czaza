@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-30T11:32:45.814Z",
-    "updatedAt": "2026-07-30T11:41:04.358Z"
+    "updatedAt": "2026-07-30T13:05:05.546Z"
   },
   "fileNote": {
     "userNote": "统一负责资源分类和状态检测。\n\ndetectResourceNotes()：识别文本、二进制、目录或缺失资源，并调用对应检测。\ndetectAllFileNotes()：改为复用 detectResourceNotes()，删除重复分类逻辑。\ndetectCurrentFileNotes()：继续负责文本文件的完整 Notes 检测。\ndetectMissingFileNotes()：继续处理缺失资源。\n\n公共状态检测 Controller: RuntimeNoteStateDetectionController\ndetectCurrentFileNotes()：检测当前文件的 File、Section、Line Notes。\ndetectAllFileNotes()：遍历所有带 File Note 的资源并更新 Registry。\ndetectMissingFileNotes()：处理源文件不存在的情况。\nisFileNotFoundError()：识别文件不存在错误。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

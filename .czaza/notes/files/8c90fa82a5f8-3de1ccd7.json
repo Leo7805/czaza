@@ -13,10 +13,7 @@
       "detail": "该文件导出了 `registerNotesPreviewEvents` 函数，该函数监听活跃文本编辑器和选项卡的变化，并在特定资源发生变化时更新笔记预览。它还定义了一个辅助函数 `getTabResourceUri` 来从选项卡中提取资源URI。"
     },
     "userNote": "ssss",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "updatedAt": "2026-07-30T13:07:23.571Z"
   },
   "sectionNotes": {
     "section:1:section:1-3": {

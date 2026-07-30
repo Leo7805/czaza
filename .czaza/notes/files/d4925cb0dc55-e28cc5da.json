@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-27T06:31:42.333Z",
-    "updatedAt": "2026-07-30T00:21:44.951Z"
+    "updatedAt": "2026-07-30T13:05:05.573Z"
   },
   "fileNote": {
     "userNote": "作用：渲染 File、Section、Line Notes。\nFileNotesView：删除分散的三个标签状态和重置 effect，改用统一 Hook；为三个 Note 构造稳定 identity。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

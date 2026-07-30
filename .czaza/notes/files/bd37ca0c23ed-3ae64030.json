@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-30T05:51:26.986Z",
-    "updatedAt": "2026-07-30T10:21:28.521Z"
+    "updatedAt": "2026-07-30T13:05:05.551Z"
   },
   "fileNote": {
     "userNote": "验证标记过期及目录子路径抑制。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

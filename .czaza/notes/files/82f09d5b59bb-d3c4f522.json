@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-23T11:59:54.831Z",
-    "updatedAt": "2026-07-30T06:49:27.977Z"
+    "updatedAt": "2026-07-30T13:07:23.568Z"
   },
   "fileNote": {
     "userNote": "将整个文件的 Notes 重新关联到用户指定的目标文件。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

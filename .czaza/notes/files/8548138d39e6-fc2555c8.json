@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-30T00:28:35.025Z",
-    "updatedAt": "2026-07-30T02:35:08.003Z"
+    "updatedAt": "2026-07-30T13:05:05.557Z"
   },
   "fileNote": {
     "userNote": "集中管理状态菜单的可用性。\ncanClearContentStaleStatus：判断 Clear stale 是否可以点击。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-30T02:25:30.040Z",
-    "updatedAt": "2026-07-30T10:26:49.171Z"
+    "updatedAt": "2026-07-30T13:05:05.554Z"
   },
   "fileNote": {
     "userNote": "registerNotesResourceEvents：rename 和 delete 到达时立即清除相关路径历史。\n\n处理确定性文件资源事件。\n1. registerNotesResourceEvents：注册文件重命名和删除事件，并清理 relocation history。\n2. handleRename：通过 Resource Access Gate 后立即移动 Notes 和 Runtime State。\n3. handleDelete：立即标记文件 Notes 为 deleted，并清除对应 Runtime State。\n\n---\n\n响应 VS Code 确定性资源事件。\nhandleRename：改为同时处理文件和目录的批量移动。\nhandleDelete：改为同时处理文件和目录的批量删除标记。\n\n---\n\n确定性 Delete 通过共享 Controller 记录 suppression marker。\nregisterNotesResourceEvents()：接收 ChangeTaskCoordinator。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

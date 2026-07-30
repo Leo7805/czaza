@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-29T11:45:47.901Z",
-    "updatedAt": "2026-07-30T00:21:44.634Z"
+    "updatedAt": "2026-07-30T13:05:05.567Z"
   },
   "fileNote": {
     "userNote": "读取 Notes 前验证资源边界。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}

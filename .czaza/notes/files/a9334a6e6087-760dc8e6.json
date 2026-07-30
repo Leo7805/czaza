@@ -6,15 +6,11 @@
   },
   "defaults": {
     "createdAt": "2026-07-26T12:09:42.649Z",
-    "updatedAt": "2026-07-30T00:31:28.467Z"
+    "updatedAt": "2026-07-30T13:05:05.576Z"
   },
   "fileNote": {
     "userNote": "在进入编辑、内容变化和窗口尺寸变化时自动调整编辑框高度。",
-    "createdBy": "user",
-    "status": {
-      "content": "stale",
-      "anchor": "confirmed"
-    }
+    "createdBy": "user"
   },
   "sectionNotes": {},
   "lineNotes": {}
