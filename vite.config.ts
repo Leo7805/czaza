@@ -11,6 +11,7 @@ export default defineConfig({
       "@node": fileURLToPath(new URL("./node", import.meta.url)),
       "@tests": fileURLToPath(new URL("./tests", import.meta.url)),
       "@vscode": fileURLToPath(new URL("./vscode", import.meta.url)),
+      "@webview": fileURLToPath(new URL("./vscode/webview-ui/src", import.meta.url)),
     },
   },
 });

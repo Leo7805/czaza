@@ -25,7 +25,8 @@
       "@shared/*": ["./shared/*"],
       "@node/*": ["./node/*"],
       "@tests/*": ["./tests/*"],
-      "@vscode/*": ["./vscode/*"]
+      "@vscode/*": ["./vscode/*"],
+      "@webview/*": ["./vscode/webview-ui/src/*"]
     }
   },
   "include": ["vite.config.ts", "shared", "node", "tests", "vscode"],

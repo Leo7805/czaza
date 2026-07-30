@@ -1,16 +1,20 @@
 {
   "source": {
-    "sourceHash": "sha256:a610dd10fedebdf738cbaa3b67a67481348e271b6724c33a56a8c069574aada0",
+    "sourceHash": "sha256:fe3ed092891c0b6b89eca062c6345e2e107689e7acfbbc7644262eb5b0b1619e",
     "sourceHashKind": "text",
     "programmingLanguage": "typescriptreact"
   },
   "defaults": {
     "createdAt": "2026-07-26T12:09:42.649Z",
-    "updatedAt": "2026-07-26T12:09:42.649Z"
+    "updatedAt": "2026-07-30T00:31:28.467Z"
   },
   "fileNote": {
     "userNote": "在进入编辑、内容变化和窗口尺寸变化时自动调整编辑框高度。",
-    "createdBy": "user"
+    "createdBy": "user",
+    "status": {
+      "content": "stale",
+      "anchor": "confirmed"
+    }
   },
   "sectionNotes": {},
   "lineNotes": {}

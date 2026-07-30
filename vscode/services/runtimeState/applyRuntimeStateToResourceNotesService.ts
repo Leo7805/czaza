@@ -43,6 +43,7 @@ export function applyRuntimeStateToResourceNotes(
       ? {
           ...payload.fileNote,
           status: { ...fileChange.status },
+          runtimeStatus: { ...fileChange.status },
         }
       : payload.fileNote;
   const sectionNotes = payload.sectionNotes.map((section) => {
@@ -55,6 +56,7 @@ export function applyRuntimeStateToResourceNotes(
     return {
       ...section,
       status: { ...change.status },
+      runtimeStatus: { ...change.status },
       ...(change.range
         ? {
             startLine: change.range.startLine,
@@ -71,6 +73,7 @@ export function applyRuntimeStateToResourceNotes(
       ? {
           ...payload.lineNote,
           status: { ...lineChange.status },
+          runtimeStatus: { ...lineChange.status },
           ...(lineChange.line ? { line: lineChange.line } : {}),
         }
       : payload.lineNote;

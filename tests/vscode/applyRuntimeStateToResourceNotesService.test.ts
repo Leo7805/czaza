@@ -21,6 +21,10 @@ describe("applyRuntimeStateToResourceNotes()", () => {
           content: "stale",
           anchor: "confirmed",
         },
+        runtimeStatus: {
+          content: "stale",
+          anchor: "confirmed",
+        },
       },
       sectionNotes: [
         {
@@ -31,12 +35,20 @@ describe("applyRuntimeStateToResourceNotes()", () => {
             content: "stale",
             anchor: "needsConfirmation",
           },
+          runtimeStatus: {
+            content: "stale",
+            anchor: "needsConfirmation",
+          },
         },
       ],
       lineNote: {
         ...payload.lineNote,
         line: 14,
         status: {
+          content: "stale",
+          anchor: "needsConfirmation",
+        },
+        runtimeStatus: {
           content: "stale",
           anchor: "needsConfirmation",
         },

@@ -5,6 +5,11 @@
 export { RuntimeNoteStateRegistry } from "./RuntimeNoteStateRegistry";
 export { applyRuntimeStateToResourceNotes } from "./applyRuntimeStateToResourceNotesService";
 export {
+  confirmRuntimeNoteStaleStatusService,
+  type ConfirmRuntimeNoteStaleStatusInput,
+  type ConfirmRuntimeNoteStaleStatusResult,
+} from "./confirmRuntimeNoteStaleStatusService";
+export {
   detectRuntimeNoteStateService,
   type DetectRuntimeNoteStateInput,
   type DetectRuntimeNoteStateResult,

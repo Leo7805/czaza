@@ -11,7 +11,7 @@ Document and then implement the planned runtime-state source-change architecture
 - The Skill reads `config.json`, resolves its Architecture Notes directory relative to the active project root, and uses its configured content language.
 - CZaza no longer initializes or manages project-level Architecture Notes.
 - Existing user-generated `.czaza/architecture-notes/` directories remain user data and must not be deleted.
-- Runtime State remains a discussed and accepted design that is not implemented yet.
+- Runtime State Registry, read-only detection, passive checks, File Notes overlays, and hash-guarded confirmation for pure stale content are implemented.
 - The first proposed Runtime State architecture document now lives at `.czaza/architecture-notes/diagrams/runtime-state-source-change.md`.
 - The proposed persistence gate document lives at `.czaza/architecture-notes/diagrams/source-change-persistence-gate.md`.
 
@@ -26,7 +26,7 @@ Document and then implement the planned runtime-state source-change architecture
 
 ## Planned Runtime State Architecture
 
-This design has been discussed and accepted in principle but is not implemented yet.
+This design is being implemented incrementally; realtime event normalization, Navigator overlays, location-review confirmation, Candidate Persistence Gate, and Git-aware code removal remain pending.
 
 - Decouple source-change handling from Git concepts such as branches, HEAD revisions, checkout, merge, restore, and transition timing.
 - Use three detection sources: precise VS Code document events, file-system watcher events, and passive consistency checks.
@@ -55,4 +55,4 @@ This design has been discussed and accepted in principle but is not implemented 
 
 ## Next Step
 
-Review the proposed Runtime State source-change architecture document, then prepare the detailed implementation plan before changing business code.
+Connect Runtime State overlays to Navigator after confirming that its stale actions route through the hash-guarded confirmation path.

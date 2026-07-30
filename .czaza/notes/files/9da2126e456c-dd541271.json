@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:a05cf8175240b41ad07232e5ff60823b5ab3ec7de51700b6e9a3df76de996c61",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T00:28:03.665Z",
+    "updatedAt": "2026-07-30T00:28:12.325Z"
+  },
+  "fileNote": {
+    "userNote": "安全确认 Runtime stale 状态。\n\nconfirmRuntimeNoteStaleStatusService：核对状态来源、位置和 Hash，确认后持久化并重新检测。\nfindTargetChange：查找 File、Section 或 Line 对应的 Runtime target。\nhasUnchangedLocation：防止 Clear stale 隐式接受位置变化。\nisValidRange：校验 Section 范围。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

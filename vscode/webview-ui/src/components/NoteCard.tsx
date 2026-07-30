@@ -30,6 +30,7 @@ import {
   type EmojiPickerPosition,
 } from "./EmojiPickerPopover";
 import { NoteStatusBadges, type NoteStatusBadgeScope } from "./NoteStatusBadges";
+import { canClearContentStaleStatus } from "@webview/noteStatusActions";
 import { Tooltip } from "./Tooltip";
 import {
   UserNoteContextMenu,
@@ -58,6 +59,7 @@ export type NoteCardVariant = "file" | "section" | "line" | "child";
  * @param props.userNote - Optional complete user note.
  * @param props.aiExplanation - Optional complete AI explanation.
  * @param props.status - Optional content and source-anchor status.
+ * @param props.runtimeStatus - Optional session-only status that overrides persistent status.
  * @param props.statusTarget - Optional note target used by status actions.
  * @param props.onClearStaleStatus - Optional callback for marking stale content reviewed.
  * @param props.showTabs - Whether to show the User and AI tab toggle.
@@ -93,6 +95,7 @@ export function NoteCard({
   userNote,
   aiExplanation,
   status,
+  runtimeStatus,
   statusTarget,
   onClearStaleStatus,
   onRelocate,
@@ -118,6 +121,7 @@ export function NoteCard({
   userNote?: string;
   aiExplanation?: ResourceAiExplanation;
   status?: NoteStatus;
+  runtimeStatus?: NoteStatus;
   statusTarget?: UserNoteTarget;
   onClearStaleStatus?: (target: UserNoteTarget) => void;
   onRelocate?: () => void;
@@ -451,7 +455,11 @@ export function NoteCard({
           onClear={contextMenuState.mode === "user" ? clearUserNote : undefined}
           statusItems={getStatusMenuItems(
             visibleStatus,
-            Boolean(statusTarget && onClearStaleStatus),
+            Boolean(
+              statusTarget &&
+                onClearStaleStatus &&
+                canClearContentStaleStatus(visibleStatus, runtimeStatus),
+            ),
             clearStale,
             statusScope,
             onRelocate ? relocate : undefined,

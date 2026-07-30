@@ -50,6 +50,7 @@ import {
 } from "@vscode/services/noteRelocation";
 import {
   applyRuntimeStateToResourceNotes,
+  confirmRuntimeNoteStaleStatusService,
   type RuntimeNoteStateChange,
   type RuntimeNoteStateDisposable,
   type RuntimeNoteStateRegistry,
@@ -1037,8 +1038,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.loadResourceNotes(targetUri, false);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to open CZaza navigator resource: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        title: "Could Not Open Resource",
+        message: getErrorMessage(error),
+      });
     }
   }
 
@@ -1084,8 +1088,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       await vscode.window.showTextDocument(document, { preview: false });
       await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to view CZaza navigator notes: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        title: "Could Not Open Notes",
+        message: getErrorMessage(error),
+      });
     }
   }
 
@@ -1112,8 +1119,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.isSectionSelectionManual = true;
       await this.loadResourceNotes(uri, false, startLine);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to reveal CZaza section: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        title: "Could Not Open Section",
+        message: getErrorMessage(error),
+      });
     }
   }
 
@@ -1134,8 +1144,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
       await this.loadResourceNotes(uri, false, line);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to reveal CZaza line: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        title: "Could Not Open Line",
+        message: getErrorMessage(error),
+      });
     }
   }
 
@@ -1236,8 +1249,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           ],
         });
       } else {
-        const message = error instanceof Error ? error.message : "Unknown error.";
-        void vscode.window.showErrorMessage(`Failed to generate CZaza notes: ${message}`);
+        await this.postNotice({
+          tone: "error",
+          title: "Could Not Generate Notes",
+          message: getErrorMessage(error),
+        });
       }
     } finally {
       this.generatingResources.delete(resourceKey);
@@ -1279,8 +1295,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.loadResourceNotes(uri, false, getActiveLine(uri));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to generate CZaza notes: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        title: "Could Not Generate Section Note",
+        message: getErrorMessage(error),
+      });
     } finally {
       this.generatingResources.delete(resourceKey);
 
@@ -1319,8 +1338,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.loadResourceNotes(uri, false, getActiveLine(uri));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to generate CZaza notes: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        title: "Could Not Generate Line Notes",
+        message: getErrorMessage(error),
+      });
     } finally {
       this.generatingResources.delete(resourceKey);
 
@@ -1351,8 +1373,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.loadResourceNotes(uri, false, getActiveLine(uri));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to save CZaza user note: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        title: "Could Not Save User Note",
+        message: getErrorMessage(error),
+      });
     }
 	  }
 
@@ -1371,14 +1396,32 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 	    const resourceKey = uri.toString();
 
 	    try {
-	      const changed = await clearNoteStaleStatusService({ uri, notes: this.notes, target });
+        const runtimeResult = this.runtimeNoteStateRegistry
+          ? await confirmRuntimeNoteStaleStatusService({
+              uri,
+              notes: this.notes,
+              registry: this.runtimeNoteStateRegistry,
+              target,
+            })
+          : { kind: "notRuntime" as const };
+        const changed =
+          runtimeResult.kind === "confirmed" ||
+          (
+            runtimeResult.kind === "notRuntime" &&
+            await clearNoteStaleStatusService({ uri, notes: this.notes, target })
+          );
 
-	      if (changed && this.currentResourceUri?.toString() === resourceKey) {
+	      if (
+          (changed || runtimeResult.kind === "outdated") &&
+          this.currentResourceUri?.toString() === resourceKey
+        ) {
 	        await this.loadResourceNotes(uri, false, getActiveLine(uri));
 	      }
 	    } catch (error) {
-	      const message = error instanceof Error ? error.message : "Unknown error.";
-	      void vscode.window.showErrorMessage(`Failed to clear CZaza stale status: ${message}`);
+        await this.postNotice({
+          tone: "error",
+          ...getClearStaleErrorNotice(error),
+        });
 	    }
   }
 
@@ -1402,8 +1445,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.loadNavigatorNotes();
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to clear CZaza navigator stale status: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        ...getClearStaleErrorNotice(error),
+      });
     }
   }
 
@@ -1460,8 +1505,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         await this.loadResourceNotes(currentUri, false, getActiveLine(currentUri));
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown error.";
-      void vscode.window.showErrorMessage(`Failed to clear visible CZaza stale content: ${message}`);
+      await this.postNotice({
+        tone: "error",
+        ...getClearStaleErrorNotice(error),
+      });
     }
   }
 
@@ -2023,4 +2070,82 @@ function getSelectedEditorLineRange(selection: vscode.Selection): {
 
 function isPositiveLine(line: number): boolean {
   return Number.isInteger(line) && line > 0;
+}
+
+/**
+ * Converts stale-confirmation failures into user-facing CZaza Notice content.
+ *
+ * @param error - Unknown error raised while confirming stale content.
+ * @returns Friendly Notice title and message.
+ */
+function getClearStaleErrorNotice(error: unknown): {
+  title: string;
+  message: string;
+} {
+  const fileError = getErrnoError(error);
+  const normalizedMessage = getErrorMessage(error);
+
+  if (fileError?.code === "ENOENT" || normalizedMessage.includes("ENOENT")) {
+    const messagePath = normalizedMessage.match(/['"]([^'"]+)['"]\s*$/)?.[1];
+    const fileName =
+      typeof fileError?.path === "string"
+        ? path.basename(fileError.path)
+        : messagePath
+          ? path.basename(messagePath)
+        : "The source file";
+
+    return {
+      title: "Source File Not Found",
+      message: `${fileName} no longer exists. Relocate or delete its stale Notes before trying again.`,
+    };
+  }
+
+  return {
+    title: "Could Not Clear Stale Content",
+    message: normalizedMessage,
+  };
+}
+
+/**
+ * Produces one clean user-facing message without repeated Error prefixes.
+ *
+ * @param error - Unknown operation failure.
+ * @returns Normalized error text suitable for CZaza Notice UI.
+ */
+function getErrorMessage(error: unknown): string {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "An unknown error occurred.";
+
+  return message.replace(/^(?:Error:\s*)+/i, "").trim();
+}
+
+/**
+ * Reads a Node-style filesystem error from an error or its direct cause.
+ *
+ * @param error - Unknown operation failure.
+ * @returns Errno-like error data when available.
+ */
+function getErrnoError(
+  error: unknown,
+): (NodeJS.ErrnoException & { path?: unknown }) | undefined {
+  if (!error || typeof error !== "object") {
+    return undefined;
+  }
+
+  const candidate = error as NodeJS.ErrnoException & {
+    path?: unknown;
+    cause?: unknown;
+  };
+
+  if (candidate.code || candidate.path) {
+    return candidate;
+  }
+
+  return candidate.cause && typeof candidate.cause === "object"
+    ? candidate.cause as NodeJS.ErrnoException & { path?: unknown }
+    : candidate;
 }

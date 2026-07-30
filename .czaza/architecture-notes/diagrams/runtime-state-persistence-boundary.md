@@ -1,9 +1,9 @@
 ---
 type: architecture-diagram
-documentVersion: 1.2.0
+documentVersion: 1.3.0
 status: proposed
 createdAt: 2026-07-29
-updatedAt: 2026-07-29
+updatedAt: 2026-07-30
 author: Codex
 ---
 
@@ -87,7 +87,8 @@ flowchart TD
 - 用户忽略待处理状态时，Note Store 保持不变。
 - 用户确认或有效 Candidate 写入成功后，才清除对应 Runtime State。
 - Note Store 写入失败时保留 Runtime State，以便重试，不得把 UI 状态误报为已处理。
+- Clear stale 只能确认 `anchor=confirmed` 且建议位置未变化的 Runtime State；需要位置确认的目标必须继续走 relocate。
 
 ## 与当前实现的关系
 
-当前 stale、anchor 状态和 `sourceHash` 仍会直接保存在 Note Store，Git 相关 Gate 用于降低分支切换期间的误写风险。本图描述目标架构：自动检测状态迁移到内存，只有用户操作或通过 Persistence Gate 的确定性结果才能修改正式 Notes；该方案尚未实现。
+当前 File Notes 详情页已经展示 Runtime State，并允许用户在当前 Hash 匹配时确认纯 stale 内容；成功后重新检测并协调 Registry。Navigator、location review 确认、Candidate Persistence Gate 和实时事件迁移仍未实现，Git 相关 Gate 继续用于降低旧事件路径在分支切换期间的误写风险。

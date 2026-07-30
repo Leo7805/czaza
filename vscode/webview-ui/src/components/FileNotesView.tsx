@@ -189,6 +189,7 @@ export function FileNotesView({
         userNote={notes.fileNote?.userNote}
         aiExplanation={notes.fileNote?.aiExplanation}
         status={notes.fileNote?.status}
+        runtimeStatus={notes.fileNote?.runtimeStatus}
         statusTarget={{ level: "file" }}
         onClearStaleStatus={clearStale}
         onRelocate={notes.fileNote ? startFileRelocate : undefined}
@@ -208,6 +209,7 @@ export function FileNotesView({
         userNote={selectedSection?.userNote}
         aiExplanation={selectedSection?.aiExplanation}
         status={selectedSection?.status}
+        runtimeStatus={selectedSection?.runtimeStatus}
         statusTarget={
           selectedSection ? { level: "section", sectionId: selectedSection.id } : undefined
         }
@@ -255,6 +257,7 @@ export function FileNotesView({
         userNote={notes.lineNote?.userNote}
         aiExplanation={notes.lineNote?.aiExplanation}
         status={notes.lineNote?.status}
+        runtimeStatus={notes.lineNote?.runtimeStatus}
         statusTarget={notes.activeLine ? { level: "line", line: notes.activeLine } : undefined}
         onClearStaleStatus={clearStale}
         onRelocate={notes.lineNote ? startLineRelocate : undefined}

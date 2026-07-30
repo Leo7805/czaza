@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   getStoredNavigatorFileNotes: vi.fn(),
   evaluateCzazaResourceAccess: vi.fn(),
   clearNoteStaleStatusService: vi.fn(),
+  confirmRuntimeNoteStaleStatusService: vi.fn(),
   deleteNavigatorFileNotesService: vi.fn(),
   deleteNavigatorLineNoteService: vi.fn(),
   deleteNavigatorSectionNoteService: vi.fn(),
@@ -60,6 +61,10 @@ vi.mock("@vscode/services/ensureFileNoteResourceAvailabilityService", () => ({
 
 vi.mock("@vscode/services/clearNoteStaleStatusService", () => ({
   clearNoteStaleStatusService: mocks.clearNoteStaleStatusService,
+}));
+
+vi.mock("@vscode/services/runtimeState/confirmRuntimeNoteStaleStatusService", () => ({
+  confirmRuntimeNoteStaleStatusService: mocks.confirmRuntimeNoteStaleStatusService,
 }));
 
 vi.mock("@vscode/services/deleteNavigatorFileNotesService", () => ({
@@ -206,6 +211,7 @@ describe("NotesViewProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.clearNoteStaleStatusService.mockReset();
+    mocks.confirmRuntimeNoteStaleStatusService.mockReset();
     mocks.deleteNavigatorFileNotesService.mockReset();
     mocks.deleteNavigatorLineNoteService.mockReset();
     mocks.deleteNavigatorSectionNoteService.mockReset();
@@ -1418,6 +1424,52 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("routes Runtime stale confirmation through the hash-guarded service", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
+    const view = createWebviewView();
+
+    mockAllowedResource("src/index.ts");
+    mocks.confirmRuntimeNoteStaleStatusService.mockResolvedValue({
+      kind: "confirmed",
+    });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      fileNote: {
+        userNote: "Needs review.",
+        status: {
+          content: "current",
+          anchor: "confirmed",
+        },
+      },
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    registry.setState(createRuntimeFileState("src/index.ts"));
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(uri);
+    mocks.messageListeners[0]?.({
+      type: "clearNoteStaleStatus",
+      target: { level: "file" },
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.confirmRuntimeNoteStaleStatusService).toHaveBeenCalledOnce(),
+    );
+    expect(mocks.clearNoteStaleStatusService).not.toHaveBeenCalled();
+    expect(mocks.confirmRuntimeNoteStaleStatusService).toHaveBeenCalledWith({
+      uri,
+      notes: {},
+      registry,
+      target: { level: "file" },
+    });
+    provider.dispose();
+  });
+
   it("resolves stale content for a Navigator file item and refreshes Navigator notes", async () => {
     const workspaceRoot = "/tmp";
     const uri = createUri(`${workspaceRoot}/current.ts`);
@@ -1486,6 +1538,99 @@ describe("NotesViewProvider", () => {
       }),
     });
 
+    provider.dispose();
+  });
+
+  it("shows missing-source Clear stale failures in the CZaza Notice UI", async () => {
+    const workspaceRoot = "/Users/leo/Projects/DocuMind";
+    const uri = createUri(`${workspaceRoot}/current.ts`);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    const missingError = new Error(
+      `Error: ENOENT: no such file or directory, stat '${workspaceRoot}/testb.ts'`,
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    mocks.clearNoteStaleStatusService.mockRejectedValue(missingError);
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "current.ts",
+      relativePath: "current.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({
+      type: "clearVisibleNavigatorStaleContent",
+      targets: [{ level: "file", relativePath: "testb.ts" }],
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "notice",
+        notice: {
+          tone: "error",
+          title: "Source File Not Found",
+          message:
+            "testb.ts no longer exists. Relocate or delete its stale Notes before trying again.",
+          actions: [{ label: "Close", variant: "primary" }],
+        },
+      }),
+    );
+    expect(mocks.showErrorMessage).not.toHaveBeenCalled();
+    provider.dispose();
+  });
+
+  it("shows ordinary Clear stale failures in the CZaza Notice UI", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+
+    mocks.clearNoteStaleStatusService.mockRejectedValue(
+      new Error("Error: Unable to update the Note Store."),
+    );
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      fileNote: {
+        status: { content: "stale", anchor: "confirmed" },
+      },
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(uri);
+    mocks.messageListeners[0]?.({
+      type: "clearNoteStaleStatus",
+      target: { level: "file" },
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "notice",
+        notice: {
+          tone: "error",
+          title: "Could Not Clear Stale Content",
+          message: "Unable to update the Note Store.",
+          actions: [{ label: "Close", variant: "primary" }],
+        },
+      }),
+    );
+    expect(mocks.showErrorMessage).not.toHaveBeenCalled();
     provider.dispose();
   });
 

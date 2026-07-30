@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:47e7f4de387c20c46006db2d00f625c40073afa27d3322faf78bce4623d82e5a",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-07-30T00:28:35.025Z",
+    "updatedAt": "2026-07-30T00:33:06.151Z"
+  },
+  "fileNote": {
+    "userNote": "集中管理状态菜单的可用性。\ncanClearContentStaleStatus：判断 Clear stale 是否可以点击。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
