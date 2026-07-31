@@ -64,16 +64,8 @@ export async function relocateFileNoteService(
   const targetUri = vscode.Uri.file(targetPath);
 
   try {
-    const stat = await vscode.workspace.fs.stat(targetUri);
-
-    if (stat.type & vscode.FileType.Directory) {
-      throw new Error("Choose a file path, not a directory.");
-    }
-  } catch (error) {
-    if (error instanceof Error && error.message === "Choose a file path, not a directory.") {
-      throw error;
-    }
-
+    await vscode.workspace.fs.stat(targetUri);
+  } catch {
     throw new Error(`${toRelativePath} does not exist.`);
   }
 

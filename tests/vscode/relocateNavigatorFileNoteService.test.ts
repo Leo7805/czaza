@@ -103,6 +103,37 @@ describe("relocateFileNoteService()", () => {
     expect(oldSourceFile).toBeUndefined();
   });
 
+  it("moves a file note to an existing directory and confirms its anchor", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("directory-target");
+    const notes = await createStoreWithSourceFile(workspaceRoot, "src/old.ts");
+
+    await mkdir(path.join(workspaceRoot, "src/components"), { recursive: true });
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+
+    const result = await relocateFileNoteService({
+      currentUri: createUri(path.join(workspaceRoot, "src/old.ts")),
+      notes,
+      fromRelativePath: "src/old.ts",
+      toRelativePath: "src/components",
+    });
+    const movedSourceFile = await notes.cache.getSourceFile(
+      workspaceRoot,
+      ".caca",
+      "src/components",
+    );
+
+    expect(result).toMatchObject({
+      previousRelativePath: "src/old.ts",
+      nextRelativePath: "src/components",
+    });
+    expect(result.targetUri.fsPath).toBe(path.join(workspaceRoot, "src/components"));
+    expect(movedSourceFile?.fileNote?.status).toEqual({
+      content: "stale",
+      anchor: "confirmed",
+    });
+    expect(await notes.cache.getSourceFile(workspaceRoot, ".caca", "src/old.ts")).toBeUndefined();
+  });
+
   it("rejects a target path that does not exist", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("missing-target");
     const notes = await createStoreWithSourceFile(workspaceRoot, "src/old.ts");
