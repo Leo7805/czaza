@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:409456495e21a017a4561dc6bdcf5b9e070b512345760296ffb7e0c437f9b7a2",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T23:20:19.515Z",
+    "updatedAt": "2026-08-12T23:20:19.515Z"
+  },
+  "fileNote": {
+    "userNote": "loadIndex / saveIndex：读取和原子写入根身份索引。\ncreateMemberStore：创建与 Team 格式一致的空 Note Store，拒绝覆盖已有目录。\nmemberStoreExists：检查成员 Store 是否存在",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -202,6 +202,10 @@
         "title": "CZaza: Show Notes"
       },
       {
+        "command": "czaza.selectPersonalIdentity",
+        "title": "CZaza: Select Personal Identity"
+      },
+      {
         "command": "czaza.showProjectNotes",
         "title": "CZaza: Show Project Notes",
         "icon": "$(book)"

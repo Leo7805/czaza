@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:e812986484d1b7bd3339c4b32cf3160f8168369a9465f817e161d2c5c05ea956",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T23:20:30.877Z",
+    "updatedAt": "2026-08-12T23:20:30.877Z"
+  },
+  "fileNote": {
+    "userNote": "listMembers / findByEmail：列出并匹配已有身份。\ncreateIdentity：创建身份、身份索引记录和标准成员 Store。\nbindCurrentIdentity / getCurrentIdentity：按项目保存并读取本机身份绑定。\nhash 短前缀冲突时自动增加长度",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

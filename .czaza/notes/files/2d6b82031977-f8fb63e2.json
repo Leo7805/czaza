@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:2987bc0b6bd61209216d6e7830fbc608b3f755ca031d13f540b20b866f970657",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T23:20:09.285Z",
+    "updatedAt": "2026-08-12T23:20:09.285Z"
+  },
+  "fileNote": {
+    "userNote": "readGitIdentity：读取当前仓库生效的 Git name/email。\ncreateEmailIdentityHash：基于规范化 email 生成 SHA-256。\ncreatePersonalMemberId：生成“名称 slug + hash 前缀”的成员 ID",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

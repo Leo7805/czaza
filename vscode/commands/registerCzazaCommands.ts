@@ -7,10 +7,12 @@ import * as vscode from "vscode";
 import { registerCopyForAICommands } from "@vscode/copyForAI/registerCopyForAICommands";
 import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
+import type { PersonalIdentityService } from "@vscode/personalNotes";
 
 import { registerAddNoteCommands } from "./addNoteCommands";
 import { registerApiKeyManagementCommand } from "./apiKeyManagementCommand";
 import { registerShowCurrentSettingsCommand } from "./showCurrentSettingsCommand";
+import { registerSelectPersonalIdentityCommand } from "./selectPersonalIdentityCommand";
 
 /**
  * Dependencies required to register command handlers.
@@ -26,6 +28,9 @@ export type RegisterCzazaCommandsInput = {
 
   /** Notes provider used to open User Note editing. */
   notesProvider: NotesViewProvider;
+
+  /** Personal Notes identity selection and persistence service. */
+  personalIdentities: PersonalIdentityService;
 };
 
 /**
@@ -47,4 +52,5 @@ export function registerCzazaCommands(input: RegisterCzazaCommandsInput): void {
   });
   registerApiKeyManagementCommand(input.context);
   registerShowCurrentSettingsCommand(input.context);
+  registerSelectPersonalIdentityCommand(input.context, input.personalIdentities);
 }

@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:c3d9c63b25e424c1f001edbd8e7be32452f886cc4a9afd8ca478f0ab3960845a",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T23:20:52.553Z",
+    "updatedAt": "2026-08-12T23:20:52.553Z"
+  },
+  "fileNote": {
+    "userNote": "新增 CZaza: Select Personal Identity。\n支持 Git 身份匹配、创建、手工输入、选择已有身份及切换确认。\nEmail 明文不会写入仓库。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

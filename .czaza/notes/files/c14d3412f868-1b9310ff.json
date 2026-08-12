@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:c6da4a15c590aa9f8dcb7e284c04aab0269541d70045b7f564527c3024788685",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T23:19:57.821Z",
+    "updatedAt": "2026-08-12T23:19:57.821Z"
+  },
+  "fileNote": {
+    "userNote": "新增身份索引及成员数据模型。\nisPersonalIdentityIndexV1：验证完整身份索引、成员 ID 和 email hash。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

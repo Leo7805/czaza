@@ -25,6 +25,7 @@ import {
 } from "./services/noteRelocation";
 import { RuntimeNoteStateRegistry } from "./services/runtimeState";
 import { ChangeTaskCoordinator } from "./services/changeCoordination";
+import { PersonalIdentityService } from "./personalNotes";
 
 /**
  * Activates the CZaza VS Code extension.
@@ -44,6 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const runtimeNoteStateRegistry = new RuntimeNoteStateRegistry();
   const sourceRelocationHistory = new SourceRelocationHistoryService();
   const changeTaskCoordinator = new ChangeTaskCoordinator(800);
+  const personalIdentities = new PersonalIdentityService(context.workspaceState);
   context.subscriptions.push(changeTaskCoordinator);
 
   // React-based notes panel provider for the new notes architecture.
@@ -64,7 +66,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // 2. Register command palette and context-menu commands.
   // ---------------------------------------------------------------------------
 
-  registerCzazaCommands({ context, notes, notesProvider });
+  registerCzazaCommands({ context, notes, notesProvider, personalIdentities });
 
   // ---------------------------------------------------------------------------
   // 3. Register lifecycle checks that are not user commands.

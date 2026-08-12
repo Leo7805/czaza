@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.2.0
+documentVersion: 1.3.0
 status: proposed
 createdAt: 2026-08-13
 updatedAt: 2026-08-13
@@ -43,4 +43,5 @@ flowchart TD
 - Email 明文不写入仓库；email hash 用于跨设备匹配已有身份和减少重名冲突。
 - Email hash 不是认证凭据，也不提供隐私保护；身份隔离只用于界面提示和防止误操作。
 - “个人”表示个人维护，不表示内容私密；提交到 Git 后团队成员可以读取。
-- 具体界面切换、迁移和运行时行为尚未设计。
+- 身份索引、Git 身份匹配、首次确认命令和本机工作区绑定已实现。
+- Personal Notes CRUD、范围切换、迁移和 Runtime State 接入尚未实现。

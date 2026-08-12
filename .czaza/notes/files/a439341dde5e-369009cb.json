@@ -6,10 +6,10 @@
   },
   "defaults": {
     "createdAt": "2026-07-26T11:26:35.078Z",
-    "updatedAt": "2026-07-30T13:05:05.578Z"
+    "updatedAt": "2026-08-12T23:21:19.396Z"
   },
   "fileNote": {
-    "userNote": "CZaza VS Code 扩展入口，负责创建共享服务并注册功能。\nactivate — 新增 transition guard，接入 Git HEAD 监听，并将 guard 传给 Notes 内容事件模块。\n\n\nactivate：创建共享 SourceRelocationHistoryService，同时传给内容事件和资源事件。",
+    "userNote": "CZaza VS Code 扩展入口，负责创建共享服务并注册功能。\nactivate — 新增 transition guard，接入 Git HEAD 监听，并将 guard 传给 Notes 内容事件模块。\n\n\nactivate：创建共享 SourceRelocationHistoryService，同时传给内容事件和资源事件。\n\n创建共享 PersonalIdentityService。",
     "createdBy": "user"
   },
   "sectionNotes": {},

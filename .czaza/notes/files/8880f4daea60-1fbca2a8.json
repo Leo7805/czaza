@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:7c41025055a92923f11c03190623d1793ea186a87444915bedc7285a485ba8ac",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T23:21:00.752Z",
+    "updatedAt": "2026-08-12T23:21:00.752Z"
+  },
+  "fileNote": {
+    "userNote": "注册身份选择命令。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
