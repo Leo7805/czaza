@@ -20,6 +20,8 @@ import {
   upsertLineNote as upsertLineNotePure,
   upsertSectionNote as upsertSectionNotePure,
 } from "@shared/services/notes/sourceFileNoteCrudService";
+import type { NoteStoreLocation } from "./NoteStoreLocation";
+import type { NoteStorePersistenceOptions } from "./WorkspaceNoteStoreRepository";
 
 /**
  * Dependencies required by workspace note CRUD helpers.
@@ -33,6 +35,7 @@ export type WorkspaceNoteCrudDependencies = {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile | undefined>;
 
   /** Reads one source-file note JSON and throws when absent. */
@@ -40,6 +43,7 @@ export type WorkspaceNoteCrudDependencies = {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile>;
 
   /** Saves one updated source-file note JSON. */
@@ -49,6 +53,8 @@ export type WorkspaceNoteCrudDependencies = {
     relativeFilePath: string,
     sourceFile: StoredSourceFile,
     now: string,
+    options?: NoteStorePersistenceOptions,
+    location?: NoteStoreLocation,
   ): Promise<void>;
 };
 
@@ -63,8 +69,9 @@ export async function getFileNote(
   workspaceRoot: string,
   outputDirectory: string,
   relativeFilePath: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredFileNote | undefined> {
-  const sourceFile = await deps.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
 
   return sourceFile ? getFileNotePure(sourceFile) : undefined;
 }
@@ -82,11 +89,12 @@ export async function upsertFileNote(
   relativeFilePath: string,
   fileNote: FileNoteUpsertInput,
   now: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredSourceFile> {
-  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
   const next = upsertFileNotePure(sourceFile, fileNote, now);
 
-  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
+  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now, {}, location);
 
   return next;
 }
@@ -103,11 +111,12 @@ export async function deleteFileNote(
   outputDirectory: string,
   relativeFilePath: string,
   now: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredSourceFile> {
-  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
   const next = deleteFileNotePure(sourceFile);
 
-  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
+  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now, {}, location);
 
   return next;
 }
@@ -124,8 +133,9 @@ export async function getSectionNote(
   outputDirectory: string,
   relativeFilePath: string,
   sectionId: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredSectionNote | undefined> {
-  const sourceFile = await deps.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
 
   return sourceFile ? getSectionNotePure(sourceFile, sectionId) : undefined;
 }
@@ -143,11 +153,12 @@ export async function upsertSectionNote(
   relativeFilePath: string,
   sectionNote: SectionNoteUpsertInput,
   now: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredSourceFile> {
-  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
   const next = upsertSectionNotePure(sourceFile, sectionNote, now);
 
-  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
+  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now, {}, location);
 
   return next;
 }
@@ -165,11 +176,12 @@ export async function deleteSectionNote(
   relativeFilePath: string,
   sectionId: string,
   now: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredSourceFile> {
-  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
   const next = deleteSectionNotePure(sourceFile, sectionId);
 
-  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
+  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now, {}, location);
 
   return next;
 }
@@ -186,8 +198,9 @@ export async function getLineNote(
   outputDirectory: string,
   relativeFilePath: string,
   lineId: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredLineNote | undefined> {
-  const sourceFile = await deps.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
 
   return sourceFile ? getLineNotePure(sourceFile, lineId) : undefined;
 }
@@ -205,11 +218,12 @@ export async function upsertLineNote(
   relativeFilePath: string,
   lineNote: LineNoteUpsertInput,
   now: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredSourceFile> {
-  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
   const next = upsertLineNotePure(sourceFile, lineNote, now);
 
-  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
+  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now, {}, location);
 
   return next;
 }
@@ -227,11 +241,12 @@ export async function deleteLineNote(
   relativeFilePath: string,
   lineId: string,
   now: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredSourceFile> {
-  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+  const sourceFile = await deps.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
   const next = deleteLineNotePure(sourceFile, lineId);
 
-  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
+  await deps.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now, {}, location);
 
   return next;
 }

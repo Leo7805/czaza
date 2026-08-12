@@ -11,20 +11,16 @@ import * as path from "node:path";
  * @param workspaceRoot - Absolute CZaza root directory.
  * @param outputDirectory - Configured CZaza output directory.
  * @param relativePath - CZaza-root-relative candidate resource path.
- * @returns True only for `<outputDirectory>/notes/**`.
+ * @returns True for Team or Personal Note Store paths.
  */
 export function isCzazaNoteStoreRelativePath(
   workspaceRoot: string,
   outputDirectory: string,
   relativePath: string,
 ): boolean {
-  const outputRoot = path.resolve(workspaceRoot, outputDirectory, "notes");
   const candidate = path.resolve(workspaceRoot, relativePath);
-  const relativeToOutput = path.relative(outputRoot, candidate);
-
-  return (
-    relativeToOutput === "" ||
-    (!relativeToOutput.startsWith("..") && !path.isAbsolute(relativeToOutput))
+  return ["notes", "personal-notes"].some((directory) =>
+    isPathInsideDirectory(candidate, path.resolve(workspaceRoot, outputDirectory, directory)),
   );
 }
 

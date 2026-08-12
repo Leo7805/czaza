@@ -8,6 +8,11 @@ import {
   type NoteStorePersistenceOptions,
   WorkspaceNoteStoreRepository,
 } from "./WorkspaceNoteStoreRepository";
+import {
+  getNoteStoreLocationKey,
+  type NoteStoreLocation,
+  TEAM_NOTE_STORE,
+} from "./NoteStoreLocation";
 
 /**
  * Coordinates repository IO with in-memory workspace note caches.
@@ -43,11 +48,11 @@ export class WorkspaceNoteStoreCache {
    * @example
    * const index = await cache.loadIndex("/workspace/project", ".czaza");
    */
-  async loadIndex(workspaceRoot: string, outputDirectory: string): Promise<WorkspaceNoteIndexV2 | null> {
-    const key = getWorkspaceCacheKey(workspaceRoot, outputDirectory);
+  async loadIndex(workspaceRoot: string, outputDirectory: string, location: NoteStoreLocation = TEAM_NOTE_STORE): Promise<WorkspaceNoteIndexV2 | null> {
+    const key = getWorkspaceCacheKey(workspaceRoot, outputDirectory, location);
 
     if (!this.indexCache.has(key)) {
-      this.indexCache.set(key, await this.repository.loadIndex(workspaceRoot, outputDirectory));
+      this.indexCache.set(key, await this.repository.loadIndex(workspaceRoot, outputDirectory, location));
     }
 
     return this.indexCache.get(key) ?? null;
@@ -62,10 +67,10 @@ export class WorkspaceNoteStoreCache {
    * @example
    * cache.clearCache("/workspace/project", ".czaza");
    */
-  clearCache(workspaceRoot: string, outputDirectory: string): void {
-    const prefix = `${getWorkspaceCacheKey(workspaceRoot, outputDirectory)}::`;
+  clearCache(workspaceRoot: string, outputDirectory: string, location: NoteStoreLocation = TEAM_NOTE_STORE): void {
+    const prefix = `${getWorkspaceCacheKey(workspaceRoot, outputDirectory, location)}::`;
 
-    this.indexCache.delete(getWorkspaceCacheKey(workspaceRoot, outputDirectory));
+    this.indexCache.delete(getWorkspaceCacheKey(workspaceRoot, outputDirectory, location));
 
     for (const key of this.sourceFileCache.keys()) {
       if (key.startsWith(prefix)) {
@@ -89,13 +94,14 @@ export class WorkspaceNoteStoreCache {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<StoredSourceFile | undefined> {
-    const key = getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath);
+    const key = getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath, location);
 
     if (!this.sourceFileCache.has(key)) {
       this.sourceFileCache.set(
         key,
-        await this.repository.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath),
+        await this.repository.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location),
       );
     }
 
@@ -123,6 +129,7 @@ export class WorkspaceNoteStoreCache {
     sourceFile: StoredSourceFile,
     now: string,
     options: NoteStorePersistenceOptions = {},
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<void> {
     const result = await this.repository.saveSourceFile(
       workspaceRoot,
@@ -131,20 +138,21 @@ export class WorkspaceNoteStoreCache {
       sourceFile,
       now,
       options,
+      location,
     );
 
     if (result === "cancelled") {
-      this.clearCache(workspaceRoot, outputDirectory);
+      this.clearCache(workspaceRoot, outputDirectory, location);
       return;
     }
 
     this.sourceFileCache.set(
-      getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath),
+      getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath, location),
       sourceFile,
     );
     this.indexCache.set(
-      getWorkspaceCacheKey(workspaceRoot, outputDirectory),
-      await this.repository.loadIndex(workspaceRoot, outputDirectory),
+      getWorkspaceCacheKey(workspaceRoot, outputDirectory, location),
+      await this.repository.loadIndex(workspaceRoot, outputDirectory, location),
     );
   }
 
@@ -162,10 +170,11 @@ export class WorkspaceNoteStoreCache {
     outputDirectory: string,
     relativeFilePath: string,
     noteFile: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<void> {
-    await this.repository.deleteSourceFileNoteFile(workspaceRoot, outputDirectory, noteFile);
+    await this.repository.deleteSourceFileNoteFile(workspaceRoot, outputDirectory, noteFile, location);
     this.sourceFileCache.set(
-      getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath),
+      getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath, location),
       undefined,
     );
   }
@@ -185,8 +194,9 @@ export class WorkspaceNoteStoreCache {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+    const sourceFile = await this.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
 
     if (!sourceFile) {
       throw new Error(`Source file notes are not initialized: ${relativeFilePath}`);
@@ -207,8 +217,9 @@ export class WorkspaceNoteStoreCache {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<StoredSourceFile | undefined> {
-    const index = await this.loadIndex(workspaceRoot, outputDirectory);
+    const index = await this.loadIndex(workspaceRoot, outputDirectory, location);
     if (!index) {
       return undefined;
     }
@@ -219,7 +230,7 @@ export class WorkspaceNoteStoreCache {
     );
 
     return matchedPath !== undefined
-      ? this.getSourceFile(workspaceRoot, outputDirectory, matchedPath)
+      ? this.getSourceFile(workspaceRoot, outputDirectory, matchedPath, location)
       : undefined;
   }
 
@@ -242,11 +253,12 @@ export class WorkspaceNoteStoreCache {
     relativeFilePath: string,
     now: string,
     update: (sourceFile: StoredSourceFile) => StoredSourceFile,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<StoredSourceFile> {
-    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath);
+    const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
     const next = update(sourceFile);
 
-    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now);
+    await this.saveSourceFile(workspaceRoot, outputDirectory, relativeFilePath, next, now, {}, location);
 
     return next;
   }
@@ -264,8 +276,9 @@ export class WorkspaceNoteStoreCache {
   async getRequiredIndex(
     workspaceRoot: string,
     outputDirectory: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<WorkspaceNoteIndexV2> {
-    const index = await this.loadIndex(workspaceRoot, outputDirectory);
+    const index = await this.loadIndex(workspaceRoot, outputDirectory, location);
 
     if (!index) {
       throw new Error(`Workspace note index is not initialized: ${outputDirectory}`);
@@ -285,8 +298,9 @@ export class WorkspaceNoteStoreCache {
  * @example
  * const key = getWorkspaceCacheKey("/workspace/project", ".czaza");
  */
-function getWorkspaceCacheKey(workspaceRoot: string, outputDirectory: string): string {
-  return `${workspaceRoot}::${outputDirectory}`;
+function getWorkspaceCacheKey(workspaceRoot: string, outputDirectory: string, location: NoteStoreLocation = TEAM_NOTE_STORE): string {
+  const baseKey = `${workspaceRoot}::${outputDirectory}`;
+  return location.kind === "team" ? baseKey : `${baseKey}::${getNoteStoreLocationKey(location)}`;
 }
 
 /**
@@ -304,6 +318,7 @@ function getSourceFileCacheKey(
   workspaceRoot: string,
   outputDirectory: string,
   relativeFilePath: string,
+  location: NoteStoreLocation = TEAM_NOTE_STORE,
 ): string {
-  return `${getWorkspaceCacheKey(workspaceRoot, outputDirectory)}::${relativeFilePath}`;
+  return `${getWorkspaceCacheKey(workspaceRoot, outputDirectory, location)}::${relativeFilePath}`;
 }

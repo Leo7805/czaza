@@ -23,6 +23,7 @@ import {
   upsertSectionNote,
 } from "./workspaceNoteStoreCrud";
 import { WorkspaceNoteStoreCache } from "./WorkspaceNoteStoreCache";
+import type { NoteStoreLocation } from "./NoteStoreLocation";
 
 /**
  * Coordinates note CRUD operations using the shared note store cache.
@@ -61,8 +62,9 @@ export class WorkspaceNoteCrudManager {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredFileNote | undefined> {
-    return getFileNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath);
+    return getFileNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, location);
   }
 
   /**
@@ -84,8 +86,9 @@ export class WorkspaceNoteCrudManager {
     relativeFilePath: string,
     fileNote: FileNoteUpsertInput,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
-    return upsertFileNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, fileNote, now);
+    return upsertFileNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, fileNote, now, location);
   }
 
   /**
@@ -105,8 +108,9 @@ export class WorkspaceNoteCrudManager {
     outputDirectory: string,
     relativeFilePath: string,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
-    return deleteFileNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, now);
+    return deleteFileNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, now, location);
   }
 
   /**
@@ -126,8 +130,9 @@ export class WorkspaceNoteCrudManager {
     outputDirectory: string,
     relativeFilePath: string,
     sectionId: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSectionNote | undefined> {
-    return getSectionNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sectionId);
+    return getSectionNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sectionId, location);
   }
 
   /**
@@ -149,8 +154,9 @@ export class WorkspaceNoteCrudManager {
     relativeFilePath: string,
     sectionNote: SectionNoteUpsertInput,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
-    return upsertSectionNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sectionNote, now);
+    return upsertSectionNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sectionNote, now, location);
   }
 
   /**
@@ -172,8 +178,9 @@ export class WorkspaceNoteCrudManager {
     relativeFilePath: string,
     sectionId: string,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
-    return deleteSectionNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sectionId, now);
+    return deleteSectionNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sectionId, now, location);
   }
 
   /**
@@ -193,8 +200,9 @@ export class WorkspaceNoteCrudManager {
     outputDirectory: string,
     relativeFilePath: string,
     lineId: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredLineNote | undefined> {
-    return getLineNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, lineId);
+    return getLineNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, lineId, location);
   }
 
   /**
@@ -216,8 +224,9 @@ export class WorkspaceNoteCrudManager {
     relativeFilePath: string,
     lineNote: LineNoteUpsertInput,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
-    return upsertLineNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, lineNote, now);
+    return upsertLineNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, lineNote, now, location);
   }
 
   /**
@@ -239,7 +248,8 @@ export class WorkspaceNoteCrudManager {
     relativeFilePath: string,
     lineId: string,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
-    return deleteLineNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, lineId, now);
+    return deleteLineNote(this.cache, workspaceRoot, outputDirectory, relativeFilePath, lineId, now, location);
   }
 }

@@ -15,8 +15,13 @@ import {
 import { createSourceHash } from "@shared/utils/hashUtils";
 import { isCzazaNoteStoreRelativePath } from "@shared/utils/managedOutputPath";
 import { WorkspaceNoteStoreWriteCoordinator } from "./WorkspaceNoteStoreWriteCoordinator";
+import {
+  getNoteStoreLocationKey,
+  getNoteStorePathSegments,
+  type NoteStoreLocation,
+  TEAM_NOTE_STORE,
+} from "./NoteStoreLocation";
 
-const NOTES_DIR_NAME = "notes";
 const FILES_DIR_NAME = "files";
 const INDEX_FILE_NAME = "index.json";
 const PATH_HASH_PREFIX_LENGTH = 12;
@@ -88,9 +93,10 @@ export class WorkspaceNoteStoreRepository {
   async loadIndex(
     workspaceRoot: string,
     outputDirectory: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<WorkspaceNoteIndexV2 | null> {
     try {
-      const raw = await readFile(getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory), "utf-8");
+      const raw = await readFile(getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory, location), "utf-8");
       const parsed = JSON.parse(raw) as unknown;
 
       return isWorkspaceNoteIndexV2(parsed) ? parsed : null;
@@ -114,8 +120,9 @@ export class WorkspaceNoteStoreRepository {
     workspaceRoot: string,
     outputDirectory: string,
     index: WorkspaceNoteIndexV2,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<void> {
-    const indexPath = getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory);
+    const indexPath = getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory, location);
 
     await mkdir(path.dirname(indexPath), { recursive: true });
     await writeJsonFile(indexPath, index);
@@ -136,8 +143,9 @@ export class WorkspaceNoteStoreRepository {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<StoredSourceFile | undefined> {
-    const entry = (await this.loadIndex(workspaceRoot, outputDirectory))?.files[relativeFilePath];
+    const entry = (await this.loadIndex(workspaceRoot, outputDirectory, location))?.files[relativeFilePath];
 
     if (!entry) {
       return undefined;
@@ -145,7 +153,7 @@ export class WorkspaceNoteStoreRepository {
 
     try {
       const raw = await readFile(
-        getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, entry.noteFile),
+        getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, entry.noteFile, location),
         "utf-8",
       );
       const parsed = JSON.parse(raw) as unknown;
@@ -176,19 +184,20 @@ export class WorkspaceNoteStoreRepository {
     sourceFile: StoredSourceFile,
     now: string,
     options: NoteStorePersistenceOptions = {},
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<SaveSourceFileResult> {
     if (isCzazaNoteStoreRelativePath(workspaceRoot, outputDirectory, relativeFilePath)) {
       throw new Error("CZaza Note Store files cannot be stored as source-note entries.");
     }
 
-    const storeKey = `${path.resolve(workspaceRoot)}::${outputDirectory}`;
+    const storeKey = `${path.resolve(workspaceRoot)}::${outputDirectory}::${getNoteStoreLocationKey(location)}`;
 
     return this.writeCoordinator.run(storeKey, async () => {
       if (options.canPersist?.() === false) {
         return "cancelled";
       }
 
-      const snapshot = await readIndexSnapshotForUpdate(workspaceRoot, outputDirectory);
+      const snapshot = await readIndexSnapshotForUpdate(workspaceRoot, outputDirectory, location);
 
       if (options.canPersist?.() === false) {
         return "cancelled";
@@ -197,7 +206,7 @@ export class WorkspaceNoteStoreRepository {
       const existing = snapshot.kind === "valid" ? snapshot.index : null;
       const existingEntry = existing?.files[relativeFilePath];
       const existingSourceFileSnapshot = existingEntry
-        ? await readStoredSourceFile(workspaceRoot, outputDirectory, existingEntry.noteFile)
+        ? await readStoredSourceFile(workspaceRoot, outputDirectory, existingEntry.noteFile, location)
         : undefined;
 
       if (existingSourceFileSnapshot?.kind === "unreadable") {
@@ -218,7 +227,7 @@ export class WorkspaceNoteStoreRepository {
 
       if (
         options.canPersist?.() === false ||
-        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot)) ||
+        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot, location)) ||
         (existingEntry &&
           existingSourceFileSnapshot?.kind === "valid" &&
           !(await isStoredSourceFileSnapshotCurrent(
@@ -226,6 +235,7 @@ export class WorkspaceNoteStoreRepository {
             outputDirectory,
             existingEntry.noteFile,
             existingSourceFileSnapshot.raw,
+            location,
           )))
       ) {
         return "cancelled";
@@ -246,16 +256,18 @@ export class WorkspaceNoteStoreRepository {
         outputDirectory,
         noteFile,
         sourceFile,
+        location,
       );
 
       if (
         options.canPersist?.() === false ||
-        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot)) ||
+        !(await isIndexSnapshotCurrent(workspaceRoot, outputDirectory, snapshot, location)) ||
         !(await isStoredSourceFileSnapshotCurrent(
           workspaceRoot,
           outputDirectory,
           noteFile,
           writtenSourceFileRaw,
+          location,
         ))
       ) {
         return "cancelled";
@@ -275,7 +287,7 @@ export class WorkspaceNoteStoreRepository {
         },
       };
 
-      await this.saveIndex(workspaceRoot, outputDirectory, nextIndex);
+      await this.saveIndex(workspaceRoot, outputDirectory, nextIndex, location);
       return "saved";
     });
   }
@@ -292,9 +304,10 @@ export class WorkspaceNoteStoreRepository {
     workspaceRoot: string,
     outputDirectory: string,
     noteFile: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
   ): Promise<void> {
     try {
-      await unlink(getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile));
+      await unlink(getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile, location));
     } catch {
       // Missing note JSON is acceptable when deleting an index entry.
     }
@@ -335,8 +348,9 @@ function hasIndexedSourceFileChange(
 async function readIndexSnapshotForUpdate(
   workspaceRoot: string,
   outputDirectory: string,
+  location: NoteStoreLocation,
 ): Promise<IndexSnapshot> {
-  const indexPath = getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory);
+  const indexPath = getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory, location);
 
   try {
     const raw = await readFile(indexPath, "utf-8");
@@ -372,10 +386,11 @@ async function isIndexSnapshotCurrent(
   workspaceRoot: string,
   outputDirectory: string,
   snapshot: IndexSnapshot,
+  location: NoteStoreLocation,
 ): Promise<boolean> {
   try {
     const raw = await readFile(
-      getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory),
+      getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory, location),
       "utf-8",
     );
 
@@ -397,10 +412,11 @@ async function readStoredSourceFile(
   workspaceRoot: string,
   outputDirectory: string,
   noteFile: string,
+  location: NoteStoreLocation,
 ): Promise<StoredSourceFileSnapshot> {
   try {
     const raw = await readFile(
-      getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile),
+      getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile, location),
       "utf-8",
     );
 
@@ -428,10 +444,11 @@ async function isStoredSourceFileSnapshotCurrent(
   outputDirectory: string,
   noteFile: string,
   expectedRaw: string,
+  location: NoteStoreLocation,
 ): Promise<boolean> {
   try {
     const currentRaw = await readFile(
-      getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile),
+      getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile, location),
       "utf-8",
     );
 
@@ -497,8 +514,12 @@ function isSameStoredSourceFile(
  * @example
  * const indexPath = getWorkspaceNoteIndexPath("/workspace/project", ".czaza");
  */
-export function getWorkspaceNoteIndexPath(workspaceRoot: string, outputDirectory: string): string {
-  return path.join(workspaceRoot, outputDirectory, NOTES_DIR_NAME, INDEX_FILE_NAME);
+export function getWorkspaceNoteIndexPath(
+  workspaceRoot: string,
+  outputDirectory: string,
+  location: NoteStoreLocation = TEAM_NOTE_STORE,
+): string {
+  return path.join(workspaceRoot, outputDirectory, ...getNoteStorePathSegments(location), INDEX_FILE_NAME);
 }
 
 /**
@@ -516,8 +537,9 @@ export function getWorkspaceNoteFilePath(
   workspaceRoot: string,
   outputDirectory: string,
   noteFile: string,
+  location: NoteStoreLocation = TEAM_NOTE_STORE,
 ): string {
-  return path.join(workspaceRoot, outputDirectory, NOTES_DIR_NAME, ...noteFile.split("/"));
+  return path.join(workspaceRoot, outputDirectory, ...getNoteStorePathSegments(location), ...noteFile.split("/"));
 }
 
 /**
@@ -631,8 +653,9 @@ async function writeStoredSourceFile(
   outputDirectory: string,
   noteFile: string,
   sourceFile: StoredSourceFile,
+  location: NoteStoreLocation,
 ): Promise<string> {
-  const notePath = getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile);
+  const notePath = getWorkspaceNoteFilePath(workspaceRoot, outputDirectory, noteFile, location);
   const raw = `${JSON.stringify(encodeSourceFileDocument(sourceFile), null, 2)}\n`;
 
   await mkdir(path.dirname(notePath), { recursive: true });

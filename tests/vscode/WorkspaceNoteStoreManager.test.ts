@@ -115,13 +115,13 @@ describe("WorkspaceNoteStore", () => {
     ]);
     expect(persisted?.lineNotes).toEqual([]);
     expect(JSON.parse(indexRaw) as unknown).toMatchObject({
-      updatedAt: later,
+      updatedAt: createdAt,
       files: {
         [relativeFilePath]: {
           noteFile: createWorkspaceNoteFileName(relativeFilePath, randomId),
           sourceHash: "sha256:source",
           programmingLanguage: "typescript",
-          updatedAt: later,
+          updatedAt: createdAt,
         },
       },
     });
