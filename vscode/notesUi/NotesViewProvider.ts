@@ -1433,14 +1433,25 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     try {
       await this.saveUserNote(uri, target, userNote);
-
-      if (this.currentResourceUri?.toString() === resourceKey) {
-        await this.loadResourceNotes(uri, false, getActiveLine(uri));
-      }
     } catch (error) {
       await this.postNotice({
         tone: "error",
         title: "Could Not Save User Note",
+        message: getErrorMessage(error),
+      });
+      return;
+    }
+
+    if (this.currentResourceUri?.toString() !== resourceKey) {
+      return;
+    }
+
+    try {
+      await this.loadResourceNotes(uri, false, getActiveLine(uri));
+    } catch (error) {
+      await this.postNotice({
+        tone: "error",
+        title: "User Note Saved, but View Refresh Failed",
         message: getErrorMessage(error),
       });
     }

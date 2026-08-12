@@ -24,6 +24,19 @@ const later = "2026-07-14T00:00:00.000Z";
 const randomId = "fixed001";
 
 describe("WorkspaceNoteStore", () => {
+  it("reads project-root notes through case-insensitive path matching", async () => {
+    const root = await createTempWorkspaceRoot();
+    const repository = new WorkspaceNoteStoreRepository(() => randomId);
+    const notes = new WorkspaceNoteStore(repository);
+    const sourceFile = createStoredSourceFile();
+
+    await notes.cache.saveSourceFile(root, outputDirectory, "", sourceFile, createdAt);
+
+    expect(await notes.cache.getSourceFileCaseInsensitive(root, outputDirectory, "")).toEqual(
+      sourceFile,
+    );
+  });
+
   it("manages file, section, and line note CRUD with repository persistence", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);

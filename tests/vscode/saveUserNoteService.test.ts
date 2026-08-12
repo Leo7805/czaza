@@ -424,6 +424,32 @@ describe("saveUserNoteService()", () => {
     expect(stored.source.programmingLanguage).toBeUndefined();
   });
 
+  it("initializes and saves a file note for the CZaza root directory", async () => {
+    const notes = createNoteStore();
+    mocks.relativePath = "";
+    mocks.isDirectory = true;
+    const uri = createUri(mocks.rootDirectory);
+
+    await saveUserNoteService({
+      uri,
+      notes,
+      target: { level: "file" },
+      userNote: "Project root note.",
+    });
+
+    const stored = await notes.cache.getRequiredSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+    );
+    expect(stored.fileNote).toMatchObject({
+      id: "file",
+      userNote: "Project root note.",
+      createdBy: "user",
+    });
+    expect(stored.source.programmingLanguage).toBeUndefined();
+  });
+
   it("initializes and saves a file note when the resource cannot be opened as text", async () => {
     const notes = createNoteStore();
     mocks.relativePath = "assets/image.png";

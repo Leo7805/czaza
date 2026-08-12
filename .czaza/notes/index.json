@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-12T09:55:50.075Z",
+  "updatedAt": "2026-08-12T14:02:17.595Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -198,9 +198,9 @@
     },
     "vscode/notesUi/NotesViewProvider.ts": {
       "noteFile": "files/1069afe2ab26-f36deb8d.json",
-      "sourceHash": "sha256:a120c9c0cc866720f6ec521164cd754b46c591c178d494de82c9c8036d146acc",
+      "sourceHash": "sha256:6305e88bea7dc24ce1f78f7d0adff6368d3a9039269983202891f08d32bd955b",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T12:11:16.486Z"
+      "updatedAt": "2026-08-12T14:02:17.595Z"
     },
     "vscode/services/getResourceNotesService.ts": {
       "noteFile": "files/9ce73fdaf48d-7eecd1c2.json",

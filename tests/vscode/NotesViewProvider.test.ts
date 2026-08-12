@@ -1200,6 +1200,56 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("reports a refresh failure without claiming the user note failed to save", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const saveUserNote = vi.fn().mockResolvedValue(undefined);
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      saveUserNote,
+    );
+    const view = createWebviewView();
+
+    mocks.getResourceNotes
+      .mockResolvedValueOnce({
+        kind: "file",
+        name: "index.ts",
+        relativePath: "src/index.ts",
+        aiAction: "generate",
+        sectionNotes: [],
+      })
+      .mockRejectedValueOnce(new Error("Refresh unavailable."));
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.postMessage.mockClear();
+    mocks.messageListeners[0]?.({
+      type: "saveUserNote",
+      target: { level: "file" },
+      userNote: "Saved content.",
+    });
+
+    await vi.waitFor(() => expect(saveUserNote).toHaveBeenCalledOnce());
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "notice",
+        notice: expect.objectContaining({
+          tone: "error",
+          title: "User Note Saved, but View Refresh Failed",
+          message: "Refresh unavailable.",
+        }),
+      }),
+    );
+    expect(mocks.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        notice: expect.objectContaining({ title: "Could Not Save User Note" }),
+      }),
+    );
+
+    provider.dispose();
+  });
+
   it("clears the previous editable payload and blocks delayed saves for an outside resource", async () => {
     const insideUri = createUri("/workspace/src/index.ts");
     const outsideUri = createUri("/external-skill/SKILL.md");

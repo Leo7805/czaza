@@ -218,7 +218,7 @@ export class WorkspaceNoteStoreCache {
       (candidate) => candidate.toLowerCase() === normalizedPath,
     );
 
-    return matchedPath
+    return matchedPath !== undefined
       ? this.getSourceFile(workspaceRoot, outputDirectory, matchedPath)
       : undefined;
   }
