@@ -23,12 +23,11 @@
 
     "paths": {
       "@shared/*": ["./shared/*"],
-      "@node/*": ["./node/*"],
       "@tests/*": ["./tests/*"],
       "@vscode/*": ["./vscode/*"],
       "@webview/*": ["./vscode/webview-ui/src/*"]
     }
   },
-  "include": ["vite.config.ts", "shared", "node", "tests", "vscode"],
+  "include": ["vite.config.ts", "shared", "tests", "vscode"],
   "exclude": ["vscode/webview-ui"]
 }

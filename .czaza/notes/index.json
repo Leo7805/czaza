@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-30T13:07:21.527Z",
+  "updatedAt": "2026-08-12T09:45:53.116Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -73,9 +73,9 @@
     },
     "vscode/services/noteRelocation/manual/relocateFileNoteService.ts": {
       "noteFile": "files/82f09d5b59bb-d3c4f522.json",
-      "sourceHash": "sha256:5c73927c25ce35a4dc257f4b0d6cda056fd3c75a18d5ea30690f0c86750cb77c",
+      "sourceHash": "sha256:e44b6aff351bae73f63994a7e627248441b1204f7b6b483db8060dba28af8081",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T06:49:27.977Z"
+      "updatedAt": "2026-08-12T09:45:53.116Z"
     },
     "vscode/services/noteRelocation/manual/relocateSectionNoteService.ts": {
       "noteFile": "files/6d19e08e89a8-d77ae0b0.json",
@@ -204,9 +204,9 @@
     },
     "vscode/services/getResourceNotesService.ts": {
       "noteFile": "files/9ce73fdaf48d-7eecd1c2.json",
-      "sourceHash": "sha256:48bcc00824111e43da8ec6872955973a187ff0d649e74fc9a81935bcd96c0090",
+      "sourceHash": "sha256:a8dfc6ebcde43bd860bf321a3e0d7b7a89e3a395a4ac6c95670e45586ee4a1b4",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-07-30T00:21:44.634Z"
+      "updatedAt": "2026-08-12T09:45:53.112Z"
     },
     "vscode/services/saveUserNoteService.ts": {
       "noteFile": "files/72f978bfe089-0a5c1e72.json",
@@ -350,6 +350,22 @@
       "sourceHash": "sha256:a9f776615dbe6fe455297c9f090c3e3aa17d2cc11cc61bd8a5e8327862e85365",
       "programmingLanguage": "typescript",
       "updatedAt": "2026-07-30T11:41:04.358Z"
+    },
+    "docs": {
+      "noteFile": "files/46b42b4229cd-608b1c9d.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-08-12T09:19:19.308Z"
+    },
+    "docs/DECISIONS.md": {
+      "noteFile": "files/1ea199fcea0d-6f6035a7.json",
+      "sourceHash": "sha256:0ba16f0408aee303bfcd84a6637d6d28c60a7183c23d51c9ebfd9d173b954b8b",
+      "programmingLanguage": "markdown",
+      "updatedAt": "2026-08-12T09:45:53.092Z"
+    },
+    "docs/images": {
+      "noteFile": "files/ca2c3cb451cb-8c58acf2.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-08-12T09:20:20.711Z"
     }
   }
 }

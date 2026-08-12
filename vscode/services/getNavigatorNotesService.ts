@@ -141,7 +141,7 @@ export async function getNavigatorNotes({
       settings.outputDirectory,
       index?.files ?? {},
     );
-    const sourceFile = await notes.cache.getSourceFile(
+    const sourceFile = await notes.cache.getSourceFileCaseInsensitive(
       resolvedRoot.rootDirectory,
       settings.outputDirectory,
       relativePath,
@@ -190,7 +190,7 @@ async function getFileItems(
       relativePath,
       now: new Date().toISOString(),
     });
-    const sourceFile = await notes.cache.getSourceFile(workspaceRoot, outputDirectory, relativePath);
+    const sourceFile = await notes.cache.getSourceFileCaseInsensitive(workspaceRoot, outputDirectory, relativePath);
     const content = getNoteContent(
       sourceFile?.fileNote?.userNote,
       sourceFile?.fileNote?.aiExplanation,

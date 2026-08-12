@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:0ba16f0408aee303bfcd84a6637d6d28c60a7183c23d51c9ebfd9d173b954b8b",
+    "sourceHashKind": "text",
+    "programmingLanguage": "markdown"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T09:20:07.645Z",
+    "updatedAt": "2026-08-12T09:20:07.645Z"
+  },
+  "fileNote": {
+    "userNote": "简短的技术决策记录，目前记录扫描器忽略规则应支持任意目录深度。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

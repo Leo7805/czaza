@@ -241,7 +241,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
 
   try {
     const { relativePath, root, settings } = access;
-    const sourceFile = await notes.cache.getSourceFile(
+    const sourceFile = await notes.cache.getSourceFileCaseInsensitive(
       root.rootDirectory,
       settings.outputDirectory,
       relativePath,
@@ -331,7 +331,7 @@ async function getDirectoryChildNotePreviews(
 
     const childUri = vscode.Uri.file(path.join(directoryUri.fsPath, name));
     const relativePath = getCzazaRelativePath(childUri, rootDirectory);
-    const sourceFile = await notes.cache.getSourceFile(rootDirectory, outputDirectory, relativePath);
+    const sourceFile = await notes.cache.getSourceFileCaseInsensitive(rootDirectory, outputDirectory, relativePath);
     const notePreview = getFileNotePreview(sourceFile);
 
     if (!notePreview) {

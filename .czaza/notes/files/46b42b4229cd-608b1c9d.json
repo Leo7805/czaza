@@ -1,0 +1,15 @@
+{
+  "source": {
+    "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T09:19:19.308Z",
+    "updatedAt": "2026-08-12T09:19:19.308Z"
+  },
+  "fileNote": {
+    "userNote": "用于保存项目的持久文档、架构上下文、设计决策和演示图片，帮助后续开发者或 AI Agent 了解项目背景。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

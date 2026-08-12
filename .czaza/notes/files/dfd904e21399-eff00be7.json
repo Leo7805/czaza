@@ -6,10 +6,10 @@
   },
   "defaults": {
     "createdAt": "2026-07-29T06:45:15.131Z",
-    "updatedAt": "2026-07-30T13:05:05.571Z"
+    "updatedAt": "2026-08-12T09:19:50.493Z"
   },
   "fileNote": {
-    "userNote": "parseArguments：保留命令参数作为临时覆盖。\nreadSkillConfiguration：读取并验证 config.json。\nvalidateRelativeDirectory：确保目录是安全的项目相对路径。\ninitializeArchitectureNotes：相对于项目根目录创建架构笔记。\nwriteOrSynchronizeReadme：保留已有 README 正文，仅同步语言字段。",
+    "userNote": "当前项目上下文，记录已完成工作、进行中的目标、关键架构状态和后续计划。",
     "createdBy": "user"
   },
   "sectionNotes": {},

@@ -196,6 +196,34 @@ export class WorkspaceNoteStoreCache {
   }
 
   /**
+   * Reads a source-file note using a case-insensitive workspace-relative path match.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param relativeFilePath - Current workspace-relative resource path.
+   * @returns The matching stored source file, or undefined when no entry matches.
+   */
+  async getSourceFileCaseInsensitive(
+    workspaceRoot: string,
+    outputDirectory: string,
+    relativeFilePath: string,
+  ): Promise<StoredSourceFile | undefined> {
+    const index = await this.loadIndex(workspaceRoot, outputDirectory);
+    if (!index) {
+      return undefined;
+    }
+
+    const normalizedPath = relativeFilePath.toLowerCase();
+    const matchedPath = Object.keys(index.files).find(
+      (candidate) => candidate.toLowerCase() === normalizedPath,
+    );
+
+    return matchedPath
+      ? this.getSourceFile(workspaceRoot, outputDirectory, matchedPath)
+      : undefined;
+  }
+
+  /**
    * Applies one stored source file update and persists the result.
    *
    * @param workspaceRoot - Absolute workspace root path.
