@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:10de2e682625ec6de0b50cd664b862026a80fed2a2cba9733a0303bd3a329e57",
+    "sourceHashKind": "text",
+    "programmingLanguage": "xml"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T09:51:41.160Z",
+    "updatedAt": "2026-08-12T09:51:41.160Z"
+  },
+  "fileNote": {
+    "userNote": "深色主题下的\"显示笔记详情\"命令图标（文档/纸张样式）",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

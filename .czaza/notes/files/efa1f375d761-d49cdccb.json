@@ -1,0 +1,15 @@
+{
+  "source": {
+    "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T09:55:50.075Z",
+    "updatedAt": "2026-08-12T09:57:46.591Z"
+  },
+  "fileNote": {
+    "userNote": "Vite 开发服务器静态资源 (Webview 内容静态资源（仅在 dev 模式）)\n\nVite 自动将 public/ 作为静态根目录\n\n1. favicon.svg\t浏览器标签页图标，仅在 npm run dev 本地开发时出现\n2. icons.svg\tSVG sprite 图标集，包含 Bluesky、Discord、GitHub、X（Twitter）等社交/社区图标，供 webview 页面引用\n\n\n关键证据在 vite.webview.config.ts:9：\n\npublicDir: false,  // 生产构建时不使用 public/\n这说明 public/ 只在 Vite 开发模式下生效，打包进 .vsix 扩展时完全不参与。\n它服务于你在浏览器里 npm run dev 调试 webview 的场景。\n",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

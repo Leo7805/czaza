@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:78e581e71c4ed274c7cacdefe8a0868dca9de46d42007e9ca6e11c2d8f2629b2",
+    "sourceHashKind": "text",
+    "programmingLanguage": "xml"
+  },
+  "defaults": {
+    "createdAt": "2026-08-12T09:51:56.557Z",
+    "updatedAt": "2026-08-12T09:51:56.557Z"
+  },
+  "fileNote": {
+    "userNote": "浅色主题下的\"显示笔记详情\"命令图标，与 dark 版形状相同，颜色不同（#424242 vs #C5C5C5）",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

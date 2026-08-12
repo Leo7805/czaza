@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-12T09:45:53.116Z",
+  "updatedAt": "2026-08-12T09:55:50.075Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -366,6 +366,40 @@
       "noteFile": "files/ca2c3cb451cb-8c58acf2.json",
       "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "updatedAt": "2026-08-12T09:20:20.711Z"
+    },
+    "media": {
+      "noteFile": "files/721c9525ade2-62cb280a.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-08-12T09:50:42.157Z"
+    },
+    "media/notes-detail-dark.svg": {
+      "noteFile": "files/192b1478e542-95a9e981.json",
+      "sourceHash": "sha256:10de2e682625ec6de0b50cd664b862026a80fed2a2cba9733a0303bd3a329e57",
+      "programmingLanguage": "xml",
+      "updatedAt": "2026-08-12T09:51:41.160Z"
+    },
+    "media/notes-detail-light.svg": {
+      "noteFile": "files/be74f491bf1f-76479140.json",
+      "sourceHash": "sha256:78e581e71c4ed274c7cacdefe8a0868dca9de46d42007e9ca6e11c2d8f2629b2",
+      "programmingLanguage": "xml",
+      "updatedAt": "2026-08-12T09:51:56.557Z"
+    },
+    "media/notes-navigator-dark.svg": {
+      "noteFile": "files/5be5e9113e0e-64a9b908.json",
+      "sourceHash": "sha256:fb0c6078134d4c4fb1cd17b061b004c5eb6d1a06a71697a3b2e2ad52cf43fff0",
+      "programmingLanguage": "xml",
+      "updatedAt": "2026-08-12T09:52:08.181Z"
+    },
+    "media/notes-navigator-light.svg": {
+      "noteFile": "files/d230998d4131-5b252679.json",
+      "sourceHash": "sha256:7abe12802e6c483eec88330a7d000d8c639f4391569244f3ac4981b694bdc775",
+      "programmingLanguage": "xml",
+      "updatedAt": "2026-08-12T09:52:17.256Z"
+    },
+    "public": {
+      "noteFile": "files/efa1f375d761-d49cdccb.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-08-12T09:55:50.075Z"
     }
   }
 }

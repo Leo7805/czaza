@@ -6,10 +6,10 @@
   },
   "defaults": {
     "createdAt": "2026-07-19T02:57:33.523Z",
-    "updatedAt": "2026-07-19T02:57:33.523Z"
+    "updatedAt": "2026-08-12T09:51:28.474Z"
   },
   "fileNote": {
-    "userNote": "czaza logo",
+    "userNote": "czaza logo\n\n活动栏（Activity Bar）上的扩展图标，显示为 \"cz\" 风格的手写字母 + 弧线组合",
     "createdBy": "user"
   },
   "sectionNotes": {},
