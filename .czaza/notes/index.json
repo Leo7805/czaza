@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-12T14:02:17.595Z",
+  "updatedAt": "2026-08-12T14:06:39.856Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "media/czaza-icon.svg": {
@@ -400,6 +400,11 @@
       "noteFile": "files/efa1f375d761-d49cdccb.json",
       "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "updatedAt": "2026-08-12T09:55:50.075Z"
+    },
+    "": {
+      "noteFile": "files/e3b0c44298fc-03b0ef98.json",
+      "sourceHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "updatedAt": "2026-08-12T14:06:39.856Z"
     }
   }
 }
