@@ -13,6 +13,7 @@ import { createSourceHash } from "@shared/utils/hashUtils";
 type SaveListener = (document: vscodeTypes.TextDocument) => void;
 type CloseListener = (document: vscodeTypes.TextDocument) => void;
 type ChangeListener = (uri: vscodeTypes.Uri) => void;
+type CreateListener = (uri: vscodeTypes.Uri) => void;
 type DeleteListener = (uri: vscodeTypes.Uri) => void;
 type TextDocumentChangeListener = (event: vscodeTypes.TextDocumentChangeEvent) => void;
 type MockWorkspaceFolder = {
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   saveListeners: [] as SaveListener[],
   closeListeners: [] as CloseListener[],
   changeListeners: [] as ChangeListener[],
+  createListeners: [] as CreateListener[],
   deleteListeners: [] as DeleteListener[],
   openTextDocument: vi.fn(),
   fsStat: vi.fn(),
@@ -87,6 +89,10 @@ vi.mock("vscode", () => ({
         mocks.changeListeners.push(listener);
         return { dispose: vi.fn() };
       },
+      onDidCreate: (listener: CreateListener) => {
+        mocks.createListeners.push(listener);
+        return { dispose: vi.fn() };
+      },
       onDidDelete: (listener: DeleteListener) => {
         mocks.deleteListeners.push(listener);
         return { dispose: vi.fn() };
@@ -115,6 +121,7 @@ describe("registerNotesContentEvents()", () => {
     mocks.saveListeners.length = 0;
     mocks.closeListeners.length = 0;
     mocks.changeListeners.length = 0;
+    mocks.createListeners.length = 0;
     mocks.deleteListeners.length = 0;
     mocks.openTextDocument.mockReset();
     mocks.fsStat.mockReset().mockResolvedValue({
@@ -1125,6 +1132,29 @@ describe("registerNotesContentEvents()", () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(notes.clearAllLocationCaches).toHaveBeenCalledWith(workspaceRoot, ".caca");
+    expect(notesProvider.refreshAfterExternalNoteStoreChange).toHaveBeenCalledOnce();
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+  });
+
+  it("coalesces managed Store delete and create events from an atomic replacement", async () => {
+    vi.useFakeTimers();
+    const workspaceRoot = await createTempWorkspaceRoot("managed-store-replace");
+    const notes = createNotes(createStoredSourceFile("export const value = 1;\n"));
+    const notesProvider = createNotesProvider();
+    const managedFile = createDocument(
+      path.join(workspaceRoot, ".caca/notes/personal/leo/files/note.json"),
+      "{}",
+      false,
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(createExtensionContext(), notes.value, notesProvider.value);
+    mocks.deleteListeners[0]?.(managedFile.uri);
+    mocks.createListeners[0]?.(managedFile.uri);
+    await vi.advanceTimersByTimeAsync(800);
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(notes.clearAllLocationCaches).toHaveBeenCalledTimes(2);
     expect(notesProvider.refreshAfterExternalNoteStoreChange).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });

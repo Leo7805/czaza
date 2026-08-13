@@ -389,7 +389,12 @@ type AgentNoteUpdateReport = {
    - VS Code 重命名和删除资源时先解析当前 Notes location，并将变更应用到当前 Team 或 Personal Store。
    - Explorer 打开或预览文件时继续通过活动编辑器/标签页事件跟随；VS Code 没有提供内置 Explorer 单纯选中但不打开的通用文件选择事件。
 
-16. **待开始——增加剩余测试并验证完整交付流程**
+16. **已完成——处理 Agent 原子替换 Notes 文件的刷新事件**
+   - Notes Store 文件的 create、change 和 delete 事件现在统一触发缓存失效；这覆盖 CLI 通过临时文件 rename 原子替换 JSON 的行为。
+   - 三类事件都先检查扩展内部写入抑制，避免扩展自己的持久化触发重复外部刷新。
+   - 同一次 delete/create 组合共享项目级 debounce key，只读刷新 Webview 一次；刷新链路不调用任何 Note Store 保存函数，因此不会形成写入循环。
+
+17. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
    - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
    - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
@@ -459,4 +464,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1 至 15 步已完成；Personal Notes 的外部更新会清除正确缓存并刷新，Navigator、重命名和删除路径也会使用当前 Notes location。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
+Plan 第 1 至 16 步已完成；外部 Agent 原子替换 Personal Notes JSON 时，create/change/delete 事件会合并为一次只读界面刷新且不会形成写入循环。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。

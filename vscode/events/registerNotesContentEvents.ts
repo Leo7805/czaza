@@ -108,10 +108,21 @@ export function registerNotesContentEvents(
         runtimeNoteStateRegistry,
       );
     }),
+    watcher.onDidCreate((uri) => {
+      scheduleExternalChangeCheck(
+        uri,
+        notes,
+        notesProvider,
+        recentlySavedTimers,
+        taskCoordinator,
+        runtimeNoteStateRegistry,
+      );
+    }),
     watcher.onDidDelete((uri) => {
       scheduleExternalDeleteCheck(
         uri,
         notes,
+        notesProvider,
         taskCoordinator,
         runtimeNoteStateRegistry,
       );
@@ -138,6 +149,7 @@ export function registerNotesContentEvents(
  *
  * @param uri - Resource reported deleted by the filesystem watcher.
  * @param notes - Shared workspace Note Store.
+ * @param notesProvider - Optional Notes view refreshed after external Store replacement.
  * @param taskCoordinator - Shared debounce, queue, suppression, and invalidation owner.
  * @param runtimeNoteStateRegistry - Optional session-only Runtime State registry.
  * @returns Nothing.
@@ -145,10 +157,18 @@ export function registerNotesContentEvents(
 function scheduleExternalDeleteCheck(
   uri: vscode.Uri,
   notes: WorkspaceNoteStore,
+  notesProvider: NotesViewProvider | undefined,
   taskCoordinator: ChangeTaskCoordinator,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
 ): void {
   const access = evaluateCzazaResourceAccess(uri);
+
+  if (!access.allowed && access.reason === "noteStore") {
+    if (!isRecentInternalWorkspaceNoteWrite(uri.fsPath)) {
+      invalidateManagedNoteStore(uri, notes, notesProvider, taskCoordinator);
+    }
+    return;
+  }
 
   if (!access.allowed) {
     return;
