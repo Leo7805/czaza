@@ -1,6 +1,6 @@
 ---
 type: architecture-outline
-documentVersion: 2.6.0
+documentVersion: 2.7.0
 templateVersion: 1
 createdAt: 2026-07-29
 updatedAt: 2026-08-13
@@ -19,10 +19,7 @@ contentLanguage: zh-CN
 ## 当前主架构
 
 1. [Runtime State 总体架构](./diagrams/runtime-state-architecture.md)：统一说明变化分类、持久化边界、数据归属和 Runtime State 生命周期。
-
-## 提议架构
-
-1. [团队与个人笔记存储](./diagrams/team-and-personal-notes-storage.md)：定义由 Git 跟踪的单一团队 Store 和按成员划分的个人 Store。
+2. [团队与个人笔记存储](./diagrams/team-and-personal-notes-storage.md)：说明 Team/Personal Store、身份绑定及 Notes UI 的统一读取边界。
 
 ## 细节架构
 
