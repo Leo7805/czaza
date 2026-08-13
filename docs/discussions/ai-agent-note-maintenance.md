@@ -1,6 +1,6 @@
 # AI Agent 修改笔记 MVP 讨论稿
 
-状态：讨论中，尚未形成正式架构决定，也尚未实现。
+状态：MVP 已实现并完成自动测试与真实流程验证；本文保留设计决定、实施结果和后续改进方向。
 
 ## 目标
 
@@ -346,7 +346,7 @@ type AgentNoteUpdateReport = {
    - 将 Agent Notes CLI 构建为无需 `tsx` 和项目依赖的 JavaScript 文件。
    - 将 CLI 放入 VSIX，并确定 Skill 查找已安装 CZaza 扩展路径的规则。
    - 结果：新增单文件 ESM 构建到 `dist/agent-notes/cli.js`，`package:vscode` 自动构建该文件，真实 Node 子进程测试通过，VSIX 清单确认包含 `extension/dist/agent-notes/cli.js`。
-   - 剩余：Skill 仍需加入稳定的已安装扩展目录定位规则。
+   - Skill 已支持开发仓库 CLI；已安装扩展目录的自动发现仍作为独立的后续体验改进，不影响当前 MVP 验证结果。
 
 9. **已完成——自动识别当前显示的 Notes 空间**
    - VS Code 在实际显示 Notes 时，将当前 Team 或 Personal Notes 选择写入项目外的本地运行状态。
@@ -395,24 +395,19 @@ type AgentNoteUpdateReport = {
    - 同一次 delete/create 组合共享项目级 debounce key，只读刷新 Webview 一次；刷新链路不调用任何 Note Store 保存函数，因此不会形成写入循环。
 
 17. **已完成——稳定 Explorer Preview Tab 的 Notes 跟随**
-   - 临时诊断版本只注册 `activeTextEditor` 一个切换入口，完全排除 Tab、Tab Group 和光标事件干扰。
-   - 当前编辑器切到哪个文本文件就立即读取哪个文件；图片、自定义编辑器和 Notebook 暂时不自动跟随。
+   - 普通文本文件只由 `activeTextEditor` 负责切换，Tab 事件不能覆盖当前文本编辑器。
+   - 光标事件只更新当前文件的 Line/Section Notes，不能切换文件或取消正在加载的新文件。
+   - Custom Editor、Notebook 和 Notebook Diff 仅在没有活动文本编辑器时作为非文本资源 fallback。
    - 每次活动源码文件变化都会重新解析当前 Team 或 Personal Store；缓存键继续按 Notes location 隔离。
    - `NotesViewProvider.requestVersion` 继续阻止较慢的旧读取覆盖较新的界面，不再额外使用跨事件 URI 去重。
 
-### 临时诊断改动：单通道 Notes 切换（需要后续还原）
+### Notes 切换问题的诊断结论
 
-- **目的**：排除多个 VS Code 事件互相干扰，判断 DocuMind 中 `delete.ts` 与无 Notes 文件切换失败究竟发生在事件层还是显示层。
-- **开始版本**：使用 `0.14.6` VSIX 进行诊断；测试顺序为 `.prettierrc → delete.ts → hi2.ts → delete.ts`。
-- **当前临时行为**：第一阶段验证单通道文件切换正常后，已恢复 `onDidChangeTextEditorSelection`；文件 URI 仍只来自 `activeTextEditor`。
-- **恢复的 Tab 行为**：已恢复 `tabGroups.onDidChangeTabs` 和 `tabGroups.onDidChangeTabGroups`，但仅在没有活动文本编辑器时处理 Custom Editor、Notebook 和 Notebook Diff。
-- **当前恢复能力**：光标移动会重新定位 Section/Line Notes，并同步 Relocate 建议位置。
-- **确认的事件边界**：光标事件改用 `showActiveDocumentLineNotes`，只有 URI 同时匹配最新活动文件和已显示文件时才允许重载；迟到的旧 Selection 不再增加请求版本或取消新文件加载。
-- **当前恢复能力**：图片、自定义编辑器和 Notebook 会自动切换 Notes；普通文本 Tab 永远不能覆盖活动文本编辑器。
-- **仍然保留**：`NotesViewProvider.requestVersion` 防止旧读取覆盖新结果；每次文件加载重新解析 Team 或 Personal Store。
-- **涉及代码**：`vscode/events/registerNotesPreviewEvents.ts`、`tests/vscode/registerNotesPreviewEvents.test.ts`；`tests/vscode/NotesViewProvider.test.ts` 新增了每次文件变化重新解析 Store 的保护测试。
-- **还原进度**：光标监听和非文本 Tab fallback 均已按职责边界恢复；普通文本文件继续只以 `activeTextEditor` 为准。
-- **还原验证**：运行相关 Vitest、lint、`git diff --check` 和 `npm run package:vscode`，再手动验证文本文件、光标、图片和 Team/Personal Notes。
+- **复现方式**：DocuMind 中快速切换 `.prettierrc → delete.ts → hi2.ts → delete.ts`，以及 `package.json ↔ README.md`。
+- **根因**：文件切换和 Selection 事件都调用完整文件加载；新文件开始读取后，迟到的旧 Selection 会增加 `requestVersion`，使正确的新文件请求过期。
+- **修复**：新增 `showActiveDocumentLineNotes`；它只在 URI 同时匹配最新活动文件和已显示文件时更新行号，不能改变活动资源。
+- **最终边界**：活动编辑器负责文本文件切换，Selection 负责当前 Line/Section，非文本 Tab 只负责没有 TextEditor 的资源。
+- **验证结果**：文本文件、Git-untracked 文件、PNG、光标移动以及 Team/Personal Notes 切换均由用户验证正常。
 
 18. **已完成——增加剩余测试并验证完整交付流程**
    - 完整 Vitest 已通过：114 个测试文件通过、9 个跳过，653 项测试通过、11 项跳过。
@@ -421,20 +416,20 @@ type AgentNoteUpdateReport = {
    - 实际 `current → inspect → confirm → apply` 已由用户完成验证，当前 Notes 所属人确认、检查、写入确认和应用流程均正常。
    - Plan 第 18 步没有剩余验证项；后续改进不属于当前 MVP。
 
-## 预计影响范围
+## 实际实现范围
 
-以下只是当前讨论中的候选位置，实施前仍需根据现有代码进一步确认：
+MVP 最终实现包含：
 
 - 新增 `vscode/agentNotes/inspectAgentNotes.ts`；
 - 新增 `vscode/agentNotes/applyAgentNoteUpdates.ts`；
 - 新增 Agent 调用入口；
 - 新增 `tests/agentNotes/` 下的相关测试；
 - 修改 `package.json` 增加调用命令；
-- 持续更新本讨论稿中的 Plan 状态。
+- 更新本讨论稿中的 Plan 和验证状态。
 
 不增加运行时依赖，不改变现有 Note Store 数据格式。
 
-## 尚未确定
+## Future Improvements
 
 - Skill 如何稳定找到已安装 VSIX 中的独立 Agent Notes CLI。
 - 在实现 Agent 更新入口后，如何让现有 CZaza prompts enforce the same Note Writing Format without duplicating prompt text.
@@ -483,6 +478,6 @@ Agent 传回同一计划 JSON 和 confirmationToken
 - Agent 不询问用户选择 Team 或 Personal；它读取当前显示的 Notes，用户只确认是否修改这个当前空间。
 - `applyAgentNoteUpdates` 再次读取本地运行状态；若 Notes 已切换，则拒绝写入并要求重新检查和确认。
 
-## 下一步
+## 完成状态
 
 Plan 第 1 至 18 步已完成。文本文件切换、光标更新、非文本 Tab，以及真实 `current → inspect → confirm → apply` 流程均已验证正常；当前 AI Agent Notes MVP 没有剩余实施或验证步骤。
