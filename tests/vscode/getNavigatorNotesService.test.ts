@@ -6,6 +6,7 @@ import * as path from "node:path";
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { WorkspaceNoteStore, WorkspaceNoteStoreRepository } from "@vscode/notes";
+import type { NoteStoreLocation } from "@vscode/notes";
 import type * as vscodeTypes from "vscode";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -108,6 +109,43 @@ describe("getNavigatorNotes()", () => {
         preview: "File note.",
       }),
     ]);
+  });
+
+  it("reads Navigator content from the selected Personal Store", async () => {
+    const workspaceRoot = await mkdtemp(path.join(tmpdir(), "czaza-personal-navigator-"));
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed002"));
+    const personal: NoteStoreLocation = { kind: "personal", memberId: "leo-12345678" };
+
+    mocks.workspaceFolders.push({
+      uri: createUri(workspaceRoot),
+      name: path.basename(workspaceRoot),
+      index: 0,
+    });
+    await notes.cache.saveSourceFile(
+      workspaceRoot,
+      mocks.outputDirectory,
+      "src/index.ts",
+      createStoredSourceFile("Team note."),
+      createdAt,
+    );
+    await notes.cache.saveSourceFile(
+      workspaceRoot,
+      mocks.outputDirectory,
+      "src/index.ts",
+      createStoredSourceFile("Personal note."),
+      createdAt,
+      {},
+      personal,
+    );
+
+    const result = await getNavigatorNotes({
+      uri: createUri(path.join(workspaceRoot, "src/index.ts")),
+      notes,
+      location: personal,
+    });
+
+    expect(result.kind === "resource" ? result.files[0]?.preview : undefined)
+      .toBe("Personal note.");
   });
 });
 

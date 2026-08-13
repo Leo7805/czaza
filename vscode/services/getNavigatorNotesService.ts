@@ -10,7 +10,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 import { ensureFileNoteResourceAvailability } from "./ensureFileNoteResourceAvailabilityService";
 import * as vscode from "vscode";
 
@@ -109,6 +109,9 @@ export type GetNavigatorNotesInput = {
 
   /** Current one-based editor line, when any. */
   activeLine?: number;
+
+  /** Team or concrete Personal Store to read. */
+  location?: NoteStoreLocation;
 };
 
 /**
@@ -125,6 +128,7 @@ export async function getNavigatorNotes({
   notes,
   selectedSectionId,
   activeLine,
+  location,
 }: GetNavigatorNotesInput): Promise<NavigatorNotesResult> {
   if (!uri) {
     return { kind: "empty" };
@@ -134,17 +138,23 @@ export async function getNavigatorNotes({
     const resolvedRoot = resolveCzazaRootDirectory(uri);
     const settings = getCzazaSettings(uri);
     const relativePath = getCzazaRelativePath(uri, resolvedRoot.rootDirectory);
-    const index = await notes.cache.loadIndex(resolvedRoot.rootDirectory, settings.outputDirectory);
+    const index = await notes.cache.loadIndex(
+      resolvedRoot.rootDirectory,
+      settings.outputDirectory,
+      location,
+    );
     const files = await getFileItems(
       notes,
       resolvedRoot.rootDirectory,
       settings.outputDirectory,
       index?.files ?? {},
+      location,
     );
     const sourceFile = await notes.cache.getSourceFileCaseInsensitive(
       resolvedRoot.rootDirectory,
       settings.outputDirectory,
       relativePath,
+      location,
     );
     const resourceKind = await getResourceKind(uri);
 
@@ -173,6 +183,7 @@ async function getFileItems(
   workspaceRoot: string,
   outputDirectory: string,
   entries: Record<string, { noteFile: string }>,
+  location?: NoteStoreLocation,
 ): Promise<NavigatorFileItem[]> {
   const items: NavigatorFileItem[] = [];
 
@@ -189,8 +200,14 @@ async function getFileItems(
       outputDirectory,
       relativePath,
       now: new Date().toISOString(),
+      location,
     });
-    const sourceFile = await notes.cache.getSourceFileCaseInsensitive(workspaceRoot, outputDirectory, relativePath);
+    const sourceFile = await notes.cache.getSourceFileCaseInsensitive(
+      workspaceRoot,
+      outputDirectory,
+      relativePath,
+      location,
+    );
     const content = getNoteContent(
       sourceFile?.fileNote?.userNote,
       sourceFile?.fileNote?.aiExplanation,

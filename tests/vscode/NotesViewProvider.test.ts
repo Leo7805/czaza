@@ -2447,6 +2447,55 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("uses the same Personal Store for Detail and Navigator", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
+    const noteScope = {
+      resolveLocation: vi.fn().mockResolvedValue(personal),
+      getScope: vi.fn().mockReturnValue("personal"),
+      setScope: vi.fn(),
+    };
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      noteScope as never,
+    );
+    const view = createWebviewView();
+
+    mockAllowedResource("src/index.ts");
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.getNavigatorNotes.mockResolvedValue({
+      kind: "resource",
+      projectRootName: "workspace",
+      currentFile: "src/index.ts",
+      files: [],
+      sections: [],
+      lines: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(uri);
+    provider.postViewMode("navigator");
+
+    await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
+    expect(mocks.getResourceNotes).toHaveBeenCalledWith(expect.objectContaining({ location: personal }));
+    expect(mocks.getNavigatorNotes).toHaveBeenCalledWith(expect.objectContaining({ location: personal }));
+    provider.dispose();
+  });
+
   it("ignores Runtime State for another resource and after disposal", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const registry = new RuntimeNoteStateRegistry();

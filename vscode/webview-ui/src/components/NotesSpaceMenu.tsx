@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import type { PersonalIdentityListItem, NotesSpaceMenuState } from "../types";
+import { isPersonalIdentitySelected } from "./notesSpaceMenuSelection";
 
 /** Renders Project, Team, and Personal Notes choices. */
 export function NotesSpaceMenu({
@@ -57,7 +58,7 @@ export function NotesSpaceMenu({
               key={member.memberId}
               label={member.displayName}
               detail={member.memberId}
-              checked={state.currentMemberId === member.memberId}
+              checked={isPersonalIdentitySelected(state, member.memberId)}
               onClick={() => onPersonal(member)}
             />
           ))}

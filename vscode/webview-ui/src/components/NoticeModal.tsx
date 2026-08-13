@@ -56,8 +56,10 @@ export function NoticeModal({
         </button>
       ))}
     >
-      <div className="notice-modal__head"><NoticeIcon tone={tone} /></div>
-      <p className="notice-modal__message">{message}</p>
+      <div className="notice-modal__content">
+        <div className="notice-modal__head"><NoticeIcon tone={tone} /></div>
+        <p className="notice-modal__message">{message}</p>
+      </div>
     </ModalShell>
   );
 }

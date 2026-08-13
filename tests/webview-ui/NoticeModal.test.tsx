@@ -20,6 +20,9 @@ describe("NoticeModal", () => {
     );
 
     expect(markup).toContain("notice-modal--warning");
+    expect(markup).toContain("notice-modal__content");
+    expect(markup).toContain("notice-modal__head");
+    expect(markup).toContain("notice-modal__message");
     expect(markup).toContain("Generate All Notes");
     expect(markup).toContain("This may take longer and use more AI tokens.");
     expect(markup).toContain("Cancel");

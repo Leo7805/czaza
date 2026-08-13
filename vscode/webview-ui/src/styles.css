@@ -1057,7 +1057,6 @@ textarea {
 
 .notice-modal .modal-shell__dialog { width: min(420px, 100%); }
 .notice-modal .modal-shell__title { color: color-mix(in srgb, var(--notice-accent) 78%, var(--vscode-foreground)); }
-.notice-modal__head { position: absolute; margin-top: -19px; }
 
 .notes-space-menu {
   position: fixed;
@@ -1089,11 +1088,17 @@ textarea {
 .personal-identity-modal__field input:focus { border-color: var(--vscode-focusBorder); outline: none; }
 .personal-identity-modal p { margin: 12px 0 0; color: var(--vscode-descriptionForeground); font-size: 11px; line-height: 1.45; }
 
+.notice-modal__content {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  min-width: 0;
+}
+
 .notice-modal__head {
   display: flex;
   align-items: center;
-  gap: 9px;
-  min-width: 0;
 }
 
 .notice-modal__icon {
@@ -1112,10 +1117,12 @@ textarea {
 }
 
 .notice-modal__message {
-  margin: 10px 0 0;
+  min-width: 0;
+  margin: 0;
   color: var(--vscode-descriptionForeground);
   font-size: 12px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .notice-modal__actions {

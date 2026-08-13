@@ -274,6 +274,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private viewMode: NotesViewMode = "detail";
   private currentResourceUri?: vscode.Uri;
   private currentPayload?: ResourceNotesResult;
+  private currentStoreLocation?: NoteStoreLocation;
   private currentNavigatorPayload: NavigatorNotesResult = { kind: "empty" };
   private selectedSectionId?: string;
   private isSectionSelectionManual = false;
@@ -681,10 +682,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     if (!this.currentResourceUri || !this.noteScope) return;
     const access = evaluateCzazaResourceAccess(this.currentResourceUri);
     if (!access.allowed) return;
-    await this.noteScope.setScope(access.root.rootDirectory, "team");
     if (scope === "project") {
       await this.showResourceNotes(vscode.Uri.file(access.root.rootDirectory));
     } else {
+      await this.noteScope.setScope(access.root.rootDirectory, "team");
       await this.refreshCurrentResourceNotes();
     }
   }
@@ -938,6 +939,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       access.root.rootDirectory,
       access.settings.outputDirectory,
     );
+    const storeChanged = !isSameNoteStoreLocation(this.currentStoreLocation, location);
     const payload = await getResourceNotes({
       uri,
       notes: this.notes,
@@ -952,6 +954,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     if (payload.kind === "outsideRoot") {
       await this.showOutsideRootResource(uri);
       return;
+    }
+
+    if (storeChanged) {
+      this.selectedSectionId = undefined;
+      this.isSectionSelectionManual = false;
+      this.pendingEditTarget = undefined;
+      if (this.noteRelocateSession) {
+        await this.view?.webview.postMessage({ type: "closeNoteRelocate" });
+      }
+      this.noteRelocateSession = undefined;
     }
 
     const visiblePayload = location?.kind === "personal"
@@ -972,6 +984,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
     this.currentResourceUri = uri;
     this.currentPayload = visiblePayload;
+    this.currentStoreLocation = location;
     if (resourceChanged) {
       this.isSectionSelectionManual = false;
     }
@@ -1052,6 +1065,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private async showOutsideRootResource(uri: vscode.Uri): Promise<void> {
     this.currentResourceUri = uri;
     this.currentPayload = { kind: "outsideRoot" };
+    this.currentStoreLocation = undefined;
     this.currentNavigatorPayload = { kind: "outsideRoot" };
     this.pendingEditTarget = undefined;
     this.selectedSectionId = undefined;
@@ -1142,12 +1156,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       notes: this.notes,
       selectedSectionId: this.selectedSectionId,
       activeLine,
+      ...(this.currentStoreLocation ? { location: this.currentStoreLocation } : {}),
     });
     const access = this.currentResourceUri
       ? evaluateCzazaResourceAccess(this.currentResourceUri)
       : undefined;
     this.currentNavigatorPayload =
-      access?.allowed && this.runtimeNoteStateRegistry
+      access?.allowed && this.runtimeNoteStateRegistry && this.currentStoreLocation?.kind !== "personal"
         ? applyRuntimeStateToNavigatorNotes(
             payload,
             this.runtimeNoteStateRegistry.listStates({
@@ -2167,6 +2182,16 @@ function isSameOrDescendantResource(
     relativePath === "" ||
     (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
   );
+}
+
+/** Returns whether two resolved Note Store locations identify the same Store. */
+function isSameNoteStoreLocation(
+  left: NoteStoreLocation | undefined,
+  right: NoteStoreLocation | undefined,
+): boolean {
+  if (!left || !right) return left === right;
+  if (left.kind !== right.kind) return false;
+  return left.kind === "team" || left.memberId === (right as { memberId: string }).memberId;
 }
 
 function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage {

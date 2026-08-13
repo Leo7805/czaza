@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { NotesSpaceMenu } from "@webview/components/NotesSpaceMenu";
+import { isPersonalIdentitySelected } from "@webview/components/notesSpaceMenuSelection";
 import { PersonalIdentityModal } from "@webview/components/PersonalIdentityModal";
 
 describe("NotesSpaceMenu", () => {
@@ -40,5 +41,20 @@ describe("NotesSpaceMenu", () => {
     expect(html).toContain('value="Leo"');
     expect(html).toContain('value="leo@example.com"');
     expect(html).toContain("It is not stored");
+  });
+
+  it("does not select a remembered Personal identity while Team is active", () => {
+    const memberId = "leo-12345678";
+
+    expect(isPersonalIdentitySelected({
+      scope: "team",
+      currentMemberId: memberId,
+      members: [{ memberId, displayName: "Leo" }],
+    }, memberId)).toBe(false);
+    expect(isPersonalIdentitySelected({
+      scope: "personal",
+      currentMemberId: memberId,
+      members: [{ memberId, displayName: "Leo" }],
+    }, memberId)).toBe(true);
   });
 });

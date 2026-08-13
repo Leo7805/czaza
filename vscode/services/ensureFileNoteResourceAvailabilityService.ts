@@ -5,7 +5,7 @@
 import * as path from "node:path";
 
 import { applyFileNoteResourceMissing } from "@shared/services/notes/fileNoteChangeService";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 import * as vscode from "vscode";
 
 /** Result of checking a file-note resource path. */
@@ -28,6 +28,7 @@ export async function ensureFileNoteResourceAvailability(input: {
   outputDirectory: string;
   relativePath: string;
   now: string;
+  location?: NoteStoreLocation;
 }): Promise<FileNoteResourceAvailabilityResult> {
   const uri = vscode.Uri.file(path.join(input.workspaceRoot, ...input.relativePath.split("/")));
 
@@ -39,6 +40,7 @@ export async function ensureFileNoteResourceAvailability(input: {
       input.workspaceRoot,
       input.outputDirectory,
       input.relativePath,
+      input.location,
     );
 
     if (!sourceFile?.fileNote) {
@@ -61,6 +63,8 @@ export async function ensureFileNoteResourceAvailability(input: {
       input.relativePath,
       applied.sourceFile,
       input.now,
+      {},
+      input.location,
     );
 
     return { available: false, changed: true };

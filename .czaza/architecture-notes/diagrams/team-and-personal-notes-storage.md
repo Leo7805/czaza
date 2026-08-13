@@ -1,6 +1,6 @@
 ---
 type: architecture-diagram
-documentVersion: 1.7.0
+documentVersion: 1.8.0
 status: proposed
 createdAt: 2026-08-13
 updatedAt: 2026-08-13
@@ -51,4 +51,6 @@ flowchart TD
 - Notes 标题栏保留单一书本入口，Webview 内自定义菜单提供 Project、Team 和动态 Personal 身份子菜单。
 - Personal 身份创建和切换确认使用 CZaza 自定义弹窗；身份命令的原生 Quick Pick 仍作为命令面板备用入口。
 - 当前 Detail 已支持 Team/Personal 查看和手工 User Note 编辑，Personal 首次保存时初始化当前源文件记录。
-- Personal AI 生成、Navigator、迁移、Watcher 和 Runtime State 接入尚未实现。
+- Project Notes 是资源范围，Team/Personal 是 Store 身份；切换 Project Notes 时保留当前 Store。
+- Detail 与 Navigator 使用同一个具体 Store；切换 Store 时重新验证当前选中的笔记，避免跨身份误操作。
+- Personal AI 生成、迁移、Watcher 和 Runtime State 接入尚未实现。
