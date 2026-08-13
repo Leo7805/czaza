@@ -118,8 +118,6 @@ describe("registerNotesPreviewEvents()", () => {
     mocks.activeTextEditor = createEditor(uri, 3);
 
     registerNotesPreviewEvents(context, provider.value);
-    await flushPreviewEvents();
-
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, 4);
     expect(context.subscriptions).toHaveLength(4);
   });
@@ -131,29 +129,8 @@ describe("registerNotesPreviewEvents()", () => {
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
     mocks.activeTextEditor = createEditor(uri, 6);
     mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
-    await flushPreviewEvents();
-
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, 7);
-  });
-
-  it("updates once when the active cursor moves to another line", async () => {
-    const uri = createUri("file", "/workspace/src/app.ts");
-    const provider = createProvider();
-    const editor = createEditor(uri, 4);
-
-    mocks.activeTextEditor = editor;
-    registerNotesPreviewEvents(createExtensionContext(), provider.value);
-    await flushPreviewEvents();
-
-    const movedEditor = createEditor(uri, 8);
-    mocks.activeTextEditor = movedEditor;
-    mocks.selectionListeners[0]?.({ textEditor: movedEditor } as vscodeTypes.TextEditorSelectionChangeEvent);
-    mocks.selectionListeners[0]?.({ textEditor: movedEditor } as vscodeTypes.TextEditorSelectionChangeEvent);
-    await flushPreviewEvents();
-
-    expect(provider.showActiveDocumentNotes).toHaveBeenCalledTimes(2);
-    expect(provider.showActiveDocumentNotes).toHaveBeenLastCalledWith(uri, 9);
   });
 
   it("ignores editors that do not represent file resources", async () => {
@@ -162,101 +139,93 @@ describe("registerNotesPreviewEvents()", () => {
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
     mocks.activeTextEditor = createEditor(createUri("untitled", "Untitled-1"), 0);
     mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
-    await flushPreviewEvents();
-
     expect(provider.showActiveDocumentNotes).not.toHaveBeenCalled();
   });
 
-  it("loads an image URI from the active custom editor tab", async () => {
-    const uri = createUri("file", "/workspace/assets/image.png");
+  it("reloads Line and Section Notes when the active editor selection changes", () => {
+    const uri = createUri("file", "/workspace/src/app.ts");
     const provider = createProvider();
-    mocks.activeTab = createTab(new vscode.TabInputCustom(uri, "imagePreview.previewEditor"));
+    const initialEditor = createEditor(uri, 2);
+    const movedEditor = createEditor(uri, 8);
+    mocks.activeTextEditor = initialEditor;
 
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
-    await flushPreviewEvents();
+    mocks.activeTextEditor = movedEditor;
+    mocks.selectionListeners[0]?.({ textEditor: movedEditor } as vscodeTypes.TextEditorSelectionChangeEvent);
 
-    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, undefined);
+    expect(provider.showActiveDocumentLineNotes).toHaveBeenCalledWith(uri, 9);
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
   });
 
-  it("follows the active tab when the active editor group changes", async () => {
-    const uri = createUri("file", "/workspace/assets/image.png");
+  it("ignores selection changes from a non-active editor", () => {
+    const activeUri = createUri("file", "/workspace/src/active.ts");
+    const backgroundUri = createUri("file", "/workspace/src/background.ts");
     const provider = createProvider();
-    registerNotesPreviewEvents(createExtensionContext(), provider.value);
-    mocks.activeTab = createTab(new vscode.TabInputCustom(uri, "imagePreview.previewEditor"));
+    mocks.activeTextEditor = createEditor(activeUri, 1);
 
-    mocks.tabGroupListeners[0]?.();
-    await flushPreviewEvents();
+    registerNotesPreviewEvents(createExtensionContext(), provider.value);
+    const backgroundEditor = createEditor(backgroundUri, 4);
+    mocks.selectionListeners[0]?.({
+      textEditor: backgroundEditor,
+    } as vscodeTypes.TextEditorSelectionChangeEvent);
 
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
-    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, undefined);
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(activeUri, 2);
   });
 
-  it("prefers the text editor line and deduplicates the matching tab event", async () => {
-    const uri = createUri("file", "/workspace/src/index.ts");
-    const provider = createProvider();
-    const editor = createEditor(uri, 5);
-    mocks.activeTextEditor = editor;
-    mocks.activeTab = createTab(new vscode.TabInputText(uri));
-
-    registerNotesPreviewEvents(createExtensionContext(), provider.value);
-    mocks.tabListeners[0]?.();
-    await flushPreviewEvents();
-
-    expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
-    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, 6);
-  });
-
-  it("keeps the current preview for tabs without a resource URI", async () => {
-    const provider = createProvider();
-    mocks.activeTextEditor = createEditor(createUri("file", "/workspace/src/previous.ts"), 2);
-    mocks.activeTab = createTab(new vscode.TabInputWebview("settings"));
-
-    registerNotesPreviewEvents(createExtensionContext(), provider.value);
-    await flushPreviewEvents();
-
-    expect(provider.showActiveDocumentNotes).not.toHaveBeenCalled();
-  });
-
-  it("coalesces rapid events and loads the final A to B to A resource", async () => {
+  it("follows every authoritative active editor change during rapid switching", async () => {
     const firstUri = createUri("file", "/workspace/src/a.ts");
     const secondUri = createUri("file", "/workspace/src/b.ts");
     const provider = createProvider();
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
 
     mocks.activeTextEditor = createEditor(firstUri, 0);
-    mocks.activeTab = createTab(new vscode.TabInputText(firstUri));
     mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
     mocks.activeTextEditor = createEditor(secondUri, 0);
-    mocks.activeTab = createTab(new vscode.TabInputText(secondUri));
-    mocks.tabListeners[0]?.();
-    mocks.activeTextEditor = createEditor(firstUri, 3);
-    mocks.activeTab = createTab(new vscode.TabInputText(firstUri));
     mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
-    await flushPreviewEvents();
-
-    expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
+    mocks.activeTextEditor = createEditor(firstUri, 3);
+    mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledTimes(3);
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(firstUri, 4);
   });
 
-  it("uses the active Preview Tab when the text editor still points to the previous file", async () => {
-    const oldUri = createUri("file", "/workspace/src/old.ts");
-    const previewUri = createUri("file", "/workspace/src/preview.ts");
+  it("loads an image from a custom tab when no text editor is active", () => {
+    const uri = createUri("file", "/workspace/assets/image.png");
     const provider = createProvider();
-    mocks.activeTextEditor = createEditor(oldUri, 2);
-    mocks.activeTab = createTab(new vscode.TabInputText(previewUri));
+    mocks.activeTab = createTab(new vscode.TabInputCustom(uri, "imagePreview.previewEditor"));
 
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
-    await flushPreviewEvents();
 
-    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(previewUri, undefined);
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri);
   });
-});
 
-/** Waits for the coalesced Preview event and its resolved provider promise. */
-async function flushPreviewEvents(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
-}
+  it("does not let a non-text tab event override an active text editor", () => {
+    const textUri = createUri("file", "/workspace/src/index.ts");
+    const imageUri = createUri("file", "/workspace/assets/image.png");
+    const provider = createProvider();
+    mocks.activeTextEditor = createEditor(textUri, 4);
+    mocks.activeTab = createTab(new vscode.TabInputCustom(imageUri, "imagePreview.previewEditor"));
+
+    registerNotesPreviewEvents(createExtensionContext(), provider.value);
+    mocks.tabListeners[0]?.();
+    mocks.tabGroupListeners[0]?.();
+
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(textUri, 5);
+  });
+
+  it("ignores ordinary text tabs when no text editor is active", () => {
+    const uri = createUri("file", "/workspace/src/stale.ts");
+    const provider = createProvider();
+    mocks.activeTab = createTab(new vscode.TabInputText(uri));
+
+    registerNotesPreviewEvents(createExtensionContext(), provider.value);
+
+    expect(provider.showActiveDocumentNotes).not.toHaveBeenCalled();
+  });
+
+});
 
 /**
  * Creates the minimum extension context required by event registration.
@@ -277,12 +246,15 @@ function createExtensionContext(): vscodeTypes.ExtensionContext {
 function createProvider(): {
   value: NotesViewProvider;
   showActiveDocumentNotes: ReturnType<typeof vi.fn>;
+  showActiveDocumentLineNotes: ReturnType<typeof vi.fn>;
 } {
   const showActiveDocumentNotes = vi.fn().mockResolvedValue(undefined);
+  const showActiveDocumentLineNotes = vi.fn().mockResolvedValue(undefined);
 
   return {
-    value: { showActiveDocumentNotes } as unknown as NotesViewProvider,
+    value: { showActiveDocumentNotes, showActiveDocumentLineNotes } as unknown as NotesViewProvider,
     showActiveDocumentNotes,
+    showActiveDocumentLineNotes,
   };
 }
 
@@ -304,6 +276,7 @@ function createEditor(uri: vscodeTypes.Uri, zeroBasedLine: number): vscodeTypes.
   } as vscodeTypes.TextEditor;
 }
 
+/** Creates the minimum active tab shape required by preview events. */
 function createTab(input: unknown): vscodeTypes.Tab {
   return { input, isActive: true } as vscodeTypes.Tab;
 }

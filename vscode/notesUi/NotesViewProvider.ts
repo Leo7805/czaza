@@ -272,6 +272,7 @@ const NOTES_VIEW_MODE_CONTEXT = "czaza.notesViewMode";
 export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view?: vscode.WebviewView;
   private viewMode: NotesViewMode = "detail";
+  private activeDocumentUri?: vscode.Uri;
   private currentResourceUri?: vscode.Uri;
   private currentPayload?: ResourceNotesResult;
   private currentStoreLocation?: NoteStoreLocation;
@@ -805,8 +806,22 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
+    this.activeDocumentUri = uri;
     await this.loadResourceNotes(uri, true, activeLine);
     await this.syncRelocateTargetFromEditor(vscode.window.activeTextEditor);
+  }
+
+  /** Reloads Line and Section Notes only for the currently displayed active document. */
+  async showActiveDocumentLineNotes(uri: vscode.Uri, activeLine: number): Promise<void> {
+    if (
+      uri.scheme !== "file" ||
+      uri.toString() !== this.activeDocumentUri?.toString() ||
+      uri.toString() !== this.currentResourceUri?.toString()
+    ) {
+      return;
+    }
+
+    await this.loadResourceNotes(uri, true, activeLine);
   }
 
   /** Sends live cursor/selection suggestions while a Section/Line relocate modal is open. */

@@ -2496,6 +2496,86 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("resolves the selected Team or Personal Store for every active file change", async () => {
+    const firstUri = createUri("/workspace/src/first.ts");
+    const secondUri = createUri("/workspace/src/second.ts");
+    const team = { kind: "team" as const };
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
+    const noteScope = {
+      resolveLocation: vi.fn().mockResolvedValueOnce(team).mockResolvedValueOnce(personal),
+      getScope: vi.fn(),
+      setScope: vi.fn(),
+    };
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      noteScope as never,
+    );
+
+    mockAllowedResource("src/first.ts");
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "source.ts",
+      relativePath: "src/source.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.showActiveDocumentNotes(firstUri, 1);
+    await provider.showActiveDocumentNotes(secondUri, 1);
+
+    expect(noteScope.resolveLocation).toHaveBeenCalledTimes(2);
+    expect(mocks.getResourceNotes).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ uri: firstUri, location: team }),
+    );
+    expect(mocks.getResourceNotes).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ uri: secondUri, location: personal }),
+    );
+    provider.dispose();
+  });
+
+  it("ignores a stale selection update after a newer active file starts loading", async () => {
+    const oldUri = createUri("/workspace/src/old.ts");
+    const nextUri = createUri("/workspace/src/next.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const oldPayload = {
+      kind: "file" as const,
+      name: "old.ts",
+      relativePath: "src/old.ts",
+      aiAction: "generate" as const,
+      sectionNotes: [],
+    };
+    let resolveNext: ((payload: typeof oldPayload) => void) | undefined;
+    mocks.getResourceNotes
+      .mockResolvedValueOnce(oldPayload)
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveNext = resolve;
+      }));
+
+    await provider.showActiveDocumentNotes(oldUri, 1);
+    const nextRequest = provider.showActiveDocumentNotes(nextUri, 1);
+    await provider.showActiveDocumentLineNotes(oldUri, 8);
+
+    expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2);
+    resolveNext?.({ ...oldPayload, name: "next.ts", relativePath: "src/next.ts" });
+    await nextRequest;
+    provider.dispose();
+  });
+
   it("ignores Runtime State for another resource and after disposal", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const registry = new RuntimeNoteStateRegistry();

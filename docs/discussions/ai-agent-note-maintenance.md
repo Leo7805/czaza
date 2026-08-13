@@ -395,10 +395,24 @@ type AgentNoteUpdateReport = {
    - 同一次 delete/create 组合共享项目级 debounce key，只读刷新 Webview 一次；刷新链路不调用任何 Note Store 保存函数，因此不会形成写入循环。
 
 17. **已完成——稳定 Explorer Preview Tab 的 Notes 跟随**
-   - 活动编辑器、Tab、Tab Group 和光标事件先在同一微任务中合并，再读取最终活动资源，避免 VS Code 事件到达顺序不同导致读取旧文件。
-   - 去重键只在最新请求成功后记录；快速 A→B→A 不再因为 A 曾经开始加载而丢失最终 A。
-   - active editor 与 Preview Tab 暂时指向不同文件时以当前 active tab 为准；两者一致时保留 editor 当前行。
-   - `NotesViewProvider.requestVersion` 继续阻止较慢的旧读取覆盖较新的界面。
+   - 临时诊断版本只注册 `activeTextEditor` 一个切换入口，完全排除 Tab、Tab Group 和光标事件干扰。
+   - 当前编辑器切到哪个文本文件就立即读取哪个文件；图片、自定义编辑器和 Notebook 暂时不自动跟随。
+   - 每次活动源码文件变化都会重新解析当前 Team 或 Personal Store；缓存键继续按 Notes location 隔离。
+   - `NotesViewProvider.requestVersion` 继续阻止较慢的旧读取覆盖较新的界面，不再额外使用跨事件 URI 去重。
+
+### 临时诊断改动：单通道 Notes 切换（需要后续还原）
+
+- **目的**：排除多个 VS Code 事件互相干扰，判断 DocuMind 中 `delete.ts` 与无 Notes 文件切换失败究竟发生在事件层还是显示层。
+- **开始版本**：使用 `0.14.6` VSIX 进行诊断；测试顺序为 `.prettierrc → delete.ts → hi2.ts → delete.ts`。
+- **当前临时行为**：第一阶段验证单通道文件切换正常后，已恢复 `onDidChangeTextEditorSelection`；文件 URI 仍只来自 `activeTextEditor`。
+- **恢复的 Tab 行为**：已恢复 `tabGroups.onDidChangeTabs` 和 `tabGroups.onDidChangeTabGroups`，但仅在没有活动文本编辑器时处理 Custom Editor、Notebook 和 Notebook Diff。
+- **当前恢复能力**：光标移动会重新定位 Section/Line Notes，并同步 Relocate 建议位置。
+- **确认的事件边界**：光标事件改用 `showActiveDocumentLineNotes`，只有 URI 同时匹配最新活动文件和已显示文件时才允许重载；迟到的旧 Selection 不再增加请求版本或取消新文件加载。
+- **当前恢复能力**：图片、自定义编辑器和 Notebook 会自动切换 Notes；普通文本 Tab 永远不能覆盖活动文本编辑器。
+- **仍然保留**：`NotesViewProvider.requestVersion` 防止旧读取覆盖新结果；每次文件加载重新解析 Team 或 Personal Store。
+- **涉及代码**：`vscode/events/registerNotesPreviewEvents.ts`、`tests/vscode/registerNotesPreviewEvents.test.ts`；`tests/vscode/NotesViewProvider.test.ts` 新增了每次文件变化重新解析 Store 的保护测试。
+- **还原进度**：光标监听和非文本 Tab fallback 均已按职责边界恢复；普通文本文件继续只以 `activeTextEditor` 为准。
+- **还原验证**：运行相关 Vitest、lint、`git diff --check` 和 `npm run package:vscode`，再手动验证文本文件、光标、图片和 Team/Personal Notes。
 
 18. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
@@ -470,4 +484,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1 至 17 步已完成；Explorer Preview Tab 的相关事件会合并后读取最终活动文件，快速切换不再因过早去重或 editor/tab 短暂不同步而漏掉。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
+Plan 第 1 至 17 步已完成；当前临时诊断版本只跟随活动文本编辑器，并且每次加载都会重新解析当前 Team 或 Personal Store。先用 DocuMind 的 `.prettierrc → delete.ts → hi2.ts` 验证单通道切换，再决定是否恢复非文本 Tab 支持。
