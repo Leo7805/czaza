@@ -64,7 +64,7 @@ type InspectAgentNotesResult = {
 };
 ```
 
-MVP 只读取 Team Notes。函数对路径执行标准化和工作区边界检查；不存在、未被 Note Store 跟踪或存储无效的文件进入 `skipped`，不让整个批次失败。
+调用者必须传入明确的 `NoteStoreLocation`。函数读取指定的 Team 或 Personal Notes，并返回经过身份索引验证的可读所属人；不存在、未被 Note Store 跟踪或存储无效的文件进入 `skipped`，不让整个批次失败。
 
 ### `applyAgentNoteUpdates`
 
@@ -137,6 +137,9 @@ type AgentNoteChange =
 - 新增笔记固定使用 `createdBy: "ai"`，且不接受 `userNote` 输入。
 - 不自动删除任何笔记。
 - 写入前必须校验 `sourceHash`。
+- 每次修改前必须显示当前 Notes 的所属人并获得用户确认；Team 显示为 `Team Notes`，Personal 显示为 `Personal Notes — <displayName>`。
+- 检查、确认和写入必须使用同一个明确的 `NoteStoreLocation`；无法确认所属人时停止，不能默认使用 Team Notes。
+- 确认仅适用于当次具体修改计划；确认后 Notes 位置或修改内容发生变化时，确认凭据失效并拒绝写入。
 - 暂不处理没有 Note Store 记录的全新源文件。
 - 暂不开发 MCP、VS Code UI、自动影响分析或独立 Proof 文件。
 - Runtime State 继续处理位置、过期、缺失和重新定位；本流程只维护笔记内容。
@@ -302,7 +305,7 @@ type AgentNoteUpdateReport = {
    - 定义 `inspectAgentNotes` 的返回数据。
    - 定义 `applyAgentNoteUpdates` 的变更请求和报告结构。
    - 明确 AI 笔记、用户笔记和新增笔记的判断规则。
-   - 结果：MVP 只支持 Team Notes；更新只替换 `aiExplanation`；锚点、ID 和持久化字段由函数生成；按文件返回独立结果。
+   - 结果：更新只替换 `aiExplanation`；锚点、ID 和持久化字段由函数生成；按文件返回独立结果；后续安全修正增加了明确的 Team/Personal Notes 位置和逐次确认凭据。
 
 2. **已完成——实现只读检查函数**
    - 复用现有 Note Store 读取能力。
@@ -316,9 +319,10 @@ type AgentNoteUpdateReport = {
    - 禁止用户笔记修改和所有删除操作。
    - 结果：新增 `applyAgentNoteUpdates`；同一源文件的有效请求先在内存中应用并只保存一次；更新仅替换 AI 内容并保留用户内容；新增笔记的 ID、锚点、状态和时间戳由现有转换逻辑生成。
 
-4. **待开始——生成按文件分组的修改列表**
+4. **已完成——生成按文件分组的修改列表**
    - 记录更新、新增、跳过和失败项目。
    - 输出按源文件分组的列表及总计。
+   - 结果：新增纯格式化函数；每个源文件单独分组，每项变化固定为一行，并在结尾显示修改文件数以及更新、新增、跳过和失败总计。
 
 5. **待开始——提供 Agent 可调用入口**
    - MVP 倾向使用薄 CLI，具体命令格式在实施前确认。
@@ -348,6 +352,15 @@ type AgentNoteUpdateReport = {
 - 第 3 步是否将更新请求和报告类型继续放入现有 `agentNoteTypes.ts`；当前倾向共用该文件，避免重复类型。
 - 在实现 Agent 更新入口后，如何让现有 CZaza prompts enforce the same Note Writing Format without duplicating prompt text.
 
+## Notes 所属人确认
+
+- `inspectAgentNotes` 必须接收明确的 Team 或 Personal `NoteStoreLocation`，并返回经过验证的 Notes 所属人。
+- `createAgentNoteUpdateConfirmation` 在修改前显示当前 Notes 所属人、涉及文件数、计划更新数和计划新增数。
+- 用户确认后，调用者将针对该具体计划生成的 `confirmationToken` 交给 `applyAgentNoteUpdates`。
+- `applyAgentNoteUpdates` 重新验证 Personal identity，并确认 token 与完整计划一致；Notes 位置或计划被替换时拒绝写入。
+- 确认不能跨修改复用；每次新的修改计划都必须重新显示所属人并请求确认。
+- 用户是否确实点击或回复确认由 Agent 交互层负责；token 只保证执行的内容与刚才展示的计划完全相同。
+
 ## 下一步
 
-Plan 第 1、2、3 步已完成。下一步是完善按源文件分组的修改列表和面向用户的文本格式；开始写代码前需要确认第 4 步的输出边界。
+Plan 第 1、2、3、4 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护。下一步是提供 Agent 可调用的薄 CLI；CLI 必须把“生成确认信息”和“确认后执行修改”作为两个独立命令。

@@ -1,5 +1,5 @@
 /**
- * Reads current source text and existing Team Notes for an AI Agent without writing data.
+ * Reads current source text and existing selected Notes for an AI Agent without writing data.
  */
 
 import path from "node:path";
@@ -11,6 +11,8 @@ import {
   isPathInsideDirectory,
 } from "@shared/utils/managedOutputPath";
 import { WorkspaceNoteStore } from "@vscode/notes";
+import type { AgentNoteIdentityLookup } from "./agentNoteOwner";
+import { resolveAgentNoteOwner } from "./agentNoteOwner";
 import type {
   InspectAgentNotesInput,
   InspectAgentNotesResult,
@@ -19,7 +21,7 @@ import type {
 } from "./agentNoteTypes";
 
 /**
- * Inspects current source files and their existing Team Notes.
+ * Inspects current source files and their existing selected Notes.
  *
  * Invalid paths and unavailable Note Store entries are returned as skipped
  * items so one bad request does not prevent other files from being inspected.
@@ -31,11 +33,13 @@ import type {
 export async function inspectAgentNotes(
   input: InspectAgentNotesInput,
   notes = new WorkspaceNoteStore(),
+  identities?: AgentNoteIdentityLookup,
 ): Promise<InspectAgentNotesResult> {
   const files: InspectedAgentNoteFile[] = [];
   const skipped: SkippedAgentNoteInspection[] = [];
   const workspaceRoot = path.resolve(input.workspaceRoot);
-  const index = await notes.cache.loadIndex(workspaceRoot, input.outputDirectory);
+  const owner = await resolveAgentNoteOwner(workspaceRoot, input.outputDirectory, input.location, identities);
+  const index = await notes.cache.loadIndex(workspaceRoot, input.outputDirectory, input.location);
 
   for (const requestedPath of input.sourcePaths) {
     const sourcePath = normalizeSourcePath(workspaceRoot, requestedPath);
@@ -72,6 +76,7 @@ export async function inspectAgentNotes(
       workspaceRoot,
       input.outputDirectory,
       sourcePath,
+      input.location,
     );
 
     if (!sourceFile) {
@@ -92,7 +97,7 @@ export async function inspectAgentNotes(
     });
   }
 
-  return { files, skipped };
+  return { owner, files, skipped };
 }
 
 /**

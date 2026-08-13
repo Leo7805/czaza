@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:6ade810ddfb8bcd3dd5084838f4b629c922fbd9aa754b04694820d1c66695e0a",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-13T06:40:19.098Z",
+    "updatedAt": "2026-08-13T06:40:19.098Z"
+  },
+  "fileNote": {
+    "userNote": "将 Agent 笔记更新结果转换为文件分组列表和汇总。\nformatAgentNoteUpdateReport：输出文件分组、单行修改项目和最终统计。\nformatChange：将一项更新、新增、跳过或失败结果格式化为一行。\ngetActionLabel：返回结果动作的可读名称。\ngetLevelLabel：返回 File、Section 或 Line Note 的可读名称。\ncollapseToOneLine：压缩原因文本中的换行和多余空白。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -12,6 +12,8 @@ import { createFileNoteFromAiAnalysis } from "@shared/services/aiToDomainService
 import { createStoredSourceFile } from "@shared/services/domainToStoreService";
 import { createSourceHash } from "@shared/utils/hashUtils";
 import { applyAgentNoteUpdates } from "@vscode/agentNotes/applyAgentNoteUpdates";
+import { createAgentNoteConfirmationToken } from "@vscode/agentNotes/createAgentNoteUpdateConfirmation";
+import type { AgentNoteUpdatePlan } from "@vscode/agentNotes/agentNoteTypes";
 import { WorkspaceNoteStore, WorkspaceNoteStoreRepository } from "@vscode/notes";
 
 const outputDirectory = ".czaza";
@@ -29,9 +31,10 @@ describe("applyAgentNoteUpdates", () => {
       return saveSourceFile(...args);
     };
 
-    const report = await applyAgentNoteUpdates({
+    const report = await applyAgentNoteUpdates(confirm({
       workspaceRoot: setup.workspaceRoot,
       outputDirectory,
+      location: { kind: "team" },
       files: [{
         sourcePath: setup.sourcePath,
         expectedSourceHash: createSourceHash(sourceText),
@@ -43,7 +46,7 @@ describe("applyAgentNoteUpdates", () => {
           reason: "The function behavior changed.",
         }],
       }],
-    }, setup.notes, () => updatedAt);
+    }), setup.notes, () => updatedAt);
 
     const saved = await setup.notes.cache.getSourceFile(setup.workspaceRoot, outputDirectory, setup.sourcePath);
     expect(saveCount).toBe(1);
@@ -60,9 +63,10 @@ describe("applyAgentNoteUpdates", () => {
   it("creates file, section, and line AI Notes with generated store fields", async () => {
     const setup = await createTrackedWorkspace("create", false);
 
-    const report = await applyAgentNoteUpdates({
+    const report = await applyAgentNoteUpdates(confirm({
       workspaceRoot: setup.workspaceRoot,
       outputDirectory,
+      location: { kind: "team" },
       files: [{
         sourcePath: setup.sourcePath,
         expectedSourceHash: createSourceHash(sourceText),
@@ -72,7 +76,7 @@ describe("applyAgentNoteUpdates", () => {
           { action: "create", level: "line", line: 2, aiExplanation: { summary: "This line reports success.", detail: "It returns true to the caller." }, reason: "The return value matters." },
         ],
       }],
-    }, setup.notes, () => updatedAt);
+    }), setup.notes, () => updatedAt);
 
     const saved = await setup.notes.cache.getSourceFile(setup.workspaceRoot, outputDirectory, setup.sourcePath);
     expect(saved?.fileNote).toMatchObject({ id: "file", createdBy: "ai", createdAt: updatedAt });
@@ -85,15 +89,16 @@ describe("applyAgentNoteUpdates", () => {
     const setup = await createTrackedWorkspace("hash");
     const original = await setup.notes.cache.getSourceFile(setup.workspaceRoot, outputDirectory, setup.sourcePath);
 
-    const report = await applyAgentNoteUpdates({
+    const report = await applyAgentNoteUpdates(confirm({
       workspaceRoot: setup.workspaceRoot,
       outputDirectory,
+      location: { kind: "team" },
       files: [{
         sourcePath: setup.sourcePath,
         expectedSourceHash: "sha256:old",
         changes: [{ action: "update", level: "file", noteId: "file", aiExplanation: { summary: "New summary.", detail: "New detail." }, reason: "Requested update." }],
       }],
-    }, setup.notes, () => updatedAt);
+    }), setup.notes, () => updatedAt);
 
     expect(await setup.notes.cache.getSourceFile(setup.workspaceRoot, outputDirectory, setup.sourcePath)).toEqual(original);
     expect(report.summary.failed).toBe(1);
@@ -107,9 +112,10 @@ describe("applyAgentNoteUpdates", () => {
 
     if (!explanation) throw new Error("Expected seeded AI explanation.");
 
-    const report = await applyAgentNoteUpdates({
+    const report = await applyAgentNoteUpdates(confirm({
       workspaceRoot: setup.workspaceRoot,
       outputDirectory,
+      location: { kind: "team" },
       files: [{
         sourcePath: setup.sourcePath,
         expectedSourceHash: createSourceHash(sourceText),
@@ -119,12 +125,17 @@ describe("applyAgentNoteUpdates", () => {
           { action: "create", level: "line", line: 99, aiExplanation: { summary: "Invalid line.", detail: "This should fail." }, reason: "Requested creation." },
         ],
       }],
-    }, setup.notes, () => updatedAt);
+    }), setup.notes, () => updatedAt);
 
     expect(report.summary).toEqual({ filesChanged: 0, updated: 0, created: 0, skipped: 1, failed: 2 });
     expect(await setup.notes.cache.getSourceFile(setup.workspaceRoot, outputDirectory, setup.sourcePath)).toEqual(existing);
   });
 });
+
+/** Adds the confirmation token bound to one exact update plan. */
+function confirm(plan: AgentNoteUpdatePlan) {
+  return { ...plan, confirmationToken: createAgentNoteConfirmationToken(plan) };
+}
 
 /** Creates an isolated tracked source file and Team Note Store. */
 async function createTrackedWorkspace(name: string, withFileNote = true): Promise<{

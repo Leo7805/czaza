@@ -44,7 +44,7 @@ describe("inspectAgentNotes", () => {
     await writeSource(workspaceRoot, sourcePath, currentText);
 
     const result = await inspectAgentNotes(
-      { workspaceRoot, outputDirectory, sourcePaths: ["src/./value.ts"] },
+      { workspaceRoot, outputDirectory, location: { kind: "team" }, sourcePaths: ["src/./value.ts"] },
       notes,
     );
 
@@ -76,6 +76,7 @@ describe("inspectAgentNotes", () => {
       {
         workspaceRoot,
         outputDirectory,
+        location: { kind: "team" },
         sourcePaths: ["src/untracked.ts", "src/missing.ts"],
       },
       notes,
@@ -96,6 +97,7 @@ describe("inspectAgentNotes", () => {
       {
         workspaceRoot,
         outputDirectory,
+        location: { kind: "team" },
         sourcePaths: ["../outside.ts", ".czaza/notes/team/index.json"],
       },
       notes,
@@ -115,7 +117,7 @@ describe("inspectAgentNotes", () => {
     await writeSource(workspaceRoot, sourcePath, "export const value = 1;\n");
 
     const result = await inspectAgentNotes(
-      { workspaceRoot, outputDirectory, sourcePaths: [sourcePath] },
+      { workspaceRoot, outputDirectory, location: { kind: "team" }, sourcePaths: [sourcePath] },
       createNotes(),
     );
 

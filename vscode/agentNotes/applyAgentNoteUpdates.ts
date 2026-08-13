@@ -30,6 +30,9 @@ import {
   isPathInsideDirectory,
 } from "@shared/utils/managedOutputPath";
 import { WorkspaceNoteStore } from "@vscode/notes";
+import type { AgentNoteIdentityLookup } from "./agentNoteOwner";
+import { resolveAgentNoteOwner } from "./agentNoteOwner";
+import { createAgentNoteConfirmationToken } from "./createAgentNoteUpdateConfirmation";
 import type {
   AgentNoteChange,
   AgentNoteChangeResult,
@@ -49,8 +52,14 @@ export async function applyAgentNoteUpdates(
   input: ApplyAgentNoteUpdatesInput,
   notes = new WorkspaceNoteStore(),
   now = (): string => new Date().toISOString(),
+  identities?: AgentNoteIdentityLookup,
 ): Promise<AgentNoteUpdateReport> {
   const workspaceRoot = path.resolve(input.workspaceRoot);
+  const owner = await resolveAgentNoteOwner(workspaceRoot, input.outputDirectory, input.location, identities);
+  const { confirmationToken: _confirmationToken, ...plan } = input;
+  if (input.confirmationToken !== createAgentNoteConfirmationToken(plan)) {
+    throw new Error("Agent Note update confirmation does not match the current plan.");
+  }
   const files: AgentNoteUpdateReport["files"] = [];
 
   for (const request of input.files) {
@@ -84,6 +93,7 @@ export async function applyAgentNoteUpdates(
       workspaceRoot,
       input.outputDirectory,
       sourcePath,
+      input.location,
     );
 
     if (!sourceFile) {
@@ -104,13 +114,15 @@ export async function applyAgentNoteUpdates(
           source: { ...applied.sourceFile.source, sourceHash },
         },
         timestamp,
+        {},
+        input.location,
       );
     }
 
     files.push({ sourcePath, changes: applied.results });
   }
 
-  return { files, summary: summarizeResults(files) };
+  return { owner, files, summary: summarizeResults(files) };
 }
 
 /** Applies one source file's valid requests in memory before one persistence call. */

@@ -7,6 +7,12 @@ import type { StoredLineNote } from "@shared/models/store/line";
 import type { StoredSectionNote } from "@shared/models/store/section";
 import type { AIExplanation } from "@shared/models/ai/common";
 import type { LineRange } from "@shared/models/common";
+import type { NoteStoreLocation } from "@vscode/notes";
+
+/** Human-readable identity of the Notes space used by an Agent operation. */
+export type AgentNoteOwner =
+  | { kind: "team"; label: "Team Notes" }
+  | { kind: "personal"; memberId: string; displayName: string; label: string };
 
 /** Reason one requested source file could not be inspected. */
 export type AgentNoteInspectionSkipReason =
@@ -22,6 +28,9 @@ export type InspectAgentNotesInput = {
 
   /** Workspace-relative CZaza output directory. */
   outputDirectory: string;
+
+  /** Exact Team or Personal Note Store to inspect. */
+  location: NoteStoreLocation;
 
   /** Workspace-relative source paths to inspect in request order. */
   sourcePaths: string[];
@@ -60,6 +69,8 @@ export type SkippedAgentNoteInspection = {
 
 /** Ordered result of one read-only Agent note inspection. */
 export type InspectAgentNotesResult = {
+  /** Verified owner of the inspected Notes space. */
+  owner: AgentNoteOwner;
   /** Successfully inspected files in request order. */
   files: InspectedAgentNoteFile[];
 
@@ -100,17 +111,25 @@ export type AgentNoteChange =
     };
 
 /** Input for safely applying Agent-authored AI Note content. */
-export type ApplyAgentNoteUpdatesInput = {
+export type AgentNoteUpdatePlan = {
   /** Absolute CZaza project root. */
   workspaceRoot: string;
   /** Workspace-relative CZaza output directory. */
   outputDirectory: string;
+  /** Exact Team or Personal Note Store approved for modification. */
+  location: NoteStoreLocation;
   /** Source-file update batches processed in request order. */
   files: Array<{
     sourcePath: string;
     expectedSourceHash: string;
     changes: AgentNoteChange[];
   }>;
+};
+
+/** Confirmed input for safely applying Agent-authored AI Note content. */
+export type ApplyAgentNoteUpdatesInput = AgentNoteUpdatePlan & {
+  /** Fingerprint returned for this exact owner and update plan before confirmation. */
+  confirmationToken: string;
 };
 
 /** Result of one requested Agent Note change. */
@@ -129,6 +148,8 @@ export type AgentNoteChangeResult = {
 
 /** Ordered per-file report returned after applying Agent Note changes. */
 export type AgentNoteUpdateReport = {
+  /** Verified owner of the modified Notes space. */
+  owner: AgentNoteOwner;
   /** Results grouped by requested source file. */
   files: Array<{
     sourcePath: string;
