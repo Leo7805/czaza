@@ -96,7 +96,6 @@ export function activate(context: vscode.ExtensionContext): void {
     runtimeNoteStateRegistry,
     sourceRelocationHistory,
     changeTaskCoordinator,
-    noteScope,
   );
   registerNotesResourceEvents(
     context,
@@ -105,6 +104,7 @@ export function activate(context: vscode.ExtensionContext): void {
     runtimeNoteStateRegistry,
     sourceRelocationHistory,
     changeTaskCoordinator,
+    noteScope,
   );
 }
 
