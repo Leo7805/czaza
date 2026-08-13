@@ -311,7 +311,7 @@ type AgentNoteUpdateReport = {
    - 复用现有 Note Store 读取能力。
    - 读取源代码并计算当前 `sourceHash`。
    - 返回已有笔记和状态，不执行写入。
-   - 结果：新增独立类型契约和 `inspectAgentNotes`；MVP 读取 Team Notes，按请求顺序返回成功项和稳定跳过原因；针对性测试、构建和 lint 已通过。
+   - 结果：新增独立类型契约和 `inspectAgentNotes`；MVP 读取明确指定的 Team 或 Personal Notes，按请求顺序返回成功项和稳定跳过原因；针对性测试、构建和 lint 已通过。
 
 3. **已完成——实现安全更新函数**
    - 校验路径、`sourceHash`、Note ID、笔记归属和新增数据。
@@ -324,15 +324,32 @@ type AgentNoteUpdateReport = {
    - 输出按源文件分组的列表及总计。
    - 结果：新增纯格式化函数；每个源文件单独分组，每项变化固定为一行，并在结尾显示修改文件数以及更新、新增、跳过和失败总计。
 
-5. **已完成——提供 Agent 可调用入口**
+5. **已完成——提供 Agent 可调用 CLI**
    - MVP 倾向使用薄 CLI，具体命令格式在实施前确认。
    - CLI 只调用上述函数，不包含独立的 Note Store 写入逻辑。
    - 结果：新增 stdin JSON 驱动的 `inspect`、`confirm` 和 `apply` 命令；`inspect` 与 `confirm` 输出结构化 JSON，`apply` 输出按文件分组的可读报告；Personal Notes 名称从 identity index 验证。
+   - 定位：CLI 是 MVP 主路径；下一阶段需要将它构建为独立 JavaScript 并随 VSIX 分发，使 Skill 可以稳定查找和调用。
 
-6. **待开始——增加测试并验证**
+6. **已完成——评估并暂不采用 MCP**
+   - 已验证在现有核心函数外包装 stdio MCP Server 在技术上可行。
+   - MCP 方案要求额外 SDK、schema、Server 启动、Host 配置和安装发现，但当前 MVP 最终仍调用同一组本地函数。
+   - 结果：删除 MCP Server、MCP tests、`notes:mcp`、MCP SDK 和 Zod；保留核心函数、确认机制、报告和 CLI。
+   - 决定：MVP 由 `$czaza` Skill 指导 Agent 直接调用 CLI；未来只有在多个 Agent Host 需要统一协议时再重新评估 MCP。
+
+7. **待开始——创建配套 Skill**
+   - 规定何时执行 `inspect → confirm → apply`。
+   - 规定 Note Writing Format、禁止直接编辑 Note Store、逐次显示所属人并等待用户确认。
+   - 规定最终输出按源文件列出实际修改结果。
+
+8. **待开始——构建并随 VSIX 分发独立 CLI**
+   - 将 Agent Notes CLI 构建为无需 `tsx` 和项目依赖的 JavaScript 文件。
+   - 将 CLI 放入 VSIX，并确定 Skill 查找已安装 CZaza 扩展路径的规则。
+
+9. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
    - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
-   - 运行相关测试、完整测试、构建和 lint。
+   - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
+   - 运行相关测试、完整测试、构建、lint 和安装包验证。
 
 ## 预计影响范围
 
@@ -345,13 +362,44 @@ type AgentNoteUpdateReport = {
 - 修改 `package.json` 增加调用命令；
 - 持续更新本讨论稿中的 Plan 状态。
 
-不增加依赖，不改变现有 Note Store 数据格式。
+不增加运行时依赖，不改变现有 Note Store 数据格式。
 
 ## 尚未确定
 
-- CLI 的具体输入方式：JSON 文件、标准输入或命令参数。
-- 第 3 步是否将更新请求和报告类型继续放入现有 `agentNoteTypes.ts`；当前倾向共用该文件，避免重复类型。
+- Skill 如何稳定找到已安装 VSIX 中的独立 Agent Notes CLI。
+- CLI 如何从运行中的 VS Code 获取当前 Notes 选择；MVP 继续要求显式传入并确认。
 - 在实现 Agent 更新入口后，如何让现有 CZaza prompts enforce the same Note Writing Format without duplicating prompt text.
+
+## Agent、Skill 与 JSON 的职责
+
+- Agent 读取代码 diff 和 `inspect` 结果，决定需要更新或新增哪些 Notes，并自动生成修改计划 JSON。
+- Skill 告诉 Agent 如何生成该 JSON、何时调用各阶段、怎样向用户显示当前 Notes 所属人，以及未确认时禁止执行修改。
+- 用户只查看修改计划并确认，不需要编写或传递 JSON。
+- CZaza Agent 接口接收 Agent 传来的 JSON，验证 Notes 位置、身份、计划指纹和 `sourceHash`，然后通过 `WorkspaceNoteStore` 保存。
+- 当前 CLI 使用 stdin 传递 JSON：Agent 启动命令并把 JSON 写入标准输入；该机制保留为开发入口和未来工具协议的原型。
+- Skill 不能替代安全写入接口，也不能直接编辑 `.czaza/notes/` JSON。
+
+## 安装后的目标体验
+
+```text
+用户安装 CZaza 和配套 Skill
+  ↓
+Agent 通过 Skill 找到 CZaza Agent Notes CLI
+  ↓
+接口返回当前 Notes 空间和相关 Notes
+  ↓
+Agent 生成修改计划 JSON
+  ↓
+接口生成带所属人的确认信息
+  ↓
+Agent 展示确认信息并等待用户确认
+  ↓
+Agent 传回同一计划 JSON 和 confirmationToken
+  ↓
+接口安全写入并返回按文件分组的报告
+```
+
+用户不需要安装项目依赖、配置 npm script、寻找 VSIX 安装路径或手写 JSON。
 
 ## Notes 所属人确认
 
@@ -364,4 +412,4 @@ type AgentNoteUpdateReport = {
 
 ## 下一步
 
-Plan 第 1、2、3、4、5 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护。下一步是第 6 步：补齐剩余边界测试并执行完整项目验证。
+Plan 第 1、2、3、4、5、6 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护；MCP 经评估后从 MVP 移除。下一步是创建 `$czaza` Skill，然后构建并随 VSIX 分发独立 CLI。
