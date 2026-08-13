@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:54cc65529c7ec4b05efc08e52c334283334a4453375f373e92858082aace874a",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-13T06:25:18.886Z",
+    "updatedAt": "2026-08-13T06:25:18.886Z"
+  },
+  "fileNote": {
+    "userNote": "负责校验、应用和保存 Agent 提交的笔记修改。\napplyAgentNoteUpdates：按文件处理修改请求，验证源码哈希，并对每个发生变化的文件只保存一次。\napplyFileChanges：在内存中依次应用同一文件的修改并收集结果。\napplyOneChange：更新已有 AI 内容或创建 File、Section、Line AI Note。\nfindNote：按笔记层级和 ID 查找现有笔记。\nupdateExplanation：复用现有更新逻辑，只替换 aiExplanation。\nmarkUpdatedNoteCurrent：将成功更新的笔记标记为内容和位置均已确认。\nvalidateChangeContent：检查总述、详细说明、修改原因和 Section 标题等输入。\nfindAvailableSectionIndex：生成不会与现有 Section Note 冲突的 ID 序号。\ncreateResult：创建单项更新、创建、跳过或失败结果。\ncreateRejectedFileResult：在文件级校验失败时拒绝该文件的全部请求。\nsummarizeResults：统计修改文件、更新、新增、跳过和失败数量。\nnormalizeSourcePath：拒绝绝对路径、工作区外路径和 Note Store 路径。\ngetErrorMessage：将未知错误转换成稳定的报告文本。\ncompareSections：按代码位置和 ID 排序 Section Notes。\ncompareLines：按代码行和 ID 排序 Line Notes。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

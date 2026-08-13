@@ -6,10 +6,10 @@
   },
   "defaults": {
     "createdAt": "2026-08-13T06:12:52.713Z",
-    "updatedAt": "2026-08-13T06:12:52.713Z"
+    "updatedAt": "2026-08-13T06:25:49.721Z"
   },
   "fileNote": {
-    "userNote": "定义 Agent 只读检查所需的数据契约。",
+    "userNote": "定义 Agent 只读检查所需的数据契约。\n\n增加安全更新请求、单项结果和汇总报告的数据契约。",
     "createdBy": "user"
   },
   "sectionNotes": {},
