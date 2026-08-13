@@ -336,10 +336,11 @@ type AgentNoteUpdateReport = {
    - 结果：删除 MCP Server、MCP tests、`notes:mcp`、MCP SDK 和 Zod；保留核心函数、确认机制、报告和 CLI。
    - 决定：MVP 由 `$czaza` Skill 指导 Agent 直接调用 CLI；未来只有在多个 Agent Host 需要统一协议时再重新评估 MCP。
 
-7. **待开始——创建配套 Skill**
+7. **已完成——创建配套 Skill**
    - 规定何时执行 `inspect → confirm → apply`。
    - 规定 Note Writing Format、禁止直接编辑 Note Store、逐次显示所属人并等待用户确认。
    - 规定最终输出按源文件列出实际修改结果。
+   - 结果：在相邻 `ai-agent-skills/czaza/` 创建并验证 `$czaza` Skill，链接到 `~/.codex/skills/czaza`；Skill 当前优先使用未来的已打包 CLI，开发期间使用 CZaza 仓库中的 `notes:agent`。
 
 8. **待开始——构建并随 VSIX 分发独立 CLI**
    - 将 Agent Notes CLI 构建为无需 `tsx` 和项目依赖的 JavaScript 文件。
@@ -412,4 +413,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1、2、3、4、5、6 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护；MCP 经评估后从 MVP 移除。下一步是创建 `$czaza` Skill，然后构建并随 VSIX 分发独立 CLI。
+Plan 第 1、2、3、4、5、6、7 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护；MCP 经评估后从 MVP 移除。下一步是构建并随 VSIX 分发独立 CLI，使 `$czaza` Skill 不再依赖开发仓库或 `tsx`。
