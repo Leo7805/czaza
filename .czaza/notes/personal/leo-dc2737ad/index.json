@@ -1,6 +1,13 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-13T01:16:49.227Z",
+  "updatedAt": "2026-08-13T06:12:52.713Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
-  "files": {}
+  "files": {
+    "vscode/agentNotes/agentNoteTypes.ts": {
+      "noteFile": "files/4e580d8f6006-77b2e256.json",
+      "sourceHash": "sha256:99fb67810b7dde7d53dea63aec7902747ca78c162d0a50ae006fa0a5105604aa",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-08-13T06:12:52.713Z"
+    }
+  }
 }

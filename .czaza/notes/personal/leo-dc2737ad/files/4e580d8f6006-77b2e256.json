@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:99fb67810b7dde7d53dea63aec7902747ca78c162d0a50ae006fa0a5105604aa",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-13T06:12:52.713Z",
+    "updatedAt": "2026-08-13T06:12:52.713Z"
+  },
+  "fileNote": {
+    "userNote": "定义 Agent 只读检查所需的数据契约。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
