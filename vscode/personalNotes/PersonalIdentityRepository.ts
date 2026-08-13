@@ -12,7 +12,8 @@ import {
 } from "@shared/models/store/personalIdentity";
 import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 
-const PERSONAL_NOTES_DIRECTORY = "personal-notes";
+const NOTES_DIRECTORY = "notes";
+const PERSONAL_NOTES_DIRECTORY = "personal";
 const INDEX_FILE_NAME = "index.json";
 
 /** Reads and writes project-level Personal Notes identity data. */
@@ -122,7 +123,13 @@ export function getPersonalIdentityIndexPath(
   workspaceRoot: string,
   outputDirectory: string,
 ): string {
-  return path.join(workspaceRoot, outputDirectory, PERSONAL_NOTES_DIRECTORY, INDEX_FILE_NAME);
+  return path.join(
+    workspaceRoot,
+    outputDirectory,
+    NOTES_DIRECTORY,
+    PERSONAL_NOTES_DIRECTORY,
+    INDEX_FILE_NAME,
+  );
 }
 
 /**
@@ -138,7 +145,13 @@ export function getPersonalMemberStorePath(
   outputDirectory: string,
   memberId: string,
 ): string {
-  return path.join(workspaceRoot, outputDirectory, PERSONAL_NOTES_DIRECTORY, memberId);
+  return path.join(
+    workspaceRoot,
+    outputDirectory,
+    NOTES_DIRECTORY,
+    PERSONAL_NOTES_DIRECTORY,
+    memberId,
+  );
 }
 
 /** Atomically writes formatted JSON. */

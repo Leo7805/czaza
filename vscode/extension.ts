@@ -25,7 +25,7 @@ import {
 } from "./services/noteRelocation";
 import { RuntimeNoteStateRegistry } from "./services/runtimeState";
 import { ChangeTaskCoordinator } from "./services/changeCoordination";
-import { PersonalIdentityService } from "./personalNotes";
+import { PersonalIdentityService, PersonalNoteScopeService } from "./personalNotes";
 
 /**
  * Activates the CZaza VS Code extension.
@@ -46,6 +46,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const sourceRelocationHistory = new SourceRelocationHistoryService();
   const changeTaskCoordinator = new ChangeTaskCoordinator(800);
   const personalIdentities = new PersonalIdentityService(context.workspaceState);
+  const noteScope = new PersonalNoteScopeService(context.workspaceState, personalIdentities);
   context.subscriptions.push(changeTaskCoordinator);
 
   // React-based notes panel provider for the new notes architecture.
@@ -53,12 +54,14 @@ export function activate(context: vscode.ExtensionContext): void {
     context.extensionUri,
     notes,
     (uri) => generateFileNotesForResource(context, notes, uri),
-    (uri, target, userNote) => saveUserNoteService({ uri, notes, target, userNote }),
+    (uri, target, userNote, location) => saveUserNoteService({ uri, notes, target, userNote, location }),
     (uri, options) => generateAllNotesForResource(context, notes, uri, options),
     (uri, lineNumber) => generateLineNoteForResource(context, notes, uri, lineNumber),
     (uri, sectionId) => generateSectionNoteForResource(context, notes, uri, sectionId),
     (uri, lineNumber) => generateLineBatchNotesForResource(context, notes, uri, lineNumber),
     runtimeNoteStateRegistry,
+    noteScope,
+    personalIdentities,
   );
   context.subscriptions.push(notesProvider);
 
@@ -78,7 +81,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // 4. Register visible VS Code UI surfaces.
   // ---------------------------------------------------------------------------
 
-  registerNotesUi(context, notesProvider);
+  registerNotesUi(context, notesProvider, noteScope, personalIdentities);
 
   // ---------------------------------------------------------------------------
   // 5. Follow VS Code resource events that update visible notes.

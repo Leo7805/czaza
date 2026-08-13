@@ -93,7 +93,7 @@ describe("WorkspaceNoteStoreRepository", () => {
 
     console.log("Persisted source note file:", noteRaw.trim());
 
-    expect(getWorkspaceNoteIndexPath(root, outputDirectory)).toContain(`${outputDirectory}/notes/index.json`);
+    expect(getWorkspaceNoteIndexPath(root, outputDirectory)).toContain(`${outputDirectory}/notes/team/index.json`);
     expect(JSON.parse(noteRaw) as unknown).toEqual({
       source: sourceFile.source,
       sectionNotes: {},

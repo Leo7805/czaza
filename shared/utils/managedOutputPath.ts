@@ -19,8 +19,9 @@ export function isCzazaNoteStoreRelativePath(
   relativePath: string,
 ): boolean {
   const candidate = path.resolve(workspaceRoot, relativePath);
-  return ["notes", "personal-notes"].some((directory) =>
-    isPathInsideDirectory(candidate, path.resolve(workspaceRoot, outputDirectory, directory)),
+  return isPathInsideDirectory(
+    candidate,
+    path.resolve(workspaceRoot, outputDirectory, "notes"),
   );
 }
 

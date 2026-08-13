@@ -47,6 +47,13 @@ import {
   type AllNotesProgress,
 } from "@vscode/services/generateAllNotesService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
+import type { NoteStoreLocation } from "@vscode/notes";
+import {
+  createEmailIdentityHash,
+  readGitIdentity,
+  type PersonalIdentityService,
+  type PersonalNoteScopeService,
+} from "@vscode/personalNotes";
 import {
   relocateFileNoteService,
   relocateLineNoteService,
@@ -69,6 +76,10 @@ type NotesWebviewMessage =
       /** Indicates that the React webview is ready for its initial payload. */
       type: "ready";
     }
+  | { type: "selectNotesSpace"; scope: "project" | "team" }
+  | { type: "selectPersonalNotes"; memberId: string }
+  | { type: "createPersonalIdentity"; displayName: string; email: string }
+  | { type: "notesSpaceMenuClosed" }
   | {
       /** Reports the Navigator list selected by the user. */
       type: "navigatorTabChanged";
@@ -296,7 +307,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     uri: vscode.Uri,
     target: UserNoteTarget,
     userNote: string,
+    location?: NoteStoreLocation,
   ) => Promise<void>;
+  private readonly noteScope?: PersonalNoteScopeService;
+  private readonly personalIdentities?: PersonalIdentityService;
+  private notesSpaceMenuOpen = false;
 
   /**
    * Creates a notes webview provider.
@@ -318,7 +333,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     extensionUri: vscode.Uri,
     notes: WorkspaceNoteStore,
     generateFileNotes: (uri: vscode.Uri) => Promise<boolean>,
-    saveUserNote: (uri: vscode.Uri, target: UserNoteTarget, userNote: string) => Promise<void>,
+    saveUserNote: (uri: vscode.Uri, target: UserNoteTarget, userNote: string, location?: NoteStoreLocation) => Promise<void>,
     generateAllNotes?: (
       uri: vscode.Uri,
       options?: {
@@ -330,6 +345,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>,
     generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
     runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
+    noteScope?: PersonalNoteScopeService,
+    personalIdentities?: PersonalIdentityService,
   ) {
     this.extensionUri = extensionUri;
     this.notes = notes;
@@ -340,6 +357,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.generateSectionNote = generateSectionNote;
     this.generateLineBatchNotes = generateLineBatchNotes;
     this.runtimeNoteStateRegistry = runtimeNoteStateRegistry;
+    this.noteScope = noteScope;
+    this.personalIdentities = personalIdentities;
     this.runtimeStateDetectionController = runtimeNoteStateRegistry
       ? new RuntimeNoteStateDetectionController(notes, runtimeNoteStateRegistry)
       : undefined;
@@ -428,6 +447,26 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         void this.postCurrentNavigatorNotes();
         this.postViewMode(this.viewMode);
         this.updateEditorHighlights();
+        return;
+      }
+
+      if (message.type === "notesSpaceMenuClosed") {
+        this.notesSpaceMenuOpen = false;
+        return;
+      }
+
+      if (message.type === "selectNotesSpace") {
+        void this.selectNotesSpace(message.scope);
+        return;
+      }
+
+      if (message.type === "selectPersonalNotes") {
+        void this.selectPersonalNotes(message.memberId);
+        return;
+      }
+
+      if (message.type === "createPersonalIdentity") {
+        void this.createPersonalIdentity(message.displayName, message.email);
         return;
       }
 
@@ -586,6 +625,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @param mode - Detail or Navigator mode selected by the extension command.
    */
   postViewMode(mode: NotesViewMode): void {
+    this.closeNotesSpaceMenu();
     this.viewMode = mode;
     void vscode.commands.executeCommand("setContext", NOTES_VIEW_MODE_CONTEXT, mode);
     void this.view?.webview.postMessage({ type: "notesViewMode", mode });
@@ -599,6 +639,90 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     void this.view?.webview.postMessage({ type: "openEmojiPicker" });
   }
 
+  /** Opens the dynamic CZaza-styled Notes space menu in the webview. */
+  async openNotesSpaceMenu(): Promise<void> {
+    if (this.notesSpaceMenuOpen) {
+      this.closeNotesSpaceMenu();
+      return;
+    }
+    if (!this.view || !this.currentResourceUri || !this.noteScope || !this.personalIdentities) return;
+    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
+    if (!access.allowed) return;
+    const members = await this.personalIdentities.listMembers(
+      access.root.rootDirectory,
+      access.settings.outputDirectory,
+    );
+    const current = await this.personalIdentities.getCurrentIdentity(
+      access.root.rootDirectory,
+      access.settings.outputDirectory,
+    );
+    const gitIdentity = await readGitIdentity(access.root.rootDirectory);
+    await this.view.webview.postMessage({
+      type: "openNotesSpaceMenu",
+      state: {
+        scope: this.noteScope.getScope(access.root.rootDirectory),
+        ...(current ? { currentMemberId: current.memberId } : {}),
+        members: members.map(({ memberId, displayName }) => ({ memberId, displayName })),
+        ...(gitIdentity ? { gitIdentity } : {}),
+      },
+    });
+    this.notesSpaceMenuOpen = true;
+  }
+
+  /** Closes the custom Notes space menu and synchronizes Host state. */
+  closeNotesSpaceMenu(): void {
+    if (!this.notesSpaceMenuOpen) return;
+    this.notesSpaceMenuOpen = false;
+    void this.view?.webview.postMessage({ type: "closeNotesSpaceMenu" });
+  }
+
+  /** Applies Project or Team selection from the custom Notes space menu. */
+  private async selectNotesSpace(scope: "project" | "team"): Promise<void> {
+    if (!this.currentResourceUri || !this.noteScope) return;
+    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
+    if (!access.allowed) return;
+    await this.noteScope.setScope(access.root.rootDirectory, "team");
+    if (scope === "project") {
+      await this.showResourceNotes(vscode.Uri.file(access.root.rootDirectory));
+    } else {
+      await this.refreshCurrentResourceNotes();
+    }
+  }
+
+  /** Confirms and selects one existing Personal Notes identity. */
+  private async selectPersonalNotes(memberId: string): Promise<void> {
+    if (!this.currentResourceUri || !this.noteScope || !this.personalIdentities) return;
+    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
+    if (!access.allowed) return;
+    const member = (await this.personalIdentities.listMembers(
+      access.root.rootDirectory,
+      access.settings.outputDirectory,
+    )).find((candidate) => candidate.memberId === memberId);
+    if (!member) return;
+    await this.personalIdentities.bindCurrentIdentity(access.root.rootDirectory, member.memberId);
+    await this.noteScope.setScope(access.root.rootDirectory, "personal");
+    await this.refreshCurrentResourceNotes();
+  }
+
+  /** Creates or matches a Personal identity submitted by the custom modal. */
+  private async createPersonalIdentity(displayName: string, email: string): Promise<void> {
+    if (!this.currentResourceUri || !this.noteScope || !this.personalIdentities) return;
+    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
+    if (!access.allowed || !displayName.trim() || !email.trim()) return;
+    const existing = (await this.personalIdentities.listMembers(
+      access.root.rootDirectory,
+      access.settings.outputDirectory,
+    )).find((member) => member.identityHash === createEmailIdentityHash(email));
+    const member = existing ?? await this.personalIdentities.createIdentity(
+      access.root.rootDirectory,
+      access.settings.outputDirectory,
+      { displayName: displayName.trim(), email: email.trim() },
+    );
+    await this.personalIdentities.bindCurrentIdentity(access.root.rootDirectory, member.memberId);
+    await this.noteScope.setScope(access.root.rootDirectory, "personal");
+    await this.refreshCurrentResourceNotes();
+  }
+
   /**
    * Shows notes for one selected resource.
    *
@@ -609,6 +733,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * await provider.showResourceNotes(uri);
    */
   async showResourceNotes(uri?: vscode.Uri): Promise<void> {
+    this.closeNotesSpaceMenu();
     this.postViewMode("detail");
 
     const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
@@ -626,6 +751,17 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+  }
+
+  /** Reloads the current Detail resource after a Note Store scope change. */
+  async refreshCurrentResourceNotes(): Promise<void> {
+    if (this.currentResourceUri) {
+      await this.loadResourceNotes(
+        this.currentResourceUri,
+        false,
+        getActiveLine(this.currentResourceUri),
+      );
+    }
   }
 
   /**
@@ -798,10 +934,15 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
+    const location = await this.noteScope?.resolveLocation(
+      access.root.rootDirectory,
+      access.settings.outputDirectory,
+    );
     const payload = await getResourceNotes({
       uri,
       notes: this.notes,
       ...(activeLine ? { activeLine } : {}),
+      ...(location ? { location } : {}),
     });
 
     if (requestVersion !== this.requestVersion) {
@@ -813,14 +954,13 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
-    const visiblePayload = applyRuntimeStateToResourceNotes(
-      payload,
-      this.runtimeNoteStateRegistry?.getState({
+    const visiblePayload = location?.kind === "personal"
+      ? payload
+      : applyRuntimeStateToResourceNotes(payload, this.runtimeNoteStateRegistry?.getState({
         workspaceRoot: access.root.rootDirectory,
         outputDirectory: access.settings.outputDirectory,
         relativePath: access.relativePath,
-      }),
-    );
+      }));
     const resourceChanged = this.currentResourceUri?.toString() !== uri.toString();
     if (
       resourceChanged &&
@@ -1229,6 +1369,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     scope: "fileSection" | "all",
     allowBatching = false,
   ): Promise<void> {
+    if (await this.blockPersonalTeamOnlyAction("AI Generation")) return;
     const uri = this.currentResourceUri;
 
     if (!uri || this.currentPayload?.kind !== "file") {
@@ -1331,6 +1472,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   private async runSectionNoteGeneration(sectionId: string): Promise<void> {
+    if (await this.blockPersonalTeamOnlyAction("AI Generation")) return;
     const uri = this.currentResourceUri;
 
     if (
@@ -1375,6 +1517,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   private async runLineNoteGeneration(scope: "currentLine" | "nearbyLines"): Promise<void> {
+    if (await this.blockPersonalTeamOnlyAction("AI Generation")) return;
     const uri = this.currentResourceUri;
     const lineNumber =
       this.currentPayload?.kind === "file" ? this.currentPayload.activeLine : undefined;
@@ -1417,7 +1560,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
-	  private async runUserNoteSave(target: UserNoteTarget, userNote: string): Promise<void> {
+  private async runUserNoteSave(target: UserNoteTarget, userNote: string): Promise<void> {
     const uri = this.currentResourceUri;
 
     if (
@@ -1432,7 +1575,18 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     const resourceKey = uri.toString();
 
     try {
-      await this.saveUserNote(uri, target, userNote);
+      const access = evaluateCzazaResourceAccess(uri);
+      const location = access.allowed
+        ? await this.noteScope?.resolveLocation(
+            access.root.rootDirectory,
+            access.settings.outputDirectory,
+          )
+        : undefined;
+      if (location) {
+        await this.saveUserNote(uri, target, userNote, location);
+      } else {
+        await this.saveUserNote(uri, target, userNote);
+      }
     } catch (error) {
       await this.postNotice({
         tone: "error",
@@ -1457,7 +1611,31 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 	  }
 
+  /** Reports whether the current resource is using a Personal Store. */
+  private async isPersonalScopeActive(): Promise<boolean> {
+    if (!this.currentResourceUri) return false;
+    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
+    if (!access.allowed) return false;
+    const location = await this.noteScope?.resolveLocation(
+      access.root.rootDirectory,
+      access.settings.outputDirectory,
+    );
+    return location?.kind === "personal";
+  }
+
+  /** Stops a Team-only action while Personal Notes are selected. */
+  private async blockPersonalTeamOnlyAction(action: string): Promise<boolean> {
+    if (!(await this.isPersonalScopeActive())) return false;
+    await this.postNotice({
+      tone: "info",
+      title: `${action} Is Available in Team Notes`,
+      message: "Personal Notes currently support viewing and manual user-note editing only.",
+    });
+    return true;
+  }
+
   private async runClearNoteStaleStatus(target: UserNoteTarget): Promise<void> {
+	    if (await this.blockPersonalTeamOnlyAction("Status Updates")) return;
 	    const uri = this.currentResourceUri;
 
 	    if (
@@ -2013,10 +2191,21 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     action?: unknown;
     targets?: unknown;
     tab?: unknown;
+    scope?: unknown;
+    memberId?: unknown;
+    displayName?: unknown;
+    email?: unknown;
   };
 
   return (
     candidate.type === "ready" ||
+    candidate.type === "notesSpaceMenuClosed" ||
+    (candidate.type === "selectNotesSpace" &&
+      (candidate.scope === "project" || candidate.scope === "team")) ||
+    (candidate.type === "selectPersonalNotes" && typeof candidate.memberId === "string") ||
+    (candidate.type === "createPersonalIdentity" &&
+      typeof candidate.displayName === "string" &&
+      typeof candidate.email === "string") ||
     (candidate.type === "navigatorTabChanged" &&
       (candidate.tab === "files" ||
         candidate.tab === "sections" ||

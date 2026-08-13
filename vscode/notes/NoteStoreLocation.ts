@@ -17,11 +17,11 @@ export const TEAM_NOTE_STORE: NoteStoreLocation = { kind: "team" };
  * @returns Store-relative path segments.
  */
 export function getNoteStorePathSegments(location: NoteStoreLocation): string[] {
-  if (location.kind === "team") return ["notes"];
+  if (location.kind === "team") return ["notes", "team"];
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(location.memberId)) {
     throw new Error("Invalid Personal Notes member ID.");
   }
-  return ["personal-notes", location.memberId];
+  return ["notes", "personal", location.memberId];
 }
 
 /**

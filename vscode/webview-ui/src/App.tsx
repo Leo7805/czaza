@@ -8,6 +8,9 @@ import { ResourceNotesView } from "./components/ResourceNotesView";
 import { NotesNavigatorView } from "./components/NotesNavigatorView";
 import { NoticeModal } from "./components/NoticeModal";
 import { RelocateNoteModal } from "./components/RelocateNoteModal";
+import { NotesSpaceMenu } from "./components/NotesSpaceMenu";
+import { PersonalIdentityModal } from "./components/PersonalIdentityModal";
+import type { PersonalIdentityListItem } from "./types";
 import type {
   ExtensionToWebviewMessage,
   NotesViewMode,
@@ -16,6 +19,7 @@ import type {
   NoteRelocateTarget,
   ResourceNotesViewModel,
   WebviewNotice,
+  NotesSpaceMenuState,
 } from "./types";
 import { getVsCodeApi } from "./vscodeApi";
 import "./styles.css";
@@ -44,6 +48,10 @@ export function App() {
   const [noteRelocateTarget, setNoteRelocateTarget] = useState<NoteRelocateTarget>();
   const [noteRelocateSuggestion, setNoteRelocateSuggestion] =
     useState<NoteRelocateSuggestion>();
+  const [notesSpaceMenu, setNotesSpaceMenu] = useState<NotesSpaceMenuState>();
+  const [identityModalOpen, setIdentityModalOpen] = useState(false);
+  const [identityDefaults, setIdentityDefaults] = useState<NotesSpaceMenuState["gitIdentity"]>();
+  const [pendingIdentity, setPendingIdentity] = useState<PersonalIdentityListItem>();
   const vscode = useMemo(() => getVsCodeApi(), []);
 
   useEffect(() => {
@@ -86,6 +94,17 @@ export function App() {
         return;
       }
 
+      if (message.type === "openNotesSpaceMenu") {
+        setNotesSpaceMenu(message.state);
+        setIdentityModalOpen(false);
+        return;
+      }
+
+      if (message.type === "closeNotesSpaceMenu") {
+        setNotesSpaceMenu(undefined);
+        return;
+      }
+
       if (message.type === "openNoteRelocate") {
         setNoteRelocateTarget(message.target);
         setNoteRelocateSuggestion(undefined);
@@ -104,10 +123,21 @@ export function App() {
     };
 
     window.addEventListener("message", handleMessage);
+    const closeMenuOnBlur = (): void => {
+      vscode?.postMessage({ type: "notesSpaceMenuClosed" });
+      setNotesSpaceMenu(undefined);
+    };
+    const closeMenuWhenHidden = (): void => {
+      if (document.hidden) closeMenuOnBlur();
+    };
+    window.addEventListener("blur", closeMenuOnBlur);
+    document.addEventListener("visibilitychange", closeMenuWhenHidden);
 
     return () => {
       document.removeEventListener("contextmenu", preventDefaultContextMenu, true);
       window.removeEventListener("message", handleMessage);
+      window.removeEventListener("blur", closeMenuOnBlur);
+      document.removeEventListener("visibilitychange", closeMenuWhenHidden);
     };
   }, [vscode]);
 
@@ -143,6 +173,61 @@ export function App() {
             },
           }))}
           onDismiss={() => setNotice(undefined)}
+        />
+      ) : null}
+      {notesSpaceMenu ? (
+        <NotesSpaceMenu
+          state={notesSpaceMenu}
+          onProject={() => {
+            vscode?.postMessage({ type: "selectNotesSpace", scope: "project" });
+            setNotesSpaceMenu(undefined);
+          }}
+          onTeam={() => {
+            vscode?.postMessage({ type: "selectNotesSpace", scope: "team" });
+            setNotesSpaceMenu(undefined);
+          }}
+          onPersonal={(member) => {
+            setPendingIdentity(member);
+            setNotesSpaceMenu(undefined);
+          }}
+          onCreateIdentity={() => {
+            setIdentityDefaults(notesSpaceMenu.gitIdentity);
+            setIdentityModalOpen(true);
+            setNotesSpaceMenu(undefined);
+          }}
+          onClose={() => {
+            vscode?.postMessage({ type: "notesSpaceMenuClosed" });
+            setNotesSpaceMenu(undefined);
+          }}
+        />
+      ) : null}
+      {identityModalOpen ? (
+        <PersonalIdentityModal
+          defaultName={identityDefaults?.displayName}
+          defaultEmail={identityDefaults?.email}
+          onCancel={() => setIdentityModalOpen(false)}
+          onSubmit={(displayName, email) => {
+            vscode?.postMessage({ type: "createPersonalIdentity", displayName, email });
+            setIdentityModalOpen(false);
+          }}
+        />
+      ) : null}
+      {pendingIdentity ? (
+        <NoticeModal
+          tone="warning"
+          title="Switch Personal Identity"
+          message={`Use ${pendingIdentity.displayName}'s Personal Notes in this workspace? This is a confirmation against accidental selection, not authentication.`}
+          actions={[
+            { label: "Cancel", variant: "secondary", onClick: () => setPendingIdentity(undefined) },
+            {
+              label: `Use ${pendingIdentity.displayName}`,
+              onClick: () => {
+                vscode?.postMessage({ type: "selectPersonalNotes", memberId: pendingIdentity.memberId });
+                setPendingIdentity(undefined);
+              },
+            },
+          ]}
+          onDismiss={() => setPendingIdentity(undefined)}
         />
       ) : null}
       {noteRelocateTarget ? (

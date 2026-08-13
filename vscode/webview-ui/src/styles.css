@@ -994,7 +994,7 @@ textarea {
   --status-accent: var(--vscode-errorForeground, #f14c4c);
 }
 
-.notice-modal {
+.modal-shell {
   position: fixed;
   z-index: 300;
   inset: 0;
@@ -1004,6 +1004,24 @@ textarea {
   background: color-mix(in srgb, #000000 36%, transparent);
   backdrop-filter: blur(8px);
 }
+
+.modal-shell__dialog {
+  width: min(420px, 100%);
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--notice-accent, var(--notes-section-accent)) 42%, var(--vscode-panel-border));
+  border-radius: 8px;
+  color: var(--vscode-foreground);
+  background: color-mix(in srgb, var(--vscode-sideBar-background) 84%, var(--vscode-editor-background));
+  box-shadow: 0 18px 44px color-mix(in srgb, #000000 42%, transparent);
+}
+
+.modal-shell__title { margin: 0; font-size: 13px; line-height: 18px; }
+.modal-shell__body { margin-top: 10px; }
+.modal-shell__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.modal-shell__action { min-height: 28px; padding: 0 11px; border-radius: 5px; font: inherit; font-weight: 600; cursor: pointer; }
+.modal-shell__action--primary { border: 1px solid var(--vscode-button-border, transparent); color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+.modal-shell__action--secondary { border: 1px solid var(--vscode-panel-border); color: var(--vscode-foreground); background: var(--vscode-button-secondaryBackground); }
+.modal-shell__action:disabled { cursor: default; opacity: 0.45; }
 
 .notice-modal--info {
   --notice-accent: var(--notes-section-accent);
@@ -1036,6 +1054,40 @@ textarea {
     0 18px 44px color-mix(in srgb, #000000 42%, transparent),
     inset 0 0 0 1px color-mix(in srgb, var(--notice-accent) 8%, transparent);
 }
+
+.notice-modal .modal-shell__dialog { width: min(420px, 100%); }
+.notice-modal .modal-shell__title { color: color-mix(in srgb, var(--notice-accent) 78%, var(--vscode-foreground)); }
+.notice-modal__head { position: absolute; margin-top: -19px; }
+
+.notes-space-menu {
+  position: fixed;
+  z-index: 250;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  width: min(260px, calc(100vw - 16px));
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
+  border-radius: 7px;
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  background: var(--vscode-menu-background, var(--vscode-editor-background));
+  box-shadow: 0 12px 32px color-mix(in srgb, #000000 44%, transparent);
+}
+.notes-space-menu__title { padding: 5px 8px; color: var(--vscode-descriptionForeground); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.notes-space-menu__item { display: grid; grid-template-columns: 16px 1fr 12px; align-items: center; gap: 7px; min-height: 30px; padding: 4px 7px; border: 0; border-radius: 4px; color: inherit; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.notes-space-menu__item:hover, .notes-space-menu__item:focus-visible { color: var(--vscode-menu-selectionForeground); background: var(--vscode-menu-selectionBackground); outline: none; }
+.notes-space-menu__check { color: var(--notes-child-accent); font-weight: 800; }
+.notes-space-menu__label { display: flex; min-width: 0; flex-direction: column; }
+.notes-space-menu__label small { overflow: hidden; color: var(--vscode-descriptionForeground); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.notes-space-menu__suffix { font-size: 17px; }
+.notes-space-menu__separator { height: 1px; margin: 3px 5px; background: var(--vscode-menu-separatorBackground, var(--vscode-panel-border)); }
+.notes-space-menu__submenu { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 0 14px; padding: 3px 0 0 4px; border-left: 1px solid var(--vscode-panel-border); }
+.personal-identity-modal__field { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; color: var(--vscode-descriptionForeground); font-size: 11px; font-weight: 600; }
+.personal-identity-modal__field input { min-height: 30px; padding: 4px 8px; border: 1px solid var(--vscode-input-border, var(--vscode-panel-border)); border-radius: 4px; color: var(--vscode-input-foreground); background: var(--vscode-input-background); font: inherit; }
+.personal-identity-modal__field input:focus { border-color: var(--vscode-focusBorder); outline: none; }
+.personal-identity-modal p { margin: 12px 0 0; color: var(--vscode-descriptionForeground); font-size: 11px; line-height: 1.45; }
 
 .notice-modal__head {
   display: flex;

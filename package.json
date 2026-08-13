@@ -211,6 +211,19 @@
         "icon": "$(book)"
       },
       {
+        "command": "czaza.openNotesSpaceMenu",
+        "title": "CZaza: Select Notes Space",
+        "icon": "$(book)"
+      },
+      {
+        "command": "czaza.showTeamNotes",
+        "title": "Team Notes"
+      },
+      {
+        "command": "czaza.showPersonalNotes",
+        "title": "Personal Notes…"
+      },
+      {
         "command": "czaza.showNotesNavigator",
         "title": "Show Notes Navigator",
         "category": "CZaza",
@@ -267,7 +280,7 @@
     "menus": {
       "view/title": [
         {
-          "command": "czaza.showProjectNotes",
+          "command": "czaza.openNotesSpaceMenu",
           "when": "view == czaza.notesView",
           "group": "navigation@10"
         },

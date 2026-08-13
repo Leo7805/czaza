@@ -2,7 +2,7 @@
  * Reusable in-webview modal for CZaza notices and confirmations.
  */
 
-import { useEffect } from "react";
+import { ModalShell } from "./ModalShell";
 
 /** Visual tone for a notice modal. */
 export type NoticeModalTone = "info" | "warning" | "error" | "success";
@@ -35,60 +35,30 @@ export function NoticeModal({
   actions: NoticeModalAction[];
   onDismiss?: () => void;
 }) {
-  useEffect(() => {
-    if (!onDismiss) {
-      return;
-    }
-
-    const closeOnEscape = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        onDismiss();
-      }
-    };
-
-    window.addEventListener("keydown", closeOnEscape);
-
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onDismiss]);
-
   return (
-    <div
+    <ModalShell
+      title={title}
       className={`notice-modal notice-modal--${tone}`}
-      role="presentation"
-      onMouseDown={(event) => event.stopPropagation()}
+      onDismiss={onDismiss}
+      actions={actions.map((action) => (
+        <button
+          className={
+            action.variant === "secondary"
+              ? "notice-modal__action notice-modal__action--secondary"
+              : "notice-modal__action notice-modal__action--primary"
+          }
+          disabled={action.disabled}
+          key={action.label}
+          type="button"
+          onClick={action.onClick}
+        >
+          {action.label}
+        </button>
+      ))}
     >
-      <section
-        className="notice-modal__dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="notice-modal-title"
-      >
-        <div className="notice-modal__head">
-          <NoticeIcon tone={tone} />
-          <h2 className="notice-modal__title" id="notice-modal-title">
-            {title}
-          </h2>
-        </div>
-        <p className="notice-modal__message">{message}</p>
-        <div className="notice-modal__actions">
-          {actions.map((action) => (
-            <button
-              className={
-                action.variant === "secondary"
-                  ? "notice-modal__action notice-modal__action--secondary"
-                  : "notice-modal__action notice-modal__action--primary"
-              }
-              disabled={action.disabled}
-              key={action.label}
-              type="button"
-              onClick={action.onClick}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      </section>
-    </div>
+      <div className="notice-modal__head"><NoticeIcon tone={tone} /></div>
+      <p className="notice-modal__message">{message}</p>
+    </ModalShell>
   );
 }
 

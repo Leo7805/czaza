@@ -33,7 +33,8 @@ export function registerSelectPersonalIdentityCommand(
           ],
           { title: `Current Personal Notes identity: ${current.displayName}`, ignoreFocusOut: true },
         );
-        if (!action || action.action === "keep") return;
+        if (!action) return false;
+        if (action.action === "keep") return true;
       }
 
       const gitIdentity = await readGitIdentity(rootDirectory);
@@ -42,7 +43,7 @@ export function registerSelectPersonalIdentityCommand(
         if (matched && await confirmUseIdentity(matched)) {
           await identities.bindCurrentIdentity(rootDirectory, matched.memberId);
           showIdentitySelected(matched);
-          return;
+          return true;
         }
 
         if (!matched) {
@@ -55,29 +56,34 @@ export function registerSelectPersonalIdentityCommand(
           );
           if (action === "Create") {
             await createAndBind(identities, rootDirectory, outputDirectory, gitIdentity);
-            return;
+            return true;
           }
           if (action === "Edit Details") {
             const details = await requestIdentityDetails(gitIdentity);
-            if (details) await createOrMatchAndBind(identities, rootDirectory, outputDirectory, details);
-            return;
+            return details
+              ? createOrMatchAndBind(identities, rootDirectory, outputDirectory, details)
+              : false;
           }
-          if (action !== "Choose Existing") return;
+          if (action !== "Choose Existing") return false;
         }
       }
 
       const selected = await chooseExistingIdentity(identities, rootDirectory, outputDirectory);
       if (selected === "create") {
         const details = await requestIdentityDetails(gitIdentity);
-        if (details) await createOrMatchAndBind(identities, rootDirectory, outputDirectory, details);
-        return;
+        return details
+          ? createOrMatchAndBind(identities, rootDirectory, outputDirectory, details)
+          : false;
       }
       if (selected && await confirmUseIdentity(selected)) {
         await identities.bindCurrentIdentity(rootDirectory, selected.memberId);
         showIdentitySelected(selected);
+        return true;
       }
+      return false;
     } catch (error) {
       void vscode.window.showErrorMessage(`Failed to select Personal Notes identity: ${getErrorMessage(error)}`);
+      return false;
     }
   });
 
@@ -90,16 +96,18 @@ async function createOrMatchAndBind(
   rootDirectory: string,
   outputDirectory: string,
   details: PersonalIdentityDetails,
-): Promise<void> {
+): Promise<boolean> {
   const existing = await identities.findByEmail(rootDirectory, outputDirectory, details.email);
   if (existing) {
     if (await confirmUseIdentity(existing)) {
       await identities.bindCurrentIdentity(rootDirectory, existing.memberId);
       showIdentitySelected(existing);
+      return true;
     }
-    return;
+    return false;
   }
   await createAndBind(identities, rootDirectory, outputDirectory, details);
+  return true;
 }
 
 /** Creates a new identity, binds it locally, and reports success. */

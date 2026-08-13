@@ -80,6 +80,32 @@ const randomId = "abcdef123456";
 const createdAt = "2026-01-01T00:00:00.000Z";
 
 describe("saveUserNoteService()", () => {
+  it("initializes and saves a Personal file note without changing Team", async () => {
+    const uri = createUri(path.join(mocks.rootDirectory, mocks.relativePath));
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
+    const notes = createNoteStore();
+
+    await saveUserNoteService({
+      uri,
+      notes,
+      target: { level: "file" },
+      userNote: "Personal only.",
+      location: personal,
+    });
+
+    expect(await notes.cache.getSourceFile(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+    )).toBeUndefined();
+    expect((await notes.crud.getFileNote(
+      mocks.rootDirectory,
+      mocks.outputDirectory,
+      mocks.relativePath,
+      personal,
+    ))?.userNote).toBe("Personal only.");
+  });
+
   beforeEach(async () => {
     mocks.rootDirectory = await mkdtemp(path.join(tmpdir(), "czaza-save-user-note-"));
     mocks.relativePath = "src/index.ts";

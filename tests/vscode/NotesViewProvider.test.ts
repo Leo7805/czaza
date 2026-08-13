@@ -1863,7 +1863,7 @@ describe("NotesViewProvider", () => {
         target: {
           level: "file",
           fromRelativePath: "src/old.ts",
-          managedNotesRelativePath: ".czaza/notes",
+          managedNotesRelativePath: ".czaza/notes/team",
         },
       }),
     );

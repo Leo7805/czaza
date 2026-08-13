@@ -25,10 +25,10 @@ describe("NoteStoreLocation", () => {
   it("preserves the Team path and resolves a member Personal path", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "czaza-store-location-"));
     expect(getWorkspaceNoteIndexPath(root, outputDirectory)).toBe(
-      path.join(root, outputDirectory, "notes", "index.json"),
+      path.join(root, outputDirectory, "notes", "team", "index.json"),
     );
     expect(getWorkspaceNoteIndexPath(root, outputDirectory, personal)).toBe(
-      path.join(root, outputDirectory, "personal-notes", personal.memberId, "index.json"),
+      path.join(root, outputDirectory, "notes", "personal", personal.memberId, "index.json"),
     );
   });
 
@@ -71,7 +71,7 @@ describe("NoteStoreLocation", () => {
     expect(isCzazaNoteStoreRelativePath(
       "/workspace",
       ".czaza",
-      ".czaza/personal-notes/leo-12345678/index.json",
+      ".czaza/notes/personal/leo-12345678/index.json",
     )).toBe(true);
     expect(isCzazaNoteStoreRelativePath("/workspace", ".czaza", "src/index.ts"))
       .toBe(false);

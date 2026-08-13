@@ -5,12 +5,17 @@
 import * as vscode from "vscode";
 
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
+import { getCzazaSettings } from "@vscode/config/czazaSettings";
+import type { PersonalIdentityService, PersonalNoteScopeService } from "@vscode/personalNotes";
 
 import { NotesViewProvider } from "./NotesViewProvider";
 
 export const NOTES_VIEW_ID = "czaza.notesView";
 const SHOW_NOTES_COMMAND = "czaza.showNotes";
 const SHOW_PROJECT_NOTES_COMMAND = "czaza.showProjectNotes";
+const SHOW_TEAM_NOTES_COMMAND = "czaza.showTeamNotes";
+const SHOW_PERSONAL_NOTES_COMMAND = "czaza.showPersonalNotes";
+const OPEN_NOTES_SPACE_MENU_COMMAND = "czaza.openNotesSpaceMenu";
 const SHOW_NOTES_NAVIGATOR_COMMAND = "czaza.showNotesNavigator";
 const SHOW_NOTES_DETAIL_COMMAND = "czaza.showNotesDetail";
 const INSERT_EMOJI_COMMAND = "czaza.insertEmoji";
@@ -29,6 +34,8 @@ type NotesViewMode = "detail" | "navigator";
 export function registerNotesUi(
   context: vscode.ExtensionContext,
   provider: NotesViewProvider,
+  noteScope: PersonalNoteScopeService,
+  identities: PersonalIdentityService,
 ): void {
   let viewMode: NotesViewMode = "detail";
   void vscode.commands.executeCommand("setContext", NOTES_VIEW_MODE_CONTEXT, viewMode);
@@ -68,10 +75,50 @@ export function registerNotesUi(
         void vscode.window.showWarningMessage(`CZaza: ${message}`);
       }
     }),
+    vscode.commands.registerCommand(OPEN_NOTES_SPACE_MENU_COMMAND, async () => {
+      await vscode.commands.executeCommand(`${NOTES_VIEW_ID}.focus`);
+      await provider.openNotesSpaceMenu();
+    }),
+    vscode.commands.registerCommand(SHOW_TEAM_NOTES_COMMAND, async () => {
+      const resource = vscode.window.activeTextEditor?.document.uri;
+      try {
+        const { rootDirectory } = resolveCzazaRootDirectory(resource);
+        await noteScope.setScope(rootDirectory, "team");
+        await provider.refreshCurrentResourceNotes();
+        void vscode.window.showInformationMessage("CZaza Notes switched to Team.");
+      } catch (error) {
+        void vscode.window.showWarningMessage(`CZaza: ${getErrorMessage(error)}`);
+      }
+    }),
+    vscode.commands.registerCommand(SHOW_PERSONAL_NOTES_COMMAND, async () => {
+      const resource = vscode.window.activeTextEditor?.document.uri;
+      try {
+        const { rootDirectory } = resolveCzazaRootDirectory(resource);
+        const { outputDirectory } = getCzazaSettings(resource);
+        const confirmed = await vscode.commands.executeCommand<boolean>(
+          "czaza.selectPersonalIdentity",
+        );
+        if (!confirmed) return;
+        const identity = await identities.getCurrentIdentity(rootDirectory, outputDirectory);
+        if (!identity) return;
+        await noteScope.setScope(rootDirectory, "personal");
+        await provider.refreshCurrentResourceNotes();
+        void vscode.window.showInformationMessage(
+          `CZaza Notes switched to Personal: ${identity.displayName}.`,
+        );
+      } catch (error) {
+        void vscode.window.showWarningMessage(`CZaza: ${getErrorMessage(error)}`);
+      }
+    }),
     vscode.commands.registerCommand(SHOW_NOTES_NAVIGATOR_COMMAND, () => setViewMode("navigator")),
     vscode.commands.registerCommand(SHOW_NOTES_DETAIL_COMMAND, () => setViewMode("detail")),
     vscode.commands.registerCommand(INSERT_EMOJI_COMMAND, () => provider.openEmojiPicker()),
   );
+}
+
+/** Converts an unknown command error into readable text. */
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error.";
 }
 
 async function selectWorkspaceFolder(): Promise<vscode.WorkspaceFolder | undefined> {

@@ -171,7 +171,7 @@ describe("resolveCzazaRootDirectory()", () => {
 
   it("rejects the CZaza Note Store as a source-note target", async () => {
     const workspace = await createTempWorkspaceFolder("gate-managed");
-    const managedFile = path.join(workspace.uri.fsPath, ".czaza", "notes", "index.json");
+    const managedFile = path.join(workspace.uri.fsPath, ".czaza", "notes", "team", "index.json");
 
     await mkdir(path.dirname(managedFile), { recursive: true });
     await writeFile(managedFile, "{}\n", "utf-8");

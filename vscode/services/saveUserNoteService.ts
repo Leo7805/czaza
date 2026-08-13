@@ -9,7 +9,7 @@ import { createCurrentConfirmedStatus } from "@shared/models/domain/common";
 import { createStoredSourceFile } from "@shared/services/domainToStoreService";
 import { createAvailableLineNoteId } from "@shared/services/notes/lineNoteIdentityService";
 import { requireCzazaResourceAccess } from "@vscode/services/resourceAccess";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 import { getResourceFingerprint } from "./resourceFingerprint/getResourceFingerprintService";
 
 /**
@@ -38,6 +38,9 @@ export type SaveUserNoteInput = {
 
   /** Complete user-authored note text. */
   userNote: string;
+
+  /** Team or Personal Store receiving the user-authored note. */
+  location?: NoteStoreLocation;
 };
 
 /**
@@ -79,6 +82,7 @@ export async function saveUserNoteService(input: SaveUserNoteInput): Promise<voi
     root.rootDirectory,
     settings.outputDirectory,
     relativePath,
+    input.location,
   );
 
   if (!sourceFile && input.target.level === "section") {
@@ -113,6 +117,8 @@ export async function saveUserNoteService(input: SaveUserNoteInput): Promise<voi
       relativePath,
       sourceFile,
       now,
+      {},
+      input.location,
     );
   }
 
@@ -121,6 +127,7 @@ export async function saveUserNoteService(input: SaveUserNoteInput): Promise<voi
     outputDirectory: settings.outputDirectory,
     relativePath,
     now,
+    storeLocation: input.location,
   };
 
   if (input.target.level === "file") {
@@ -152,6 +159,7 @@ type NoteLocation = {
   outputDirectory: string;
   relativePath: string;
   now: string;
+  storeLocation?: NoteStoreLocation;
 };
 
 async function saveFileUserNote(
@@ -181,6 +189,7 @@ async function saveFileUserNote(
     location.relativePath,
     next,
     location.now,
+    location.storeLocation,
   );
 }
 
@@ -204,6 +213,7 @@ async function saveSectionUserNote(
       location.relativePath,
       sectionId,
       location.now,
+      location.storeLocation,
     );
     return;
   }
@@ -214,6 +224,7 @@ async function saveSectionUserNote(
     location.relativePath,
     replaceUserNote(existing, userNote),
     location.now,
+    location.storeLocation,
   );
 }
 
@@ -256,6 +267,7 @@ async function saveLineUserNote(
       location.relativePath,
       existing.id,
       location.now,
+      location.storeLocation,
     );
     return;
   }
@@ -266,6 +278,7 @@ async function saveLineUserNote(
     location.relativePath,
     next,
     location.now,
+    location.storeLocation,
   );
 }
 

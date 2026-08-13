@@ -308,6 +308,12 @@ export type ExtensionToWebviewMessage =
 	      type: "navigatorNotes";
 	      payload: NavigatorNotesViewModel;
 	    }
+  | {
+      /** Opens the CZaza-styled Notes space menu. */
+      type: "openNotesSpaceMenu";
+      state: NotesSpaceMenuState;
+    }
+  | { type: "closeNotesSpaceMenu" }
 	  | {
 	      /** Shows a CZaza-styled notice modal inside the webview. */
 	      type: "notice";
@@ -340,6 +346,20 @@ export type ExtensionToWebviewMessage =
 /** Mode selected by the VS Code notes View Toolbar. */
 export type NotesViewMode = "detail" | "navigator";
 
+/** One identity shown in the Personal Notes submenu. */
+export type PersonalIdentityListItem = {
+  memberId: string;
+  displayName: string;
+};
+
+/** Dynamic state rendered by the Notes space menu. */
+export type NotesSpaceMenuState = {
+  scope: "team" | "personal";
+  currentMemberId?: string;
+  members: PersonalIdentityListItem[];
+  gitIdentity?: { displayName: string; email: string };
+};
+
 /** Message that synchronizes the mode selected by the VS Code View Toolbar. */
 export type NotesViewModeMessage = {
   /** Message discriminator. */
@@ -360,6 +380,10 @@ export type WebviewToExtensionMessage =
       /** Indicates that the React webview is ready for its initial payload. */
       type: "ready";
     }
+  | { type: "selectNotesSpace"; scope: "project" | "team" }
+  | { type: "selectPersonalNotes"; memberId: string }
+  | { type: "createPersonalIdentity"; displayName: string; email: string }
+  | { type: "notesSpaceMenuClosed" }
   | {
       /** Reports the Navigator list selected by the user. */
       type: "navigatorTabChanged";

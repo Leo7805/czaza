@@ -12,7 +12,7 @@ export type PersonalIdentityMember = {
   identityHash: string;
 };
 
-/** Root identity index stored at `.czaza/personal-notes/index.json`. */
+/** Root identity index stored at `.czaza/notes/personal/index.json`. */
 export type PersonalIdentityIndexV1 = {
   /** Version of the Personal Notes identity index. */
   schemaVersion: 1;

@@ -9,7 +9,7 @@ import * as vscode from "vscode";
 import type { AIExplanation } from "@shared/models/ai/common";
 import type { NoteStatus } from "@shared/models/domain/common";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 import { getCzazaRelativePath } from "@vscode/config/resolveCzazaRootDirectory";
 import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import type { UserNoteTarget } from "./saveUserNoteService";
@@ -216,6 +216,9 @@ export type GetResourceNotesInput = {
 
   /** Optional one-based active line used to select section and line notes. */
   activeLine?: number;
+
+  /** Team or Personal Store used for this Detail read. */
+  location?: NoteStoreLocation;
 };
 
 /**
@@ -232,7 +235,7 @@ export type GetResourceNotesInput = {
  * const result = await getResourceNotes({ uri: resourceUri, notes });
  */
 export async function getResourceNotes(input: GetResourceNotesInput): Promise<ResourceNotesResult> {
-  const { uri, notes, activeLine } = input;
+  const { uri, notes, activeLine, location } = input;
   const access = evaluateCzazaResourceAccess(uri);
 
   if (!access.allowed) {
@@ -245,6 +248,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
       root.rootDirectory,
       settings.outputDirectory,
       relativePath,
+      location,
     );
     const fingerprint = await getResourceFingerprint(uri);
 
@@ -261,7 +265,7 @@ export async function getResourceNotes(input: GetResourceNotesInput): Promise<Re
         relativePath,
         projectRootName: path.basename(root.rootDirectory),
         ...(fileNote ? { fileNote } : {}),
-        children: await getDirectoryChildNotePreviews(uri, notes, root.rootDirectory, settings.outputDirectory),
+        children: await getDirectoryChildNotePreviews(uri, notes, root.rootDirectory, settings.outputDirectory, location),
       };
     }
 
@@ -318,6 +322,7 @@ async function getDirectoryChildNotePreviews(
   notes: WorkspaceNoteStore,
   rootDirectory: string,
   outputDirectory: string,
+  location?: NoteStoreLocation,
 ): Promise<ResourceChildNotePreview[]> {
   const entries = await vscode.workspace.fs.readDirectory(directoryUri);
   const children: ResourceChildNotePreview[] = [];
@@ -331,7 +336,7 @@ async function getDirectoryChildNotePreviews(
 
     const childUri = vscode.Uri.file(path.join(directoryUri.fsPath, name));
     const relativePath = getCzazaRelativePath(childUri, rootDirectory);
-    const sourceFile = await notes.cache.getSourceFileCaseInsensitive(rootDirectory, outputDirectory, relativePath);
+    const sourceFile = await notes.cache.getSourceFileCaseInsensitive(rootDirectory, outputDirectory, relativePath, location);
     const notePreview = getFileNotePreview(sourceFile);
 
     if (!notePreview) {
