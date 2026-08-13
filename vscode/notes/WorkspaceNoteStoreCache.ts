@@ -80,6 +80,23 @@ export class WorkspaceNoteStoreCache {
   }
 
   /**
+   * Clears cached Team and Personal Stores for one workspace output root.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @returns Nothing.
+   */
+  clearAllLocationCaches(workspaceRoot: string, outputDirectory: string): void {
+    const baseKey = `${workspaceRoot}::${outputDirectory}`;
+    for (const key of this.indexCache.keys()) {
+      if (key === baseKey || key.startsWith(`${baseKey}::personal:`)) this.indexCache.delete(key);
+    }
+    for (const key of this.sourceFileCache.keys()) {
+      if (key.startsWith(`${baseKey}::`)) this.sourceFileCache.delete(key);
+    }
+  }
+
+  /**
    * Reads and caches one stored source-file note JSON.
    *
    * @param workspaceRoot - Absolute workspace root path.

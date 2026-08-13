@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:2e47053675a3abcc1e0e7632a1a58026abfc1de6317fca4ce1c3a289f4f4892d",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-13T11:35:49.456Z",
+    "updatedAt": "2026-08-13T11:35:49.456Z"
+  },
+  "fileNote": {
+    "userNote": "支持一次清除项目下所有 Team/Personal 缓存。\nclearAllLocationCaches：清除同一输出目录下的全部 Notes 空间缓存。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

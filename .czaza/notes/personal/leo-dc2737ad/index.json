@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-13T09:59:40.402Z",
+  "updatedAt": "2026-08-13T11:36:05.213Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "vscode/agentNotes/agentNoteTypes.ts": {
@@ -38,6 +38,18 @@
       "sourceHash": "sha256:d2879b844d6f59f6e272f247a1e0e966f51a30345fb83b3f483520cccaf0450b",
       "programmingLanguage": "typescript",
       "updatedAt": "2026-08-13T09:59:40.402Z"
+    },
+    "vscode/notes/WorkspaceNoteStoreCache.ts": {
+      "noteFile": "files/dd078628caae-708fce6f.json",
+      "sourceHash": "sha256:2e47053675a3abcc1e0e7632a1a58026abfc1de6317fca4ce1c3a289f4f4892d",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-08-13T11:35:49.456Z"
+    },
+    "vscode/events/registerNotesContentEvents.ts": {
+      "noteFile": "files/a8ddb5ffcac5-eee1a5f6.json",
+      "sourceHash": "sha256:dd1f949a5fafa1d5d6315d0c6599aeeb3167830ff24a1634f0300973608b3eb4",
+      "programmingLanguage": "typescript",
+      "updatedAt": "2026-08-13T11:36:05.213Z"
     }
   }
 }

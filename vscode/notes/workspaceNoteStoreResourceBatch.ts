@@ -5,6 +5,7 @@
 import type { WorkspaceNoteIndexV2 } from "@shared/models/store/workspace";
 import { isCzazaNoteStoreRelativePath } from "@shared/utils/managedOutputPath";
 import type { WorkspaceNoteStoreCache } from "./WorkspaceNoteStoreCache";
+import type { NoteStoreLocation } from "./NoteStoreLocation";
 import type {
   MarkSourceFileEntryDeletedResult,
   MoveSourceFileEntryResult,
@@ -48,12 +49,13 @@ export async function moveSourceEntriesUnderPath(input: {
   previousRelativePath: string;
   nextRelativePath: string;
   now: string;
+  location?: NoteStoreLocation;
   moveEntry(
     previousRelativePath: string,
     nextRelativePath: string,
   ): Promise<MoveSourceFileEntryResult>;
 }): Promise<MoveSourceEntriesUnderPathResult> {
-  const index = await input.cache.loadIndex(input.workspaceRoot, input.outputDirectory);
+  const index = await input.cache.loadIndex(input.workspaceRoot, input.outputDirectory, input.location);
   const entries = getEntriesUnderPath(index, input.previousRelativePath);
 
   if (entries.length === 0) {
@@ -117,9 +119,10 @@ export async function markSourceEntriesUnderPathDeleted(input: {
   workspaceRoot: string;
   outputDirectory: string;
   relativePath: string;
+  location?: NoteStoreLocation;
   markEntryDeleted(relativePath: string): Promise<MarkSourceFileEntryDeletedResult>;
 }): Promise<MarkSourceEntriesUnderPathDeletedResult> {
-  const index = await input.cache.loadIndex(input.workspaceRoot, input.outputDirectory);
+  const index = await input.cache.loadIndex(input.workspaceRoot, input.outputDirectory, input.location);
   const relativePaths = getEntriesUnderPath(index, input.relativePath);
 
   if (relativePaths.length === 0) {

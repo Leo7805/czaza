@@ -10,6 +10,7 @@ import {
   type FileNoteChangeEvent,
 } from "@shared/services/notes/fileNoteChangeService";
 import type { WorkspaceNoteStoreCache } from "./WorkspaceNoteStoreCache";
+import type { NoteStoreLocation } from "./NoteStoreLocation";
 import {
   markSourceEntriesUnderPathDeleted,
   moveSourceEntriesUnderPath,
@@ -97,6 +98,7 @@ export class WorkspaceNoteResourceManager {
     previousRelativePath: string,
     nextRelativePath: string,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<MoveSourceFileEntryResult> {
     return moveSourceFileEntry({
       cache: this.cache,
@@ -105,6 +107,7 @@ export class WorkspaceNoteResourceManager {
       previousRelativePath,
       nextRelativePath,
       now,
+      location,
     });
   }
 
@@ -122,6 +125,7 @@ export class WorkspaceNoteResourceManager {
     outputDirectory: string,
     relativePath: string,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<MarkSourceFileEntryDeletedResult> {
     return markSourceFileEntryDeleted({
       cache: this.cache,
@@ -129,6 +133,7 @@ export class WorkspaceNoteResourceManager {
       outputDirectory,
       relativePath,
       now,
+      location,
     });
   }
 
@@ -148,6 +153,7 @@ export class WorkspaceNoteResourceManager {
     previousRelativePath: string,
     nextRelativePath: string,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<MoveSourceEntriesUnderPathResult> {
     return moveSourceEntriesUnderPath({
       cache: this.cache,
@@ -156,6 +162,7 @@ export class WorkspaceNoteResourceManager {
       previousRelativePath,
       nextRelativePath,
       now,
+      location,
       moveEntry: (previousPath, nextPath) =>
         this.moveSourceFileEntry(
           workspaceRoot,
@@ -163,6 +170,7 @@ export class WorkspaceNoteResourceManager {
           previousPath,
           nextPath,
           now,
+          location,
         ),
     });
   }
@@ -181,18 +189,21 @@ export class WorkspaceNoteResourceManager {
     outputDirectory: string,
     relativePath: string,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<MarkSourceEntriesUnderPathDeletedResult> {
     return markSourceEntriesUnderPathDeleted({
       cache: this.cache,
       workspaceRoot,
       outputDirectory,
       relativePath,
+      location,
       markEntryDeleted: (trackedPath) =>
         this.markSourceFileEntryDeleted(
           workspaceRoot,
           outputDirectory,
           trackedPath,
           now,
+          location,
         ),
     });
   }
@@ -241,6 +252,7 @@ export async function moveSourceFileEntry(input: {
   previousRelativePath: string;
   nextRelativePath: string;
   now: string;
+  location?: NoteStoreLocation;
 }): Promise<MoveSourceFileEntryResult> {
   if (
     isCzazaNoteStoreRelativePath(
@@ -255,7 +267,7 @@ export async function moveSourceFileEntry(input: {
     };
   }
 
-  const index = await input.cache.loadIndex(input.workspaceRoot, input.outputDirectory);
+  const index = await input.cache.loadIndex(input.workspaceRoot, input.outputDirectory, input.location);
   const previousEntry = index?.files[input.previousRelativePath];
 
   if (!index || !previousEntry) {
@@ -276,6 +288,7 @@ export async function moveSourceFileEntry(input: {
     input.workspaceRoot,
     input.outputDirectory,
     input.previousRelativePath,
+    input.location,
   );
   const nextIndex = moveIndexEntry({
     index,
@@ -285,8 +298,8 @@ export async function moveSourceFileEntry(input: {
     now: input.now,
   });
 
-  await input.cache.repository.saveIndex(input.workspaceRoot, input.outputDirectory, nextIndex);
-  input.cache.clearCache(input.workspaceRoot, input.outputDirectory);
+  await input.cache.repository.saveIndex(input.workspaceRoot, input.outputDirectory, nextIndex, input.location);
+  input.cache.clearCache(input.workspaceRoot, input.outputDirectory, input.location);
 
   if (!sourceFile) {
     return {
@@ -318,6 +331,8 @@ export async function moveSourceFileEntry(input: {
       input.nextRelativePath,
       applied.sourceFile,
       input.now,
+      {},
+      input.location,
     );
   }
 
@@ -348,11 +363,13 @@ export async function markSourceFileEntryDeleted(input: {
   outputDirectory: string;
   relativePath: string;
   now: string;
+  location?: NoteStoreLocation;
 }): Promise<MarkSourceFileEntryDeletedResult> {
   const sourceFile = await input.cache.getSourceFile(
     input.workspaceRoot,
     input.outputDirectory,
     input.relativePath,
+    input.location,
   );
 
   if (!sourceFile) {
@@ -375,6 +392,8 @@ export async function markSourceFileEntryDeleted(input: {
       input.relativePath,
       applied.sourceFile,
       input.now,
+      {},
+      input.location,
     );
   }
 

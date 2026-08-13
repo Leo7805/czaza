@@ -110,6 +110,31 @@ describe("getStoredNavigatorFileNotes()", () => {
       }),
     ).rejects.toThrow("src/missing.ts no longer has stored notes.");
   });
+
+  it("reads stored details from the selected Personal Notes location", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("personal");
+    const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
+    const location = { kind: "personal" as const, memberId: "leo" };
+    await notes.cache.saveSourceFile(
+      workspaceRoot,
+      ".caca",
+      "src/missing.ts",
+      createStoredSourceFile(),
+      createdAt,
+      {},
+      location,
+    );
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+
+    const payload = await getStoredNavigatorFileNotes({
+      currentUri: createUri(path.join(workspaceRoot, "src/current.ts")),
+      notes,
+      relativePath: "src/missing.ts",
+      location,
+    });
+
+    expect(payload).toMatchObject({ kind: "file", relativePath: "src/missing.ts" });
+  });
 });
 
 async function createTempWorkspaceRoot(name: string): Promise<string> {

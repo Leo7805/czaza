@@ -9,7 +9,7 @@ import type { NoteStatus } from "@shared/models/domain/common";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 import type {
   ResourceLineNoteContent,
   ResourceNoteContent,
@@ -28,6 +28,9 @@ export type GetStoredNavigatorFileNotesInput = {
 
   /** CZaza-root-relative source path for the stored note entry. */
   relativePath: string;
+
+  /** Exact Team or Personal Store currently shown in Navigator. */
+  location?: NoteStoreLocation;
 };
 
 /**
@@ -42,6 +45,7 @@ export async function getStoredNavigatorFileNotes(
     resolvedRoot.rootDirectory,
     settings.outputDirectory,
     input.relativePath,
+    input.location,
   );
 
   if (!sourceFile) {

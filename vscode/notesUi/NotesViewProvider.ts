@@ -1816,6 +1816,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         currentUri,
         notes: this.notes,
         relativePath,
+        ...(this.currentStoreLocation ? { location: this.currentStoreLocation } : {}),
       });
 
       this.currentResourceUri = targetUri;

@@ -10,6 +10,7 @@ import type { ChangeTaskCoordinator } from "@vscode/services/changeCoordination"
 import type { SourceRelocationHistoryService } from "@vscode/services/noteRelocation";
 import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import type { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState";
+import type { PersonalNoteScopeService } from "@vscode/personalNotes";
 
 /**
  * Registers file rename, move, and delete handlers for stored CZaza notes.
@@ -31,6 +32,7 @@ export function registerNotesResourceEvents(
   runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
   relocationHistory?: SourceRelocationHistoryService,
   changeCoordinator?: ChangeTaskCoordinator,
+  noteScope?: PersonalNoteScopeService,
 ): void {
   context.subscriptions.push(
     vscode.workspace.onWillDeleteFiles((event) => {
@@ -48,6 +50,7 @@ export function registerNotesResourceEvents(
           file.newUri,
           notesProvider,
           runtimeNoteStateRegistry,
+          noteScope,
         );
       }
     }),
@@ -59,6 +62,7 @@ export function registerNotesResourceEvents(
           uri,
           notesProvider,
           runtimeNoteStateRegistry,
+          noteScope,
         );
       }
     }),
@@ -81,6 +85,7 @@ async function handleRename(
   newUri: vscode.Uri,
   notesProvider: NotesViewProvider | undefined,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
+  noteScope: PersonalNoteScopeService | undefined,
 ): Promise<void> {
   try {
     const oldResource = evaluateCzazaResourceAccess(oldUri);
@@ -97,12 +102,17 @@ async function handleRename(
       return;
     }
 
+    const location = await noteScope?.resolveLocation(
+      oldResource.root.rootDirectory,
+      oldResource.settings.outputDirectory,
+    );
     const result = await notes.resources.moveSourceEntriesUnderPath(
       oldResource.root.rootDirectory,
       oldResource.settings.outputDirectory,
       oldResource.relativePath,
       newResource.relativePath,
       new Date().toISOString(),
+      location,
     );
 
     if (result.kind === "moved") {
@@ -135,6 +145,7 @@ async function handleDelete(
   uri: vscode.Uri,
   notesProvider: NotesViewProvider | undefined,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
+  noteScope: PersonalNoteScopeService | undefined,
 ): Promise<void> {
   try {
     const resource = evaluateCzazaResourceAccess(uri);
@@ -143,11 +154,16 @@ async function handleDelete(
       return;
     }
 
+    const location = await noteScope?.resolveLocation(
+      resource.root.rootDirectory,
+      resource.settings.outputDirectory,
+    );
     const result = await notes.resources.markSourceEntriesUnderPathDeleted(
       resource.root.rootDirectory,
       resource.settings.outputDirectory,
       resource.relativePath,
       new Date().toISOString(),
+      location,
     );
 
     if (result.kind === "markedDeleted") {

@@ -583,7 +583,7 @@ function invalidateManagedNoteStore(
     const settings = getCzazaSettings(uri);
 
     taskCoordinator.invalidate();
-    notes.cache.clearCache(rootDirectory, settings.outputDirectory);
+    notes.cache.clearAllLocationCaches(rootDirectory, settings.outputDirectory);
     const refreshKey = `note-store-refresh:${rootDirectory}:${settings.outputDirectory}`;
     taskCoordinator.schedule(refreshKey, () => {
       taskCoordinator.enqueue(refreshKey, async () => {

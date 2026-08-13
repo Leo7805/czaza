@@ -116,6 +116,7 @@ describe("registerNotesResourceEvents()", () => {
       "src/old.ts",
       "src/new.ts",
       expect.any(String),
+      undefined,
     );
     expect(runtimeRegistry.getState({
       workspaceRoot,
@@ -161,6 +162,7 @@ describe("registerNotesResourceEvents()", () => {
       ".caca",
       "src/deleted.ts",
       expect.any(String),
+      undefined,
     );
     expect(runtimeRegistry.getState({
       workspaceRoot,

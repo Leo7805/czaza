@@ -1124,7 +1124,7 @@ describe("registerNotesContentEvents()", () => {
     await vi.advanceTimersByTimeAsync(800);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(notes.clearCache).toHaveBeenCalledWith(workspaceRoot, ".caca");
+    expect(notes.clearAllLocationCaches).toHaveBeenCalledWith(workspaceRoot, ".caca");
     expect(notesProvider.refreshAfterExternalNoteStoreChange).toHaveBeenCalledOnce();
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
@@ -1133,10 +1133,10 @@ describe("registerNotesContentEvents()", () => {
 function createNotes(sourceFile: StoredSourceFile | undefined): {
   value: WorkspaceNoteStore;
   saveSourceFile: ReturnType<typeof vi.fn>;
-  clearCache: ReturnType<typeof vi.fn>;
+  clearAllLocationCaches: ReturnType<typeof vi.fn>;
 } {
   let cachedSourceFile = sourceFile;
-  const clearCache = vi.fn();
+  const clearAllLocationCaches = vi.fn();
   const saveSourceFile = vi.fn().mockImplementation(async (
     _workspaceRoot: string,
     _outputDirectory: string,
@@ -1151,11 +1151,11 @@ function createNotes(sourceFile: StoredSourceFile | undefined): {
       cache: {
         getSourceFile: vi.fn().mockImplementation(async () => cachedSourceFile),
         saveSourceFile,
-        clearCache,
+        clearAllLocationCaches,
       },
     } as unknown as WorkspaceNoteStore,
     saveSourceFile,
-    clearCache,
+    clearAllLocationCaches,
   };
 }
 

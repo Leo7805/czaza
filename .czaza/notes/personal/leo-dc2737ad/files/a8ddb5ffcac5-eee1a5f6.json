@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:dd1f949a5fafa1d5d6315d0c6599aeeb3167830ff24a1634f0300973608b3eb4",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-13T11:36:05.213Z",
+    "updatedAt": "2026-08-13T11:36:05.213Z"
+  },
+  "fileNote": {
+    "userNote": "外部 Agent 写入 Notes 后清除全部空间缓存并刷新界面。\ninvalidateManagedNoteStore：不再只清除默认 Team 缓存。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

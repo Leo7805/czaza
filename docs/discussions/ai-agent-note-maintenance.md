@@ -378,7 +378,18 @@ type AgentNoteUpdateReport = {
    - Agent 不得静默修正 `workspaceRoot` 或 `outputDirectory`；必须展示完整错误并获得用户对建议值的确认后才能重试。
    - 写入确认信息新增按源文件的一行计划摘要；最多显示 5 个文件，更多文件显示剩余数量，避免确认内容过长。
 
-14. **待开始——增加剩余测试并验证完整交付流程**
+14. **已完成——优先提供确认与取消选项**
+   - Agent Host 支持原生选项时，写入确认优先显示可点击的 `Confirm changes` 和 `Cancel`。
+   - Host 不支持按钮时，使用 `confirmed` 或 `cancel` 文字回复作为兼容方案；普通 Markdown 链接不能代表批准。
+   - 确认只绑定当前计划，旧按钮、旧回复或仅显示选项都不能触发 `apply`。
+
+15. **已完成——修复 Personal Notes 外部刷新和遗漏 location 的旧路径**
+   - Agent 在独立进程写入 Notes 后，扩展文件监听现在清除同一项目下 Team 与全部 Personal Notes 缓存，再刷新当前界面，避免磁盘已更新但仍显示旧内容。
+   - Navigator 查看存档或 orphaned 文件时传递当前 `NoteStoreLocation`，不再默认读取 Team Notes。
+   - VS Code 重命名和删除资源时先解析当前 Notes location，并将变更应用到当前 Team 或 Personal Store。
+   - Explorer 打开或预览文件时继续通过活动编辑器/标签页事件跟随；VS Code 没有提供内置 Explorer 单纯选中但不打开的通用文件选择事件。
+
+16. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
    - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
    - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
@@ -448,4 +459,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1 至 13 步已完成；关键路径错误现在会明确显示且不能静默纠正，写入确认也包含简短的逐文件计划摘要。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
+Plan 第 1 至 15 步已完成；Personal Notes 的外部更新会清除正确缓存并刷新，Navigator、重命名和删除路径也会使用当前 Notes location。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
