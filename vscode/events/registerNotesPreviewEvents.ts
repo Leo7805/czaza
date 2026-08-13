@@ -22,67 +22,65 @@ export function registerNotesPreviewEvents(
   context: vscode.ExtensionContext,
   provider: NotesViewProvider,
 ): void {
-  let lastPreviewLocation: string | undefined;
+  let lastSuccessfulLocation: string | undefined;
+  let refreshScheduled = false;
+  let refreshRevision = 0;
 
-  const followResource = (uri: vscode.Uri | undefined, activeLine?: number): void => {
-    if (!uri || uri.scheme !== "file") {
-      return;
-    }
+  /** Resolves the latest stable editor or Preview Tab state after event ordering settles. */
+  const getActiveResource = (): { uri: vscode.Uri; activeLine?: number; key: string } | undefined => {
+    const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
+    const tabUri = getTabResourceUri(tab);
+    const editor = vscode.window.activeTextEditor;
+    const editorUri = editor?.document.uri;
+    if (tab && !tabUri) return undefined;
+    const uri = tabUri ?? editorUri;
 
-    const previewLocation =
-      activeLine === undefined
-        ? `${uri.toString()}:resource`
-        : `${uri.toString()}:line:${activeLine}`;
+    if (!uri || uri.scheme !== "file") return undefined;
 
-    if (previewLocation === lastPreviewLocation) {
-      return;
-    }
+    const activeLine = editor && editorUri?.toString() === uri.toString()
+      ? editor.selection.active.line + 1
+      : undefined;
+    const key = activeLine === undefined
+      ? `${uri.toString()}:resource`
+      : `${uri.toString()}:line:${activeLine}`;
+    return { uri, ...(activeLine ? { activeLine } : {}), key };
+  };
 
-    lastPreviewLocation = previewLocation;
+  /** Coalesces related editor and tab events before loading only the latest resource. */
+  const scheduleActiveResourceRefresh = (): void => {
+    refreshRevision += 1;
+    if (refreshScheduled) return;
+    refreshScheduled = true;
 
-    void provider.showActiveDocumentNotes(uri, activeLine).catch((error: unknown) => {
-      if (lastPreviewLocation === previewLocation) {
-        lastPreviewLocation = undefined;
-      }
+    queueMicrotask(() => {
+      refreshScheduled = false;
+      const revision = refreshRevision;
+      const target = getActiveResource();
+      if (!target || target.key === lastSuccessfulLocation) return;
 
-      console.error("Failed to update CZaza notes preview for the active resource.", error);
+      void provider.showActiveDocumentNotes(target.uri, target.activeLine)
+        .then(() => {
+          if (revision === refreshRevision) lastSuccessfulLocation = target.key;
+        })
+        .catch((error: unknown) => {
+          console.error("Failed to update CZaza notes preview for the active resource.", error);
+        });
     });
   };
 
-  const followEditor = (editor: vscode.TextEditor | undefined): void => {
-    followResource(editor?.document.uri, editor ? editor.selection.active.line + 1 : undefined);
-  };
-
-  const followActiveTab = (): void => {
-    const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
-    const uri = getTabResourceUri(tab);
-    const editor = vscode.window.activeTextEditor;
-
-    if (editor && uri && editor.document.uri.toString() === uri.toString()) {
-      followEditor(editor);
-      return;
-    }
-
-    followResource(uri);
-  };
-
   context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(followEditor),
+    vscode.window.onDidChangeActiveTextEditor(scheduleActiveResourceRefresh),
     vscode.window.onDidChangeTextEditorSelection((event) => {
       if (event.textEditor === vscode.window.activeTextEditor) {
         void provider.syncRelocateTargetFromEditor?.(event.textEditor);
-        followEditor(event.textEditor);
+        scheduleActiveResourceRefresh();
       }
     }),
-    vscode.window.tabGroups.onDidChangeTabs(followActiveTab),
-    vscode.window.tabGroups.onDidChangeTabGroups(followActiveTab),
+    vscode.window.tabGroups.onDidChangeTabs(scheduleActiveResourceRefresh),
+    vscode.window.tabGroups.onDidChangeTabGroups(scheduleActiveResourceRefresh),
   );
 
-  if (vscode.window.activeTextEditor) {
-    followEditor(vscode.window.activeTextEditor);
-  } else {
-    followActiveTab();
-  }
+  scheduleActiveResourceRefresh();
 }
 
 function getTabResourceUri(tab: vscode.Tab | undefined): vscode.Uri | undefined {

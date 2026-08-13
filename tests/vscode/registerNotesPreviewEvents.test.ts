@@ -110,7 +110,7 @@ describe("registerNotesPreviewEvents()", () => {
     mocks.activeTab = undefined;
   });
 
-  it("loads the active file when preview events are registered", () => {
+  it("loads the active file when preview events are registered", async () => {
     const uri = createUri("file", "/workspace/src/index.ts");
     const provider = createProvider();
     const context = createExtensionContext();
@@ -118,71 +118,80 @@ describe("registerNotesPreviewEvents()", () => {
     mocks.activeTextEditor = createEditor(uri, 3);
 
     registerNotesPreviewEvents(context, provider.value);
+    await flushPreviewEvents();
 
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, 4);
     expect(context.subscriptions).toHaveLength(4);
   });
 
-  it("updates the preview when the active file changes", () => {
+  it("updates the preview when the active file changes", async () => {
     const uri = createUri("file", "/workspace/src/app.ts");
     const provider = createProvider();
 
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
-    mocks.activeEditorListeners[0]?.(createEditor(uri, 6));
+    mocks.activeTextEditor = createEditor(uri, 6);
+    mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
+    await flushPreviewEvents();
 
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, 7);
   });
 
-  it("updates once when the active cursor moves to another line", () => {
+  it("updates once when the active cursor moves to another line", async () => {
     const uri = createUri("file", "/workspace/src/app.ts");
     const provider = createProvider();
     const editor = createEditor(uri, 4);
 
     mocks.activeTextEditor = editor;
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
+    await flushPreviewEvents();
 
     const movedEditor = createEditor(uri, 8);
     mocks.activeTextEditor = movedEditor;
     mocks.selectionListeners[0]?.({ textEditor: movedEditor } as vscodeTypes.TextEditorSelectionChangeEvent);
     mocks.selectionListeners[0]?.({ textEditor: movedEditor } as vscodeTypes.TextEditorSelectionChangeEvent);
+    await flushPreviewEvents();
 
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledTimes(2);
     expect(provider.showActiveDocumentNotes).toHaveBeenLastCalledWith(uri, 9);
   });
 
-  it("ignores editors that do not represent file resources", () => {
+  it("ignores editors that do not represent file resources", async () => {
     const provider = createProvider();
 
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
-    mocks.activeEditorListeners[0]?.(createEditor(createUri("untitled", "Untitled-1"), 0));
+    mocks.activeTextEditor = createEditor(createUri("untitled", "Untitled-1"), 0);
+    mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
+    await flushPreviewEvents();
 
     expect(provider.showActiveDocumentNotes).not.toHaveBeenCalled();
   });
 
-  it("loads an image URI from the active custom editor tab", () => {
+  it("loads an image URI from the active custom editor tab", async () => {
     const uri = createUri("file", "/workspace/assets/image.png");
     const provider = createProvider();
     mocks.activeTab = createTab(new vscode.TabInputCustom(uri, "imagePreview.previewEditor"));
 
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
+    await flushPreviewEvents();
 
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, undefined);
   });
 
-  it("follows the active tab when the active editor group changes", () => {
+  it("follows the active tab when the active editor group changes", async () => {
     const uri = createUri("file", "/workspace/assets/image.png");
     const provider = createProvider();
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
     mocks.activeTab = createTab(new vscode.TabInputCustom(uri, "imagePreview.previewEditor"));
 
     mocks.tabGroupListeners[0]?.();
+    await flushPreviewEvents();
 
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, undefined);
   });
 
-  it("prefers the text editor line and deduplicates the matching tab event", () => {
+  it("prefers the text editor line and deduplicates the matching tab event", async () => {
     const uri = createUri("file", "/workspace/src/index.ts");
     const provider = createProvider();
     const editor = createEditor(uri, 5);
@@ -191,20 +200,63 @@ describe("registerNotesPreviewEvents()", () => {
 
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
     mocks.tabListeners[0]?.();
+    await flushPreviewEvents();
 
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
     expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(uri, 6);
   });
 
-  it("keeps the current preview for tabs without a resource URI", () => {
+  it("keeps the current preview for tabs without a resource URI", async () => {
     const provider = createProvider();
+    mocks.activeTextEditor = createEditor(createUri("file", "/workspace/src/previous.ts"), 2);
     mocks.activeTab = createTab(new vscode.TabInputWebview("settings"));
 
     registerNotesPreviewEvents(createExtensionContext(), provider.value);
+    await flushPreviewEvents();
 
     expect(provider.showActiveDocumentNotes).not.toHaveBeenCalled();
   });
+
+  it("coalesces rapid events and loads the final A to B to A resource", async () => {
+    const firstUri = createUri("file", "/workspace/src/a.ts");
+    const secondUri = createUri("file", "/workspace/src/b.ts");
+    const provider = createProvider();
+    registerNotesPreviewEvents(createExtensionContext(), provider.value);
+
+    mocks.activeTextEditor = createEditor(firstUri, 0);
+    mocks.activeTab = createTab(new vscode.TabInputText(firstUri));
+    mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
+    mocks.activeTextEditor = createEditor(secondUri, 0);
+    mocks.activeTab = createTab(new vscode.TabInputText(secondUri));
+    mocks.tabListeners[0]?.();
+    mocks.activeTextEditor = createEditor(firstUri, 3);
+    mocks.activeTab = createTab(new vscode.TabInputText(firstUri));
+    mocks.activeEditorListeners[0]?.(mocks.activeTextEditor);
+    await flushPreviewEvents();
+
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledOnce();
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(firstUri, 4);
+  });
+
+  it("uses the active Preview Tab when the text editor still points to the previous file", async () => {
+    const oldUri = createUri("file", "/workspace/src/old.ts");
+    const previewUri = createUri("file", "/workspace/src/preview.ts");
+    const provider = createProvider();
+    mocks.activeTextEditor = createEditor(oldUri, 2);
+    mocks.activeTab = createTab(new vscode.TabInputText(previewUri));
+
+    registerNotesPreviewEvents(createExtensionContext(), provider.value);
+    await flushPreviewEvents();
+
+    expect(provider.showActiveDocumentNotes).toHaveBeenCalledWith(previewUri, undefined);
+  });
 });
+
+/** Waits for the coalesced Preview event and its resolved provider promise. */
+async function flushPreviewEvents(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
 
 /**
  * Creates the minimum extension context required by event registration.

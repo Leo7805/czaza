@@ -394,7 +394,13 @@ type AgentNoteUpdateReport = {
    - 三类事件都先检查扩展内部写入抑制，避免扩展自己的持久化触发重复外部刷新。
    - 同一次 delete/create 组合共享项目级 debounce key，只读刷新 Webview 一次；刷新链路不调用任何 Note Store 保存函数，因此不会形成写入循环。
 
-17. **待开始——增加剩余测试并验证完整交付流程**
+17. **已完成——稳定 Explorer Preview Tab 的 Notes 跟随**
+   - 活动编辑器、Tab、Tab Group 和光标事件先在同一微任务中合并，再读取最终活动资源，避免 VS Code 事件到达顺序不同导致读取旧文件。
+   - 去重键只在最新请求成功后记录；快速 A→B→A 不再因为 A 曾经开始加载而丢失最终 A。
+   - active editor 与 Preview Tab 暂时指向不同文件时以当前 active tab 为准；两者一致时保留 editor 当前行。
+   - `NotesViewProvider.requestVersion` 继续阻止较慢的旧读取覆盖较新的界面。
+
+18. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
    - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
    - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
@@ -464,4 +470,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1 至 16 步已完成；外部 Agent 原子替换 Personal Notes JSON 时，create/change/delete 事件会合并为一次只读界面刷新且不会形成写入循环。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
+Plan 第 1 至 17 步已完成；Explorer Preview Tab 的相关事件会合并后读取最终活动文件，快速切换不再因过早去重或 editor/tab 短暂不同步而漏掉。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
