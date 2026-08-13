@@ -55,11 +55,12 @@ describe("inspectAgentNotes", () => {
       sourceText: currentText,
       sourceHash: createSourceHash(currentText),
       storedSourceHash: createSourceHash(storedText),
+      registeredInNotes: true,
     });
     expect(result.files[0]?.notes.file?.aiExplanation?.summary).toBe("Exports a value.");
   });
 
-  it("reports untracked and missing sources without failing the batch", async () => {
+  it("returns new source files with empty Notes and still reports missing sources", async () => {
     const workspaceRoot = await createWorkspace("skips");
     const notes = createNotes();
 
@@ -82,11 +83,14 @@ describe("inspectAgentNotes", () => {
       notes,
     );
 
-    expect(result.files).toEqual([]);
-    expect(result.skipped).toEqual([
-      { sourcePath: "src/untracked.ts", reason: "notTracked" },
-      { sourcePath: "src/missing.ts", reason: "sourceMissing" },
-    ]);
+    expect(result.files).toEqual([{
+      sourcePath: "src/untracked.ts",
+      sourceText: "export {};\n",
+      sourceHash: createSourceHash("export {};\n"),
+      registeredInNotes: false,
+      notes: { sections: [], lines: [] },
+    }]);
+    expect(result.skipped).toEqual([{ sourcePath: "src/missing.ts", reason: "sourceMissing" }]);
   });
 
   it("rejects paths outside the workspace and inside the Note Store", async () => {

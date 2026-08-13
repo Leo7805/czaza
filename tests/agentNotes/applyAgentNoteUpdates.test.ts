@@ -108,6 +108,34 @@ describe("applyAgentNoteUpdates", () => {
     expect(report.summary).toEqual({ filesChanged: 1, updated: 0, created: 3, skipped: 0, failed: 0 });
   });
 
+  it("registers a new source file when creating its first Note", async () => {
+    const setup = await createTrackedWorkspace("new-source", false);
+    const newSourcePath = "src/new.ts";
+    await writeFile(path.join(setup.workspaceRoot, newSourcePath), sourceText, "utf8");
+
+    const report = await applyAgentNoteUpdates(confirm({
+      workspaceRoot: setup.workspaceRoot,
+      outputDirectory,
+      location: { kind: "team" },
+      files: [{
+        sourcePath: newSourcePath,
+        expectedSourceHash: createSourceHash(sourceText),
+        changes: [{
+          action: "create",
+          level: "file",
+          aiExplanation: { summary: "This file runs one task.", detail: "- run: Returns whether the task succeeded." },
+          reason: "The new source file needs an overview.",
+        }],
+      }],
+    }), setup.notes, () => updatedAt);
+
+    expect(await setup.notes.cache.getSourceFile(setup.workspaceRoot, outputDirectory, newSourcePath)).toMatchObject({
+      source: { sourceHash: createSourceHash(sourceText) },
+      fileNote: { createdBy: "ai" },
+    });
+    expect(report.summary).toEqual({ filesChanged: 1, updated: 0, created: 1, skipped: 0, failed: 0 });
+  });
+
   it("rejects stale source hashes without writing", async () => {
     const setup = await createTrackedWorkspace("hash");
     const original = await setup.notes.cache.getSourceFile(setup.workspaceRoot, outputDirectory, setup.sourcePath);

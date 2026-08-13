@@ -360,7 +360,13 @@ type AgentNoteUpdateReport = {
    - 用户明确指定或与结果有关的跳过文件必须附带一行原因，不能静默处理或绕过排除。
    - MVP 不增加扩展名白名单、固定生成文件黑名单或新的配置格式；额外排除项由用户在当前任务中指定。
 
-11. **待开始——增加剩余测试并验证完整交付流程**
+11. **已完成——支持尚未建立 Notes 记录的新源文件**
+   - Git untracked 但未被 ignore 的普通文件必须作为候选源文件，不能因为尚未 `git add` 而跳过。
+   - `inspect` 对 Notes Store 中尚无记录的新文件返回当前源码、哈希、空 Notes 和 `registeredInNotes: false`，不执行写入。
+   - 用户确认创建计划后，`apply` 复用 `WorkspaceNoteStore.saveSourceFile` 建立基础记录并保存第一批 File、Section 或 Line Notes。
+   - “Git 未跟踪”和“CZaza 尚无 Notes 记录”不再共用 `notTracked` 描述；新文件只有在缺失、被 ignore 或位于排除目录时才跳过。
+
+12. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
    - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
    - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
@@ -428,4 +434,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1 至 10 步已完成；Agent 现在会在检查前排除 Git ignore、`.git` 和当前 Notes 输出目录，并报告相关跳过原因。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
+Plan 第 1 至 11 步已完成；未被 ignore 的 Git untracked 新源文件现在会进入检查，并可在用户确认后建立第一批 Notes。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。

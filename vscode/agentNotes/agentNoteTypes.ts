@@ -31,7 +31,6 @@ export type CurrentAgentNotesResult = CurrentAgentNotesInput & {
 export type AgentNoteInspectionSkipReason =
   | "outsideWorkspace"
   | "sourceMissing"
-  | "notTracked"
   | "noteStoreInvalid";
 
 /** Input for inspecting the notes associated with source files. */
@@ -60,8 +59,11 @@ export type InspectedAgentNoteFile = {
   /** Hash calculated from the current source text. */
   sourceHash: string;
 
-  /** Source hash recorded by the Note Store. */
-  storedSourceHash: string;
+  /** Source hash recorded by the Note Store, absent for a new source file. */
+  storedSourceHash?: string;
+
+  /** Whether the selected Note Store already contains this source file. */
+  registeredInNotes: boolean;
 
   /** Existing notes grouped by their attachment level. */
   notes: {

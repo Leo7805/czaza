@@ -67,19 +67,16 @@ export async function inspectAgentNotes(
       continue;
     }
 
-    if (!index.files[sourcePath]) {
-      skipped.push({ sourcePath, reason: "notTracked" });
-      continue;
-    }
+    const sourceFile = index.files[sourcePath]
+      ? await notes.cache.getSourceFile(
+          workspaceRoot,
+          input.outputDirectory,
+          sourcePath,
+          input.location,
+        )
+      : undefined;
 
-    const sourceFile = await notes.cache.getSourceFile(
-      workspaceRoot,
-      input.outputDirectory,
-      sourcePath,
-      input.location,
-    );
-
-    if (!sourceFile) {
+    if (index.files[sourcePath] && !sourceFile) {
       skipped.push({ sourcePath, reason: "noteStoreInvalid" });
       continue;
     }
@@ -88,11 +85,12 @@ export async function inspectAgentNotes(
       sourcePath,
       sourceText,
       sourceHash: createSourceHash(sourceText),
-      storedSourceHash: sourceFile.source.sourceHash,
+      ...(sourceFile ? { storedSourceHash: sourceFile.source.sourceHash } : {}),
+      registeredInNotes: Boolean(sourceFile),
       notes: {
-        ...(sourceFile.fileNote ? { file: sourceFile.fileNote } : {}),
-        sections: sourceFile.sectionNotes,
-        lines: sourceFile.lineNotes,
+        ...(sourceFile?.fileNote ? { file: sourceFile.fileNote } : {}),
+        sections: sourceFile?.sectionNotes ?? [],
+        lines: sourceFile?.lineNotes ?? [],
       },
     });
   }

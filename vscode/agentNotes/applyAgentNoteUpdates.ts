@@ -19,6 +19,7 @@ import {
   createStoredSectionNote,
 } from "@shared/services/domainToStoreService";
 import { createAvailableLineNoteId } from "@shared/services/notes/lineNoteIdentityService";
+import { createStoredSourceFile } from "@shared/services/domainToStoreService";
 import {
   updateFileAiExplanation,
   updateLineAiExplanation,
@@ -101,19 +102,20 @@ export async function applyAgentNoteUpdates(
       continue;
     }
 
-    const sourceFile = await notes.cache.getSourceFile(
+    const storedSourceFile = await notes.cache.getSourceFile(
       workspaceRoot,
       input.outputDirectory,
       sourcePath,
       input.location,
     );
 
-    if (!sourceFile) {
-      files.push(createRejectedFileResult(request, "Source file has no valid Note Store record."));
+    if (!storedSourceFile && request.changes.some((change) => change.action !== "create")) {
+      files.push(createRejectedFileResult(request, "A new source file can only create Notes."));
       continue;
     }
 
     const timestamp = now();
+    const sourceFile = storedSourceFile ?? createStoredSourceFile({ sourceCode: sourceText, now: timestamp });
     const applied = applyFileChanges(sourceFile, sourceText, request.changes, timestamp);
 
     if (applied.changed) {
