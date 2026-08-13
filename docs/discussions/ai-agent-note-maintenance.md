@@ -366,7 +366,19 @@ type AgentNoteUpdateReport = {
    - 用户确认创建计划后，`apply` 复用 `WorkspaceNoteStore.saveSourceFile` 建立基础记录并保存第一批 File、Section 或 Line Notes。
    - “Git 未跟踪”和“CZaza 尚无 Notes 记录”不再共用 `notTracked` 描述；新文件只有在缺失、被 ignore 或位于排除目录时才跳过。
 
-12. **待开始——增加剩余测试并验证完整交付流程**
+12. **已完成——区分 CLI 路径与目标项目参数**
+   - `cliPath` 只表示 CZaza CLI 在哪里；`workspaceRoot` 必须是用户正在维护源码和 Notes 的目标项目根目录，不能使用 CLI 所在目录或 CLI 进程的默认工作目录。
+   - `outputDirectory` 必须从目标项目的 CZaza 配置或扩展使用的同一项目设置中取得；只有确认该项目使用默认值时才采用 `.czaza`。
+   - `current` 失败时，Agent 先报告并核对实际 `cliPath`、`workspaceRoot` 和 `outputDirectory`，修正参数并重试一次；参数确认无误后仍失败，才请用户打开 Notes。
+   - 本次 DocuMind 问题的 CLI 和当前 Notes 状态均正常，缺口是旧 Skill 没有明确区分 CLI 位置与被维护项目位置。
+
+13. **已完成——显示关键参数错误和写入前摘要**
+   - `current` 明确拒绝把 `.czaza/notes` 等 Notes 子目录当作 `outputDirectory`，并显示请求值、建议值、错误原因和未发生任何读写的说明。
+   - 当前项目已有选择但请求的 `outputDirectory` 不一致时，CLI 同时显示目标项目、请求值和当前值，不再统一伪装成“未打开 Notes”。
+   - Agent 不得静默修正 `workspaceRoot` 或 `outputDirectory`；必须展示完整错误并获得用户对建议值的确认后才能重试。
+   - 写入确认信息新增按源文件的一行计划摘要；最多显示 5 个文件，更多文件显示剩余数量，避免确认内容过长。
+
+14. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
    - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
    - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
@@ -393,8 +405,10 @@ type AgentNoteUpdateReport = {
 ## Agent、Skill 与 JSON 的职责
 
 - Agent 从代码 diff、commit 或用户指定路径收集候选文件，先排除 Git ignore、`.git` 和当前 Notes 输出目录，再读取 `inspect` 结果并生成修改计划 JSON。
+- Agent 在所有 CLI 阶段复用目标项目的同一组 `workspaceRoot` 和 `outputDirectory`；CLI 的安装位置不参与目标项目解析。
 - Skill 告诉 Agent 如何生成该 JSON、何时调用各阶段、怎样向用户显示当前 Notes 所属人，以及未确认时禁止执行修改。
 - 用户只查看修改计划并确认，不需要编写或传递 JSON。
+- 用户在写入前看到当前 Notes 所属人、按文件归纳的修改摘要和总数；关键路径错误则看到实际值、建议值和未写入说明。
 - CZaza Agent 接口接收 Agent 传来的 JSON，验证 Notes 位置、身份、计划指纹和 `sourceHash`，然后通过 `WorkspaceNoteStore` 保存。
 - 当前 CLI 使用 stdin 传递 JSON：Agent 启动命令并把 JSON 写入标准输入；该机制保留为开发入口和未来工具协议的原型。
 - Skill 不能替代安全写入接口，也不能直接编辑 `.czaza/notes/` JSON。
@@ -434,4 +448,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1 至 11 步已完成；未被 ignore 的 Git untracked 新源文件现在会进入检查，并可在用户确认后建立第一批 Notes。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
+Plan 第 1 至 13 步已完成；关键路径错误现在会明确显示且不能静默纠正，写入确认也包含简短的逐文件计划摘要。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。

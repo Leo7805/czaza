@@ -51,10 +51,20 @@ export async function runAgentNotesCli(
 
   if (command === "current") {
     const request = input as CurrentAgentNotesInput;
+    assertCurrentInput(request);
     const workspaceRoot = path.resolve(request.workspaceRoot);
     const current = await dependencies.activeNotes.load(workspaceRoot);
-    if (!current || current.outputDirectory !== request.outputDirectory) {
+    if (!current) {
       throw new Error("No current CZaza Notes were found. Open the Notes view for this project first.");
+    }
+    if (current.outputDirectory !== request.outputDirectory) {
+      throw new Error([
+        "CZaza outputDirectory mismatch.",
+        `Target project: ${workspaceRoot}`,
+        `Requested outputDirectory: ${request.outputDirectory}`,
+        `Current outputDirectory: ${current.outputDirectory}`,
+        "No Notes were inspected or modified.",
+      ].join("\n"));
     }
     const owner = await resolveAgentNoteOwner(
       workspaceRoot,
@@ -90,6 +100,27 @@ export async function runAgentNotesCli(
     dependencies.activeNotes,
   );
   return `${dependencies.format(report)}\n`;
+}
+
+/** Validates required current-command paths before reading local selection state. */
+function assertCurrentInput(input: CurrentAgentNotesInput): void {
+  if (typeof input.workspaceRoot !== "string" || !path.isAbsolute(input.workspaceRoot)) {
+    throw new Error("Invalid workspaceRoot: expected an absolute target-project path.");
+  }
+  if (typeof input.outputDirectory !== "string" || !input.outputDirectory.trim() || path.isAbsolute(input.outputDirectory)) {
+    throw new Error("Invalid outputDirectory: expected a workspace-relative CZaza output root.");
+  }
+  const segments = input.outputDirectory.replaceAll("\\", "/").replace(/\/+$/, "").split("/");
+  const notesIndex = segments.lastIndexOf("notes");
+  if (notesIndex >= 0) {
+    const suggested = segments.slice(0, notesIndex).join("/") || ".";
+    throw new Error([
+      `Invalid outputDirectory: ${input.outputDirectory}`,
+      `Suggested outputDirectory: ${suggested}`,
+      "Problem: outputDirectory points to the Notes subdirectory instead of the CZaza output root.",
+      "No Notes were inspected or modified.",
+    ].join("\n"));
+  }
 }
 
 /**

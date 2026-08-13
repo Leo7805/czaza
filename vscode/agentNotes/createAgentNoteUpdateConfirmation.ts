@@ -6,9 +6,12 @@ import { createSourceHash } from "@shared/utils/hashUtils";
 import type { AgentNoteIdentityLookup } from "./agentNoteOwner";
 import { resolveAgentNoteOwner } from "./agentNoteOwner";
 import type {
+  AgentNoteChange,
   AgentNoteOwner,
   AgentNoteUpdatePlan,
 } from "./agentNoteTypes";
+
+const MAX_SUMMARY_FILES = 5;
 
 /** Confirmation details that must be shown before applying a plan. */
 export type AgentNoteUpdateConfirmation = {
@@ -41,6 +44,10 @@ export async function createAgentNoteUpdateConfirmation(
   const message = [
     "Ready to modify Notes",
     `Current Notes: ${owner.label}`,
+    "",
+    "Planned changes:",
+    ...formatPlanSummary(plan),
+    "",
     `Files involved: ${plan.files.length}`,
     `Notes to update: ${updated}`,
     `Notes to create: ${created}`,
@@ -48,6 +55,27 @@ export async function createAgentNoteUpdateConfirmation(
   ].join("\n");
 
   return { owner, confirmationToken: createAgentNoteConfirmationToken(plan), message };
+}
+
+/** Formats a short per-file preview without repeating full Note content. */
+function formatPlanSummary(plan: AgentNoteUpdatePlan): string[] {
+  const visible = plan.files.slice(0, MAX_SUMMARY_FILES).map((file) => {
+    const changes = file.changes.map(formatChangeSummary).join("; ");
+    return `- ${file.sourcePath}: ${changes || "No Note changes."}`;
+  });
+  const remaining = plan.files.length - visible.length;
+  return remaining > 0 ? [...visible, `- And ${remaining} more file${remaining === 1 ? "" : "s"}.`] : visible;
+}
+
+/** Formats one planned Note change as one plain-language phrase. */
+function formatChangeSummary(change: AgentNoteChange): string {
+  const action = change.action === "create" ? "Create" : "Update";
+  const target = change.level === "file"
+    ? "File Note"
+    : change.level === "section"
+      ? `Section Note${change.action === "create" ? ` “${change.title}”` : ""}`
+      : `Line Note${change.action === "create" ? ` at line ${change.line}` : ""}`;
+  return `${action} ${target} — ${change.reason}`;
 }
 
 /**

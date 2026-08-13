@@ -19,7 +19,22 @@ describe("createAgentNoteUpdateConfirmation", () => {
     expect(confirmation.message).toContain("Current Notes: Team Notes");
     expect(confirmation.message).toContain("Notes to update: 1");
     expect(confirmation.message).toContain("Notes to create: 1");
+    expect(confirmation.message).toContain("Planned changes:");
+    expect(confirmation.message).toContain("- src/value.ts: Update File Note — Behavior changed.; Create Line Note at line 1 — The export matters.");
     expect(confirmation.confirmationToken).toBe(createAgentNoteConfirmationToken(plan));
+  });
+
+  it("limits long previews to five files and reports the remainder", async () => {
+    const base = createPlan({ kind: "team" });
+    const plan = { ...base, files: Array.from({ length: 7 }, (_, index) => ({
+      ...base.files[0]!,
+      sourcePath: `src/value-${index + 1}.ts`,
+    })) };
+
+    const confirmation = await createAgentNoteUpdateConfirmation(plan);
+    expect(confirmation.message).toContain("- src/value-5.ts:");
+    expect(confirmation.message).not.toContain("- src/value-6.ts:");
+    expect(confirmation.message).toContain("- And 2 more files.");
   });
 
   it("shows the verified Personal Notes display name", async () => {

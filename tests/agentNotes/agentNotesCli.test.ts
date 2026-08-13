@@ -23,6 +23,24 @@ describe("runAgentNotesCli", () => {
     });
   });
 
+  it("reports an output root mismatch with both actual values", async () => {
+    const dependencies = createDependencies();
+    await expect(runAgentNotesCli(
+      "current",
+      JSON.stringify({ workspaceRoot: "/workspace", outputDirectory: ".other" }),
+      dependencies,
+    )).rejects.toThrow("Requested outputDirectory: .other\nCurrent outputDirectory: .czaza");
+  });
+
+  it("rejects a Notes subdirectory and shows a suggested output root", async () => {
+    const dependencies = createDependencies();
+    await expect(runAgentNotesCli(
+      "current",
+      JSON.stringify({ workspaceRoot: "/workspace", outputDirectory: ".czaza/notes" }),
+      dependencies,
+    )).rejects.toThrow("Suggested outputDirectory: .czaza");
+  });
+
   it("returns structured JSON for inspect", async () => {
     const dependencies = createDependencies();
     const output = await runAgentNotesCli("inspect", JSON.stringify({ location: { kind: "team" } }), dependencies);
