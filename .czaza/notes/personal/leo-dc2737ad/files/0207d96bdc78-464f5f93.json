@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:39348d670e17dfcb27d6421cb2885b7fd493b0503d5bb493e9d8a78a59abb9a8",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-13T09:45:07.696Z",
+    "updatedAt": "2026-08-13T09:45:07.696Z"
+  },
+  "fileNote": {
+    "userNote": "定义独立 Agent Notes CLI 的单文件 ESM 构建",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -135,6 +135,11 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isDirectCliExecution(process.argv[1])) {
   await main();
+}
+
+/** Reports whether this module is the process entry point in source or bundled form. */
+function isDirectCliExecution(entryPath: string | undefined): boolean {
+  return entryPath !== undefined && fileURLToPath(import.meta.url) === entryPath;
 }

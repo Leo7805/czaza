@@ -342,9 +342,11 @@ type AgentNoteUpdateReport = {
    - 规定最终输出按源文件列出实际修改结果。
    - 结果：在相邻 `ai-agent-skills/czaza/` 创建并验证 `$czaza` Skill，链接到 `~/.codex/skills/czaza`；Skill 当前优先使用未来的已打包 CLI，开发期间使用 CZaza 仓库中的 `notes:agent`。
 
-8. **待开始——构建并随 VSIX 分发独立 CLI**
+8. **已完成——构建并随 VSIX 分发独立 CLI**
    - 将 Agent Notes CLI 构建为无需 `tsx` 和项目依赖的 JavaScript 文件。
    - 将 CLI 放入 VSIX，并确定 Skill 查找已安装 CZaza 扩展路径的规则。
+   - 结果：新增单文件 ESM 构建到 `dist/agent-notes/cli.js`，`package:vscode` 自动构建该文件，真实 Node 子进程测试通过，VSIX 清单确认包含 `extension/dist/agent-notes/cli.js`。
+   - 剩余：Skill 仍需加入稳定的已安装扩展目录定位规则。
 
 9. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
@@ -413,4 +415,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1、2、3、4、5、6、7 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护；MCP 经评估后从 MVP 移除。下一步是构建并随 VSIX 分发独立 CLI，使 `$czaza` Skill 不再依赖开发仓库或 `tsx`。
+Plan 第 1 至 8 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护；MCP 经评估后从 MVP 移除。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
