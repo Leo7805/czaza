@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:3988e4a651fe1bd2193c42638ccdf26eecc0340682113de73ab2462d765485bf",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-13T07:35:49.019Z",
+    "updatedAt": "2026-08-13T07:35:49.019Z"
+  },
+  "fileNote": {
+    "userNote": "供 stdin JSON 驱动的 inspect、confirm 和 apply 命令。\n\nrunAgentNotesCli：按命令调用检查、确认或安全更新流程。\nreadStandardInput：读取完整的 stdin JSON。\nparseJsonInput：验证 stdin 是有效 JSON 对象。\nassertCommand：拒绝不支持的 CLI 命令。\ncreateDefaultDependencies：创建 Note Store 和 Personal identity 的文件系统读取依赖。\nmain：输出成功结果或错误并设置退出状态。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

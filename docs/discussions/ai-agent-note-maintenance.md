@@ -324,9 +324,10 @@ type AgentNoteUpdateReport = {
    - 输出按源文件分组的列表及总计。
    - 结果：新增纯格式化函数；每个源文件单独分组，每项变化固定为一行，并在结尾显示修改文件数以及更新、新增、跳过和失败总计。
 
-5. **待开始——提供 Agent 可调用入口**
+5. **已完成——提供 Agent 可调用入口**
    - MVP 倾向使用薄 CLI，具体命令格式在实施前确认。
    - CLI 只调用上述函数，不包含独立的 Note Store 写入逻辑。
+   - 结果：新增 stdin JSON 驱动的 `inspect`、`confirm` 和 `apply` 命令；`inspect` 与 `confirm` 输出结构化 JSON，`apply` 输出按文件分组的可读报告；Personal Notes 名称从 identity index 验证。
 
 6. **待开始——增加测试并验证**
    - 覆盖读取、正常更新和新增。
@@ -363,4 +364,4 @@ type AgentNoteUpdateReport = {
 
 ## 下一步
 
-Plan 第 1、2、3、4 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护。下一步是提供 Agent 可调用的薄 CLI；CLI 必须把“生成确认信息”和“确认后执行修改”作为两个独立命令。
+Plan 第 1、2、3、4、5 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护。下一步是第 6 步：补齐剩余边界测试并执行完整项目验证。
