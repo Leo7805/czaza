@@ -414,11 +414,12 @@ type AgentNoteUpdateReport = {
 - **还原进度**：光标监听和非文本 Tab fallback 均已按职责边界恢复；普通文本文件继续只以 `activeTextEditor` 为准。
 - **还原验证**：运行相关 Vitest、lint、`git diff --check` 和 `npm run package:vscode`，再手动验证文本文件、光标、图片和 Team/Personal Notes。
 
-18. **待开始——增加剩余测试并验证完整交付流程**
-   - 覆盖读取、正常更新和新增。
-   - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
-   - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
-   - 运行相关测试、完整测试、构建、lint 和安装包验证。
+18. **已完成——增加剩余测试并验证完整交付流程**
+   - 完整 Vitest 已通过：114 个测试文件通过、9 个跳过，653 项测试通过、11 项跳过。
+   - lint 已通过并保留 22 个现有 warning；`git diff --check`、TypeScript/Vite、VS Code bundle、Agent Notes CLI bundle 和 VSIX 打包均通过。
+   - 已生成 `dist/czaza-0.14.6.vsix`，文本文件、光标 Line/Section Notes 和非文本 Tab 的职责边界已有自动测试覆盖。
+   - 实际 `current → inspect → confirm → apply` 已由用户完成验证，当前 Notes 所属人确认、检查、写入确认和应用流程均正常。
+   - Plan 第 18 步没有剩余验证项；后续改进不属于当前 MVP。
 
 ## 预计影响范围
 
@@ -484,4 +485,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1 至 17 步已完成；当前临时诊断版本只跟随活动文本编辑器，并且每次加载都会重新解析当前 Team 或 Personal Store。先用 DocuMind 的 `.prettierrc → delete.ts → hi2.ts` 验证单通道切换，再决定是否恢复非文本 Tab 支持。
+Plan 第 1 至 18 步已完成。文本文件切换、光标更新、非文本 Tab，以及真实 `current → inspect → confirm → apply` 流程均已验证正常；当前 AI Agent Notes MVP 没有剩余实施或验证步骤。
