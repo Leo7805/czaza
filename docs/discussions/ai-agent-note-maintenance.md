@@ -354,7 +354,13 @@ type AgentNoteUpdateReport = {
    - `apply` 写入前重新检查当前 Notes；确认后若用户切换了 Notes，则拒绝旧计划。
    - Skill 流程更新为 `current → inspect → confirm → 用户确认 → apply`，用户只确认是否修改当前显示的 Notes。
 
-10. **待开始——增加剩余测试并验证完整交付流程**
+10. **已完成——过滤不应检查的候选文件**
+   - Agent 收集变更文件后，先排除 Git ignore 规则命中的文件、`.git`、目录、缺失路径和非普通文件。
+   - 当前 Notes `outputDirectory` 整棵目录始终强制排除，即使它被 Git 跟踪，避免笔记更新反过来触发新的笔记维护。
+   - 用户明确指定或与结果有关的跳过文件必须附带一行原因，不能静默处理或绕过排除。
+   - MVP 不增加扩展名白名单、固定生成文件黑名单或新的配置格式；额外排除项由用户在当前任务中指定。
+
+11. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
    - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
    - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
@@ -380,7 +386,7 @@ type AgentNoteUpdateReport = {
 
 ## Agent、Skill 与 JSON 的职责
 
-- Agent 读取代码 diff 和 `inspect` 结果，决定需要更新或新增哪些 Notes，并自动生成修改计划 JSON。
+- Agent 从代码 diff、commit 或用户指定路径收集候选文件，先排除 Git ignore、`.git` 和当前 Notes 输出目录，再读取 `inspect` 结果并生成修改计划 JSON。
 - Skill 告诉 Agent 如何生成该 JSON、何时调用各阶段、怎样向用户显示当前 Notes 所属人，以及未确认时禁止执行修改。
 - 用户只查看修改计划并确认，不需要编写或传递 JSON。
 - CZaza Agent 接口接收 Agent 传来的 JSON，验证 Notes 位置、身份、计划指纹和 `sourceHash`，然后通过 `WorkspaceNoteStore` 保存。
@@ -422,4 +428,4 @@ Agent 传回同一计划 JSON 和 confirmationToken
 
 ## 下一步
 
-Plan 第 1 至 9 步已完成；Agent 现在自动读取当前显示的 Notes，用户只确认这个当前空间，写入时还会防止确认后切换。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
+Plan 第 1 至 10 步已完成；Agent 现在会在检查前排除 Git ignore、`.git` 和当前 Notes 输出目录，并报告相关跳过原因。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
