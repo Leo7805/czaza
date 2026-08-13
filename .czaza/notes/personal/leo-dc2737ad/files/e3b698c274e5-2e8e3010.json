@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:d2879b844d6f59f6e272f247a1e0e966f51a30345fb83b3f483520cccaf0450b",
+    "sourceHashKind": "text",
+    "programmingLanguage": "typescript"
+  },
+  "defaults": {
+    "createdAt": "2026-08-13T09:59:40.402Z",
+    "updatedAt": "2026-08-13T09:59:40.402Z"
+  },
+  "fileNote": {
+    "userNote": "每次界面解析 Notes 空间时同步当前选择。\nresolveLocation：解析 Team/Personal 后记录当前显示的 Notes。",
+    "createdBy": "user"
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

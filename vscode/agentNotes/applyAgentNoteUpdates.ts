@@ -39,6 +39,7 @@ import type {
   AgentNoteUpdateReport,
   ApplyAgentNoteUpdatesInput,
 } from "./agentNoteTypes";
+import type { ActiveNotesSelectionRepository } from "./ActiveNotesSelectionRepository";
 
 /**
  * Applies validated Agent-authored AI Note content without exposing store files.
@@ -46,6 +47,8 @@ import type {
  * @param input - Workspace and per-file note changes to apply.
  * @param notes - Shared Note Store used for reads and one save per changed file.
  * @param now - Timestamp factory used for persisted note metadata.
+ * @param identities - Optional Personal Notes identity lookup.
+ * @param activeNotes - Optional current-selection guard used by the CLI.
  * @returns Per-file change results and aggregate counts.
  */
 export async function applyAgentNoteUpdates(
@@ -53,8 +56,17 @@ export async function applyAgentNoteUpdates(
   notes = new WorkspaceNoteStore(),
   now = (): string => new Date().toISOString(),
   identities?: AgentNoteIdentityLookup,
+  activeNotes?: ActiveNotesSelectionRepository,
 ): Promise<AgentNoteUpdateReport> {
   const workspaceRoot = path.resolve(input.workspaceRoot);
+  if (activeNotes) {
+    const current = await activeNotes.load(workspaceRoot);
+    if (!current
+      || current.outputDirectory !== input.outputDirectory
+      || !isDeepStrictEqual(current.location, input.location)) {
+      throw new Error("Current Notes changed after confirmation. Inspect the displayed Notes again.");
+    }
+  }
   const owner = await resolveAgentNoteOwner(workspaceRoot, input.outputDirectory, input.location, identities);
   const { confirmationToken: _confirmationToken, ...plan } = input;
   if (input.confirmationToken !== createAgentNoteConfirmationToken(plan)) {

@@ -6,6 +6,7 @@ import path from "node:path";
 import type * as vscode from "vscode";
 
 import type { NoteStoreLocation } from "@vscode/notes";
+import { ActiveNotesSelectionRepository } from "@vscode/agentNotes/ActiveNotesSelectionRepository";
 import type { PersonalIdentityService } from "./PersonalIdentityService";
 
 const NOTE_SCOPE_BINDINGS_KEY = "czaza.personalNotes.scopeBindings";
@@ -17,11 +18,23 @@ export type PersonalNoteScope = "team" | "personal";
 export class PersonalNoteScopeService {
   private readonly workspaceState: vscode.Memento;
   private readonly identities: PersonalIdentityService;
+  private readonly activeNotes: ActiveNotesSelectionRepository;
 
-  /** Creates the scope service from local state and identity infrastructure. */
-  constructor(workspaceState: vscode.Memento, identities: PersonalIdentityService) {
+  /**
+   * Creates the scope service from local state and identity infrastructure.
+   *
+   * @param workspaceState - VS Code state that stores the selected scope.
+   * @param identities - Service that resolves a selected Personal identity.
+   * @param activeNotes - Local bridge used by the standalone Agent Notes CLI.
+   */
+  constructor(
+    workspaceState: vscode.Memento,
+    identities: PersonalIdentityService,
+    activeNotes = new ActiveNotesSelectionRepository(),
+  ) {
     this.workspaceState = workspaceState;
     this.identities = identities;
+    this.activeNotes = activeNotes;
   }
 
   /** Returns the selected scope, defaulting to Team. */
@@ -45,18 +58,32 @@ export class PersonalNoteScopeService {
     });
   }
 
-  /** Resolves the current scope to a Team or Personal Store location. */
+  /**
+   * Resolves and publishes the Notes space currently displayed by CZaza.
+   *
+   * @param workspaceRoot - Absolute CZaza project root.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @returns Current Team or Personal Note Store location.
+   */
   async resolveLocation(
     workspaceRoot: string,
     outputDirectory: string,
   ): Promise<NoteStoreLocation> {
-    if (this.getScope(workspaceRoot) === "team") return { kind: "team" };
+    if (this.getScope(workspaceRoot) === "team") {
+      const location: NoteStoreLocation = { kind: "team" };
+      await this.activeNotes.save(workspaceRoot, outputDirectory, location);
+      return location;
+    }
     const identity = await this.identities.getCurrentIdentity(workspaceRoot, outputDirectory);
     if (!identity) {
       await this.setScope(workspaceRoot, "team");
-      return { kind: "team" };
+      const location: NoteStoreLocation = { kind: "team" };
+      await this.activeNotes.save(workspaceRoot, outputDirectory, location);
+      return location;
     }
-    return { kind: "personal", memberId: identity.memberId };
+    const location: NoteStoreLocation = { kind: "personal", memberId: identity.memberId };
+    await this.activeNotes.save(workspaceRoot, outputDirectory, location);
+    return location;
   }
 }
 

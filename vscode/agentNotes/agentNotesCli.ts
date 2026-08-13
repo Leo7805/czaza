@@ -3,6 +3,7 @@
  */
 
 import { fileURLToPath } from "node:url";
+import path from "node:path";
 
 import { PersonalIdentityRepository } from "@vscode/personalNotes";
 import { applyAgentNoteUpdates } from "./applyAgentNoteUpdates";
@@ -15,9 +16,12 @@ import type {
 import { createAgentNoteUpdateConfirmation } from "./createAgentNoteUpdateConfirmation";
 import { formatAgentNoteUpdateReport } from "./formatAgentNoteUpdateReport";
 import { inspectAgentNotes } from "./inspectAgentNotes";
+import { ActiveNotesSelectionRepository } from "./ActiveNotesSelectionRepository";
+import type { CurrentAgentNotesInput } from "./agentNoteTypes";
+import { resolveAgentNoteOwner } from "./agentNoteOwner";
 
 /** Supported Agent Notes CLI command. */
-export type AgentNotesCliCommand = "inspect" | "confirm" | "apply";
+export type AgentNotesCliCommand = "current" | "inspect" | "confirm" | "apply";
 
 /** Replaceable command dependencies used by focused CLI tests. */
 export type AgentNotesCliDependencies = {
@@ -26,6 +30,7 @@ export type AgentNotesCliDependencies = {
   apply: typeof applyAgentNoteUpdates;
   format: typeof formatAgentNoteUpdateReport;
   identities: AgentNoteIdentityLookup;
+  activeNotes: ActiveNotesSelectionRepository;
 };
 
 /**
@@ -34,7 +39,7 @@ export type AgentNotesCliDependencies = {
  * @param command - Inspect, confirmation, or apply operation.
  * @param inputText - Complete JSON object read from standard input.
  * @param dependencies - Replaceable runtime dependencies.
- * @returns JSON for inspect/confirm or readable text for apply.
+ * @returns JSON for current/inspect/confirm or readable text for apply.
  */
 export async function runAgentNotesCli(
   command: string | undefined,
@@ -43,6 +48,22 @@ export async function runAgentNotesCli(
 ): Promise<string> {
   assertCommand(command);
   const input = parseJsonInput(inputText);
+
+  if (command === "current") {
+    const request = input as CurrentAgentNotesInput;
+    const workspaceRoot = path.resolve(request.workspaceRoot);
+    const current = await dependencies.activeNotes.load(workspaceRoot);
+    if (!current || current.outputDirectory !== request.outputDirectory) {
+      throw new Error("No current CZaza Notes were found. Open the Notes view for this project first.");
+    }
+    const owner = await resolveAgentNoteOwner(
+      workspaceRoot,
+      request.outputDirectory,
+      current.location,
+      dependencies.identities,
+    );
+    return `${JSON.stringify({ ...current, owner }, null, 2)}\n`;
+  }
 
   if (command === "inspect") {
     const result = await dependencies.inspect(
@@ -66,6 +87,7 @@ export async function runAgentNotesCli(
     undefined,
     undefined,
     dependencies.identities,
+    dependencies.activeNotes,
   );
   return `${dependencies.format(report)}\n`;
 }
@@ -100,14 +122,15 @@ function parseJsonInput(inputText: string): Record<string, unknown> {
 
 /** Narrows one command string to the supported command set. */
 function assertCommand(command: string | undefined): asserts command is AgentNotesCliCommand {
-  if (command !== "inspect" && command !== "confirm" && command !== "apply") {
-    throw new Error("Usage: npm run notes:agent -- <inspect|confirm|apply>");
+  if (command !== "current" && command !== "inspect" && command !== "confirm" && command !== "apply") {
+    throw new Error("Usage: npm run notes:agent -- <current|inspect|confirm|apply>");
   }
 }
 
 /** Creates filesystem-backed dependencies for normal CLI execution. */
 function createDefaultDependencies(): AgentNotesCliDependencies {
   const repository = new PersonalIdentityRepository();
+  const activeNotes = new ActiveNotesSelectionRepository();
   const identities: AgentNoteIdentityLookup = {
     async listMembers(workspaceRoot, outputDirectory) {
       const index = await repository.loadIndex(workspaceRoot, outputDirectory);
@@ -122,6 +145,7 @@ function createDefaultDependencies(): AgentNotesCliDependencies {
     apply: applyAgentNoteUpdates,
     format: formatAgentNoteUpdateReport,
     identities,
+    activeNotes,
   };
 }
 

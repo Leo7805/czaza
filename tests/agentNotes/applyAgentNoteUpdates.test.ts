@@ -22,6 +22,29 @@ const updatedAt = "2026-08-13T01:00:00.000Z";
 const sourceText = ["export function run() {", "  return true;", "}", ""].join("\n");
 
 describe("applyAgentNoteUpdates", () => {
+  it("rejects a plan when the displayed Notes changed after confirmation", async () => {
+    const setup = await createTrackedWorkspace("active-space");
+    const plan = confirm({
+      workspaceRoot: setup.workspaceRoot,
+      outputDirectory,
+      location: { kind: "team" },
+      files: [],
+    });
+
+    await expect(applyAgentNoteUpdates(
+      plan,
+      setup.notes,
+      () => updatedAt,
+      undefined,
+      { load: async () => ({
+        workspaceRoot: setup.workspaceRoot,
+        outputDirectory,
+        location: { kind: "personal", memberId: "leo" },
+        updatedAt,
+      }) } as never,
+    )).rejects.toThrow("Current Notes changed after confirmation");
+  });
+
   it("updates AI content while preserving user content and saves once", async () => {
     const setup = await createTrackedWorkspace("update");
     const saveSourceFile = setup.notes.cache.saveSourceFile.bind(setup.notes.cache);

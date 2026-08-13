@@ -13,7 +13,8 @@ describe("PersonalNoteScopeService", () => {
     const identities = {
       getCurrentIdentity: vi.fn().mockResolvedValue({ memberId: "leo-12345678" }),
     };
-    const service = new PersonalNoteScopeService(createMemento(state), identities as never);
+    const activeNotes = { save: vi.fn() };
+    const service = new PersonalNoteScopeService(createMemento(state), identities as never, activeNotes as never);
 
     expect(service.getScope("/workspace")).toBe("team");
     expect(await service.resolveLocation("/workspace", ".czaza")).toEqual({ kind: "team" });
@@ -23,6 +24,11 @@ describe("PersonalNoteScopeService", () => {
       kind: "personal",
       memberId: "leo-12345678",
     });
+    expect(activeNotes.save).toHaveBeenLastCalledWith(
+      "/workspace",
+      ".czaza",
+      { kind: "personal", memberId: "leo-12345678" },
+    );
   });
 
   it("falls back to Team when the Personal identity is unavailable", async () => {
@@ -30,6 +36,7 @@ describe("PersonalNoteScopeService", () => {
     const service = new PersonalNoteScopeService(
       createMemento(state),
       { getCurrentIdentity: vi.fn().mockResolvedValue(undefined) } as never,
+      { save: vi.fn() } as never,
     );
     await service.setScope("/workspace", "personal");
     expect(await service.resolveLocation("/workspace", ".czaza")).toEqual({ kind: "team" });

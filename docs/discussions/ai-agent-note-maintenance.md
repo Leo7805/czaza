@@ -348,7 +348,13 @@ type AgentNoteUpdateReport = {
    - 结果：新增单文件 ESM 构建到 `dist/agent-notes/cli.js`，`package:vscode` 自动构建该文件，真实 Node 子进程测试通过，VSIX 清单确认包含 `extension/dist/agent-notes/cli.js`。
    - 剩余：Skill 仍需加入稳定的已安装扩展目录定位规则。
 
-9. **待开始——增加剩余测试并验证完整交付流程**
+9. **已完成——自动识别当前显示的 Notes 空间**
+   - VS Code 在实际显示 Notes 时，将当前 Team 或 Personal Notes 选择写入项目外的本地运行状态。
+   - CLI 新增 `current` 命令，Agent 先读取当前 Notes 及已验证所属人，不再让用户选择 Team 或 Personal。
+   - `apply` 写入前重新检查当前 Notes；确认后若用户切换了 Notes，则拒绝旧计划。
+   - Skill 流程更新为 `current → inspect → confirm → 用户确认 → apply`，用户只确认是否修改当前显示的 Notes。
+
+10. **待开始——增加剩余测试并验证完整交付流程**
    - 覆盖读取、正常更新和新增。
    - 覆盖用户笔记拒绝、`sourceHash` 冲突、无效 Note ID 和无效锚点。
    - 覆盖安装后的 CLI 发现、Notes 空间解析、确认和写入流程。
@@ -370,7 +376,6 @@ type AgentNoteUpdateReport = {
 ## 尚未确定
 
 - Skill 如何稳定找到已安装 VSIX 中的独立 Agent Notes CLI。
-- CLI 如何从运行中的 VS Code 获取当前 Notes 选择；MVP 继续要求显式传入并确认。
 - 在实现 Agent 更新入口后，如何让现有 CZaza prompts enforce the same Note Writing Format without duplicating prompt text.
 
 ## Agent、Skill 与 JSON 的职责
@@ -389,7 +394,7 @@ type AgentNoteUpdateReport = {
   ↓
 Agent 通过 Skill 找到 CZaza Agent Notes CLI
   ↓
-接口返回当前 Notes 空间和相关 Notes
+Agent 调用 `current` 自动取得当前显示的 Notes 和所属人
   ↓
 Agent 生成修改计划 JSON
   ↓
@@ -412,7 +417,9 @@ Agent 传回同一计划 JSON 和 confirmationToken
 - `applyAgentNoteUpdates` 重新验证 Personal identity，并确认 token 与完整计划一致；Notes 位置或计划被替换时拒绝写入。
 - 确认不能跨修改复用；每次新的修改计划都必须重新显示所属人并请求确认。
 - 用户是否确实点击或回复确认由 Agent 交互层负责；token 只保证执行的内容与刚才展示的计划完全相同。
+- Agent 不询问用户选择 Team 或 Personal；它读取当前显示的 Notes，用户只确认是否修改这个当前空间。
+- `applyAgentNoteUpdates` 再次读取本地运行状态；若 Notes 已切换，则拒绝写入并要求重新检查和确认。
 
 ## 下一步
 
-Plan 第 1 至 8 步已完成，并已加入 Team/Personal Notes 所属人确认和计划一致性保护；MCP 经评估后从 MVP 移除。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。
+Plan 第 1 至 9 步已完成；Agent 现在自动读取当前显示的 Notes，用户只确认这个当前空间，写入时还会防止确认后切换。下一步是为 `$czaza` Skill 增加稳定的已安装扩展目录定位规则，然后执行最终完整流程验证。

@@ -14,6 +14,19 @@ export type AgentNoteOwner =
   | { kind: "team"; label: "Team Notes" }
   | { kind: "personal"; memberId: string; displayName: string; label: string };
 
+/** Input for resolving the Notes space currently displayed by CZaza. */
+export type CurrentAgentNotesInput = {
+  workspaceRoot: string;
+  outputDirectory: string;
+};
+
+/** Verified current Notes space returned to an Agent before inspection. */
+export type CurrentAgentNotesResult = CurrentAgentNotesInput & {
+  location: NoteStoreLocation;
+  owner: AgentNoteOwner;
+  updatedAt: string;
+};
+
 /** Reason one requested source file could not be inspected. */
 export type AgentNoteInspectionSkipReason =
   | "outsideWorkspace"
