@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:ba46670baf304878d3b08cb63e64709b28ff21c73678a7729c962243e96a4d23"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.219Z",
+    "updatedAt": "2026-08-14T01:32:08.219Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file tests single-line AI note generation and persistence.",
+      "detail": "- generateLineNoteForResource tests: Verify new and existing Line Notes stay in the selected Store."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -36,7 +36,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 import { mergeGeneratedFileSectionNotes } from "@vscode/services/generateFileNotesService";
 
 /**
@@ -192,6 +192,7 @@ export async function generateAllNotesService(
  * @param context - Extension context used to resolve the selected provider API key.
  * @param notes - Shared note store used for cached reads and persistent writes.
  * @param uri - Local source-file URI to analyze.
+ * @param location - Exact Team or Personal Note Store selected for this task.
  * @returns `true` after notes are saved, or `false` when AI configuration is unavailable.
  *
  * @example
@@ -201,6 +202,7 @@ export async function generateAllNotesForResource(
   context: vscode.ExtensionContext,
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
+  location?: NoteStoreLocation,
   options?: {
     allowBatching?: boolean;
     onProgress?: (progress: AllNotesProgress) => void | Promise<void>;
@@ -230,6 +232,7 @@ export async function generateAllNotesForResource(
     resolvedRoot.rootDirectory,
     settings.outputDirectory,
     relativePath,
+    location,
   );
   const now = new Date().toISOString();
   const sourceFile = await generateAllNotesService({
@@ -254,6 +257,8 @@ export async function generateAllNotesForResource(
     relativePath,
     sourceFile,
     now,
+    {},
+    location,
   );
 
   return true;

@@ -23,7 +23,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 
 /**
  * Provider-independent input for generating one stored line note.
@@ -134,6 +134,7 @@ export async function generateLineNoteService(
  * @param notes - Shared workspace note store.
  * @param uri - Local source-file URI that owns the target line.
  * @param lineNumber - One-based line captured when the user requested generation.
+ * @param location - Exact Team or Personal Note Store selected for this task.
  * @returns `true` after saving, or `false` when AI configuration is unavailable.
  *
  * @example
@@ -144,6 +145,7 @@ export async function generateLineNoteForResource(
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
   lineNumber: number,
+  location?: NoteStoreLocation,
 ): Promise<boolean> {
   const aiConfig = await getAiRequestConfigOrShowError(context, uri);
 
@@ -162,6 +164,7 @@ export async function generateLineNoteForResource(
     resolvedRoot.rootDirectory,
     settings.outputDirectory,
     relativePath,
+    location,
   );
   const existingLineNote = existingSourceFile?.lineNotes.find(
     (note) => note.line === lineNumber,
@@ -186,6 +189,7 @@ export async function generateLineNoteForResource(
       relativePath,
       lineNote,
       now,
+      location,
     );
     return true;
   }
@@ -203,6 +207,8 @@ export async function generateLineNoteForResource(
     relativePath,
     sourceFile,
     now,
+    {},
+    location,
   );
 
   return true;

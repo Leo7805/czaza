@@ -75,11 +75,13 @@ describe("generateSectionNoteForResource()", () => {
   it("updates only the selected section AI explanation", async () => {
     const updateSectionAiExplanation = vi.fn().mockResolvedValue(undefined);
     const notes = createNotes(updateSectionAiExplanation);
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
     const result = await generateSectionNoteForResource(
       {} as vscodeTypes.ExtensionContext,
       notes,
       createUri(),
       "section:run:1-3",
+      personal,
     );
 
     expect(result).toBe(true);
@@ -98,6 +100,7 @@ describe("generateSectionNoteForResource()", () => {
         detail: "这个 Section 包含函数体和返回行为。",
       },
       expect.any(String),
+      personal,
     );
   });
 

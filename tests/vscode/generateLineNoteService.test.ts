@@ -181,12 +181,14 @@ describe("generateLineNoteForResource()", () => {
 
     runtimeMocks.openTextDocument.mockResolvedValue(createDocument());
     runtimeMocks.createDeepSeekClient.mockReturnValue({ complete });
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
 
     const result = await generateLineNoteForResource(
       {} as import("vscode").ExtensionContext,
       notes,
       uri,
       2,
+      personal,
     );
 
     expect(result).toBe(true);
@@ -210,6 +212,8 @@ describe("generateLineNoteForResource()", () => {
         ],
       }),
       expect.any(String),
+      {},
+      personal,
     );
   });
 
@@ -245,6 +249,7 @@ describe("generateLineNoteForResource()", () => {
         aiExplanation: expect.objectContaining({ summary: "Returns the value." }),
       }),
       expect.any(String),
+      undefined,
     );
   });
 

@@ -6,6 +6,7 @@ import type { AIExplanation } from "@shared/models/ai/common";
 import type { LineRange } from "@shared/models/common";
 import type { NoteStatus } from "@shared/models/domain/common";
 import type { ProgrammingLanguage, StoredSourceFile } from "@shared/models/store/sourceFile";
+import type { NoteStoreLocation } from "./NoteStoreLocation";
 import {
   markSourceFileNotesCurrentConfirmed,
   markSourceFileNotesStale,
@@ -397,6 +398,7 @@ export class WorkspaceNoteUpdateManager {
    * @param relativeFilePath - Normalized workspace-relative source file path.
    * @param aiExplanation - Next AI explanation, or undefined to remove it.
    * @param now - ISO 8601 timestamp used for updatedAt.
+   * @param location - Exact Team or Personal Note Store to update.
    * @returns Updated stored source file.
    *
    * @example
@@ -433,8 +435,9 @@ export class WorkspaceNoteUpdateManager {
     sectionId: string,
     aiExplanation: AIExplanation | undefined,
     now: string,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
-    return updateSectionAiExplanation(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sectionId, aiExplanation, now);
+    return updateSectionAiExplanation(this.cache, workspaceRoot, outputDirectory, relativeFilePath, sectionId, aiExplanation, now, location);
   }
 
   /**

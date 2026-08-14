@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:37087da9efe0749cb004799a55f7f0afd721926d4134a1a56e5774fbb31a6e63"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:51:24.814Z",
+    "updatedAt": "2026-08-14T01:51:24.814Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "此文件验证 WorkspaceNoteStore 的持久化、缓存和笔记操作。",
+      "detail": "- WorkspaceNoteStore 测试：确认 Personal Store 的索引被外部替换后，下一次查询会自动重新加载缓存。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

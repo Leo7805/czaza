@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:52e890f1097cc2eb5745f004561602eb46446bbcaac7e664e2a8f160f3dd7b54"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.222Z",
+    "updatedAt": "2026-08-14T01:32:08.222Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file activates CZaza and wires extension services, providers, and commands.",
+      "detail": "- activate: Passes each fixed Team or Personal NoteStoreLocation through every AI generation callback."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

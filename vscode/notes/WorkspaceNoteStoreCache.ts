@@ -24,6 +24,7 @@ import {
 export class WorkspaceNoteStoreCache {
   readonly repository: WorkspaceNoteStoreRepository;
   readonly indexCache = new Map<string, WorkspaceNoteIndexV2 | null>();
+  readonly indexVersionCache = new Map<string, string | undefined>();
   readonly sourceFileCache = new Map<string, StoredSourceFile | undefined>();
 
   /**
@@ -50,9 +51,22 @@ export class WorkspaceNoteStoreCache {
    */
   async loadIndex(workspaceRoot: string, outputDirectory: string, location: NoteStoreLocation = TEAM_NOTE_STORE): Promise<WorkspaceNoteIndexV2 | null> {
     const key = getWorkspaceCacheKey(workspaceRoot, outputDirectory, location);
+    const currentVersion = await this.repository.getIndexVersion(
+      workspaceRoot,
+      outputDirectory,
+      location,
+    );
+
+    if (
+      this.indexVersionCache.has(key) &&
+      this.indexVersionCache.get(key) !== currentVersion
+    ) {
+      this.clearCache(workspaceRoot, outputDirectory, location);
+    }
 
     if (!this.indexCache.has(key)) {
       this.indexCache.set(key, await this.repository.loadIndex(workspaceRoot, outputDirectory, location));
+      this.indexVersionCache.set(key, currentVersion);
     }
 
     return this.indexCache.get(key) ?? null;
@@ -70,7 +84,9 @@ export class WorkspaceNoteStoreCache {
   clearCache(workspaceRoot: string, outputDirectory: string, location: NoteStoreLocation = TEAM_NOTE_STORE): void {
     const prefix = `${getWorkspaceCacheKey(workspaceRoot, outputDirectory, location)}::`;
 
-    this.indexCache.delete(getWorkspaceCacheKey(workspaceRoot, outputDirectory, location));
+    const workspaceKey = getWorkspaceCacheKey(workspaceRoot, outputDirectory, location);
+    this.indexCache.delete(workspaceKey);
+    this.indexVersionCache.delete(workspaceKey);
 
     for (const key of this.sourceFileCache.keys()) {
       if (key.startsWith(prefix)) {
@@ -90,6 +106,11 @@ export class WorkspaceNoteStoreCache {
     const baseKey = `${workspaceRoot}::${outputDirectory}`;
     for (const key of this.indexCache.keys()) {
       if (key === baseKey || key.startsWith(`${baseKey}::personal:`)) this.indexCache.delete(key);
+    }
+    for (const key of this.indexVersionCache.keys()) {
+      if (key === baseKey || key.startsWith(`${baseKey}::personal:`)) {
+        this.indexVersionCache.delete(key);
+      }
     }
     for (const key of this.sourceFileCache.keys()) {
       if (key.startsWith(`${baseKey}::`)) this.sourceFileCache.delete(key);
@@ -170,6 +191,10 @@ export class WorkspaceNoteStoreCache {
     this.indexCache.set(
       getWorkspaceCacheKey(workspaceRoot, outputDirectory, location),
       await this.repository.loadIndex(workspaceRoot, outputDirectory, location),
+    );
+    this.indexVersionCache.set(
+      getWorkspaceCacheKey(workspaceRoot, outputDirectory, location),
+      await this.repository.getIndexVersion(workspaceRoot, outputDirectory, location),
     );
   }
 

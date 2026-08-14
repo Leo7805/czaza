@@ -332,7 +332,8 @@ describe("generateAllNotesForResource()", () => {
     });
     runtimeMocks.createDeepSeekClient.mockReturnValue({ complete });
 
-    const result = await generateAllNotesForResource(context, notes, uri);
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
+    const result = await generateAllNotesForResource(context, notes, uri, personal);
 
     expect(result).toBe(true);
     expect(runtimeMocks.getAiConfig).toHaveBeenCalledWith(context, uri);
@@ -340,6 +341,7 @@ describe("generateAllNotesForResource()", () => {
       "/workspace",
       ".czaza",
       "src/add.ts",
+      personal,
     );
     expect(runtimeMocks.createDeepSeekClient).toHaveBeenCalledWith({
       apiKey: "test-api-key",
@@ -366,6 +368,8 @@ describe("generateAllNotesForResource()", () => {
         ]),
       }),
       expect.any(String),
+      {},
+      personal,
     );
   });
 

@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:43afbebb87095920df18c496fe7c6dff38cc96575f64df8355e20aeadbabed45"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.214Z",
+    "updatedAt": "2026-08-14T01:32:08.214Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file verifies NotesViewProvider UI behavior and Store-aware actions.",
+      "detail": "- NotesViewProvider tests: Cover Personal Notes AI generation location forwarding alongside existing view behavior."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

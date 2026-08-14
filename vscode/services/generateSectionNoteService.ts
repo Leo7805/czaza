@@ -17,7 +17,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 
 /** Provider-independent input for one selected-section AI request. */
 export type GenerateSectionNoteInput = {
@@ -86,6 +86,7 @@ export async function generateSectionNoteService(
  * @param notes - Shared workspace note store.
  * @param uri - Local source-file URI that owns the section.
  * @param sectionId - Stable ID of the section to regenerate.
+ * @param location - Exact Team or Personal Note Store selected for this task.
  * @returns `true` after updating the section, or `false` when AI configuration is unavailable.
  * @throws Error when the source file or section ID cannot be found.
  *
@@ -97,6 +98,7 @@ export async function generateSectionNoteForResource(
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
   sectionId: string,
+  location?: NoteStoreLocation,
 ): Promise<boolean> {
   const aiConfig = await getAiRequestConfigOrShowError(context, uri);
 
@@ -112,6 +114,7 @@ export async function generateSectionNoteForResource(
     resolvedRoot.rootDirectory,
     settings.outputDirectory,
     relativePath,
+    location,
   );
   const section = sourceFile?.sectionNotes.find((candidate) => candidate.id === sectionId);
 
@@ -139,6 +142,7 @@ export async function generateSectionNoteForResource(
     sectionId,
     aiExplanation,
     new Date().toISOString(),
+    location,
   );
 
   return true;

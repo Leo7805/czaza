@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:06b79510aa74812886760ebbb531732ab733ea457af3d7038ef0746684354b39"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.240Z",
+    "updatedAt": "2026-08-14T01:32:08.240Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This service generates and persists an AI Note for one selected source line.",
+      "detail": "- generateLineNoteForResource: Reads existing metadata and saves or upserts the Line Note in the selected Store."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

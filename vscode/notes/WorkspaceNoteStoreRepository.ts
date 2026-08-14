@@ -106,6 +106,38 @@ export class WorkspaceNoteStoreRepository {
   }
 
   /**
+   * Reads a lightweight version token for one Note Store index.
+   *
+   * Atomic replacements change the file identity or timestamps, allowing
+   * readers to detect external writes without parsing the complete index.
+   *
+   * @param workspaceRoot - Absolute workspace root path.
+   * @param outputDirectory - Workspace-relative CZaza output directory.
+   * @param location - Exact Team or Personal Note Store to inspect.
+   * @returns Stable metadata token, or undefined when the index is missing.
+   */
+  async getIndexVersion(
+    workspaceRoot: string,
+    outputDirectory: string,
+    location: NoteStoreLocation = TEAM_NOTE_STORE,
+  ): Promise<string | undefined> {
+    try {
+      const metadata = await stat(
+        getWorkspaceNoteIndexPath(workspaceRoot, outputDirectory, location),
+      );
+      return [
+        metadata.dev,
+        metadata.ino,
+        metadata.size,
+        metadata.mtimeMs,
+        metadata.ctimeMs,
+      ].join(":");
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Writes the workspace note index to disk.
    *
    * @param workspaceRoot - Absolute workspace root path.

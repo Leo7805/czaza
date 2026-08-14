@@ -888,7 +888,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(generateFileNotes).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
 
-    expect(generateFileNotes).toHaveBeenCalledWith(uri);
+    expect(generateFileNotes).toHaveBeenCalledWith(uri, undefined);
     expect(mocks.postMessage).toHaveBeenCalledWith({
       type: "resourceNotes",
       payload: expect.objectContaining({
@@ -905,6 +905,43 @@ describe("NotesViewProvider", () => {
       }),
     });
 
+    provider.dispose();
+  });
+
+  it("passes the selected Personal Notes location to AI generation", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
+    const generateFileNotes = vi.fn().mockResolvedValue(true);
+    const noteScope = {
+      resolveLocation: vi.fn().mockResolvedValue(personal),
+    } as never;
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      generateFileNotes,
+      vi.fn().mockResolvedValue(undefined),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      noteScope,
+    );
+    const view = createWebviewView();
+
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(uri, 1);
+    mocks.messageListeners[0]?.({ type: "generateFileNotes" });
+
+    await vi.waitFor(() => expect(generateFileNotes).toHaveBeenCalledWith(uri, personal));
     provider.dispose();
   });
 
@@ -935,7 +972,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
 
     expect(mocks.showWarningMessage).not.toHaveBeenCalled();
-    expect(generateAllNotes).toHaveBeenCalledWith(uri, {
+    expect(generateAllNotes).toHaveBeenCalledWith(uri, undefined, {
       onProgress: expect.any(Function),
     });
     expect(mocks.postMessage).toHaveBeenLastCalledWith({
@@ -1058,10 +1095,10 @@ describe("NotesViewProvider", () => {
       action: "confirmBatchedAllNotes",
     });
     await vi.waitFor(() => expect(generateAllNotes).toHaveBeenCalledTimes(2));
-    expect(generateAllNotes).toHaveBeenNthCalledWith(1, uri, {
+    expect(generateAllNotes).toHaveBeenNthCalledWith(1, uri, undefined, {
       onProgress: expect.any(Function),
     });
-    expect(generateAllNotes).toHaveBeenNthCalledWith(2, uri, {
+    expect(generateAllNotes).toHaveBeenNthCalledWith(2, uri, undefined, {
       allowBatching: true,
       onProgress: expect.any(Function),
     });
@@ -1096,7 +1133,7 @@ describe("NotesViewProvider", () => {
     mocks.messageListeners[0]?.({ type: "generateLineNote", lineScope: "currentLine" });
 
     await vi.waitFor(() => expect(generateLineNote).toHaveBeenCalledOnce());
-    expect(generateLineNote).toHaveBeenCalledWith(uri, 12);
+    expect(generateLineNote).toHaveBeenCalledWith(uri, 12, undefined);
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.postMessage).toHaveBeenLastCalledWith({
       type: "resourceNotes",
@@ -1147,7 +1184,7 @@ describe("NotesViewProvider", () => {
     });
 
     await vi.waitFor(() => expect(generateSectionNote).toHaveBeenCalledOnce());
-    expect(generateSectionNote).toHaveBeenCalledWith(uri, "section:run:1-3");
+    expect(generateSectionNote).toHaveBeenCalledWith(uri, "section:run:1-3", undefined);
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.postMessage).toHaveBeenLastCalledWith({
       type: "resourceNotes",

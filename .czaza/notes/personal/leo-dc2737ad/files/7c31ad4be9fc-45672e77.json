@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:6e7ee637a824bd61c4706085f8223be581258a5ff3176dbcfe2e90a0ce5fda4c"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.224Z",
+    "updatedAt": "2026-08-14T01:32:08.224Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file binds pure Note transformations to persistent Store updates.",
+      "detail": "- updateSectionAiExplanation: Forwards the selected NoteStoreLocation while replacing Section AI content."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

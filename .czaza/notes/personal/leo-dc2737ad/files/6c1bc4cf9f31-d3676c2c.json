@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:50870afad89c361e30338f85ca6527f6bf94cc6a20e2b3caac07ef5dc1f3a82c"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.236Z",
+    "updatedAt": "2026-08-14T01:32:08.236Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This service generates nearby Line Notes in one bounded AI request.",
+      "detail": "- generateLineBatchNotesForResource: Reads, creates, and upserts Line Notes only in the Store selected when the task starts."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

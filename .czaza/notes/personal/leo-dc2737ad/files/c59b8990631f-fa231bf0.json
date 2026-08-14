@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:456bf3dd6745d3cefa03764ed45e75a089a8a9a46f63cbc65f951f7f038488ba"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.241Z",
+    "updatedAt": "2026-08-14T01:32:08.241Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This service regenerates AI content for one existing Section Note.",
+      "detail": "- generateSectionNoteForResource: Finds and updates the Section in the exact Team or Personal Store selected for the task."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

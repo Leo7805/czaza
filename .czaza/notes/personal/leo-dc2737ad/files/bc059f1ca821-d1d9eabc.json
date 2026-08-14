@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:4116a81d2f67bd5c899f14c14671abf8a0ee6f3189015fdb0a3cbf6870ad03cf"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.228Z",
+    "updatedAt": "2026-08-14T01:32:08.228Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This service generates and atomically saves all AI Note levels for one source file.",
+      "detail": "- generateAllNotesForResource: Reads and saves through the exact Team or Personal Store selected for the task."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

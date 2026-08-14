@@ -19,7 +19,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 
 /**
  * Provider-independent input for generating stored file and section notes.
@@ -107,6 +107,7 @@ export async function generateFileNotesService(
  * @param context - Extension context used to read the selected provider API key.
  * @param notes - Shared note store used for cached reads and persistent writes.
  * @param uri - Local source-file URI to analyze.
+ * @param location - Exact Team or Personal Note Store selected for this task.
  * @returns `true` after notes are saved, or `false` when configuration resolution is cancelled.
  *
  * @example
@@ -116,6 +117,7 @@ export async function generateFileNotesForResource(
   context: vscode.ExtensionContext,
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
+  location?: NoteStoreLocation,
 ): Promise<boolean> {
   const aiConfig = await getAiRequestConfigOrShowError(context, uri);
 
@@ -131,6 +133,7 @@ export async function generateFileNotesForResource(
     resolvedRoot.rootDirectory,
     settings.outputDirectory,
     relativePath,
+    location,
   );
   const now = new Date().toISOString();
   const sourceFile = await generateFileNotesService({
@@ -149,6 +152,8 @@ export async function generateFileNotesForResource(
     relativePath,
     sourceFile,
     now,
+    {},
+    location,
   );
 
   return true;

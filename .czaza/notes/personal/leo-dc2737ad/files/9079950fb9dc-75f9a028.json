@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:a61666c0365ac85d918deb8b66001037aa318a8fd757c088d250a0006de805ad"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.223Z",
+    "updatedAt": "2026-08-14T01:32:08.223Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This class exposes fine-grained persisted Note updates through the shared Store cache.",
+      "detail": "- updateSectionAiExplanation: Updates Section AI content in an explicitly selected Team or Personal Store."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

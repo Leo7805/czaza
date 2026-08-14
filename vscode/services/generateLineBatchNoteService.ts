@@ -24,7 +24,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 
 /** Provider-independent input for nearby line-batch generation. */
 export type GenerateLineBatchNotesInput = {
@@ -115,6 +115,7 @@ export async function generateLineBatchNotesService(
  * @param notes - Shared workspace note store.
  * @param uri - Local source-file URI that owns the active line.
  * @param activeLine - One-based active editor line.
+ * @param location - Exact Team or Personal Note Store selected for this task.
  * @returns `true` after saving notes, or `false` when configuration is unavailable.
  *
  * @example
@@ -125,6 +126,7 @@ export async function generateLineBatchNotesForResource(
   notes: WorkspaceNoteStore,
   uri: vscode.Uri,
   activeLine: number,
+  location?: NoteStoreLocation,
 ): Promise<boolean> {
   const aiConfig = await getAiRequestConfigOrShowError(context, uri);
 
@@ -140,6 +142,7 @@ export async function generateLineBatchNotesForResource(
     resolvedRoot.rootDirectory,
     settings.outputDirectory,
     relativePath,
+    location,
   );
   const existingLineNotes = existingSourceFile?.lineNotes ?? [];
   const onlyMissing = !existingLineNotes.find((note) => note.line === activeLine)?.aiExplanation;
@@ -175,6 +178,8 @@ export async function generateLineBatchNotesForResource(
       relativePath,
       sourceFile,
       now,
+      {},
+      location,
     );
     return true;
   }
@@ -186,6 +191,7 @@ export async function generateLineBatchNotesForResource(
       relativePath,
       lineNote,
       now,
+      location,
     );
   }
 

@@ -6,6 +6,7 @@ import type { AIExplanation } from "@shared/models/ai/common";
 import type { LineRange } from "@shared/models/common";
 import type { NoteStatus } from "@shared/models/domain/common";
 import type { ProgrammingLanguage, StoredSourceFile } from "@shared/models/store/sourceFile";
+import type { NoteStoreLocation } from "./NoteStoreLocation";
 import {
   updateLineAnchorText as updateLineAnchorTextPure,
   updateLineNumber as updateLineNumberPure,
@@ -46,6 +47,7 @@ export type WorkspaceNoteUpdateDependencies = {
     relativeFilePath: string,
     now: string,
     update: (sourceFile: StoredSourceFile) => StoredSourceFile,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile>;
 };
 
@@ -416,6 +418,7 @@ export function updateSectionAiExplanation(
   sectionId: string,
   aiExplanation: AIExplanation | undefined,
   now: string,
+  location?: NoteStoreLocation,
 ): Promise<StoredSourceFile> {
   return deps.updateStoredSourceFile(
     workspaceRoot,
@@ -423,6 +426,7 @@ export function updateSectionAiExplanation(
     relativeFilePath,
     now,
     (sourceFile) => updateSectionAiExplanationPure(sourceFile, sectionId, aiExplanation, now),
+    location,
   );
 }
 

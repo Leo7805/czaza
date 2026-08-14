@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:72b52f06da7143e2819166a443215c9287cb912684c2cd2c77d8167d09bb95be"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.218Z",
+    "updatedAt": "2026-08-14T01:32:08.218Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file tests complete File, Section, and Line AI note generation.",
+      "detail": "- generateAllNotesForResource tests: Verify Personal Store location is used for both reads and writes."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -37,6 +37,44 @@ describe("WorkspaceNoteStore", () => {
     );
   });
 
+  it("reloads a Personal Store on the next query after an external index replacement", async () => {
+    const root = await createTempWorkspaceRoot();
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
+    const visibleRepository = new WorkspaceNoteStoreRepository(() => "visible01");
+    const externalRepository = new WorkspaceNoteStoreRepository(() => "external1");
+    const visibleNotes = new WorkspaceNoteStore(visibleRepository);
+    const externalNotes = new WorkspaceNoteStore(externalRepository);
+
+    expect(
+      await visibleNotes.cache.getSourceFileCaseInsensitive(
+        root,
+        outputDirectory,
+        relativeFilePath,
+        personal,
+      ),
+    ).toBeUndefined();
+
+    const externalSourceFile = createStoredSourceFile();
+    await externalNotes.cache.saveSourceFile(
+      root,
+      outputDirectory,
+      relativeFilePath,
+      externalSourceFile,
+      createdAt,
+      {},
+      personal,
+    );
+
+    expect(
+      await visibleNotes.cache.getSourceFileCaseInsensitive(
+        root,
+        outputDirectory,
+        relativeFilePath,
+        personal,
+      ),
+    ).toEqual(externalSourceFile);
+  });
+
   it("manages file, section, and line note CRUD with repository persistence", async () => {
     const root = await createTempWorkspaceRoot();
     const repository = new WorkspaceNoteStoreRepository(() => randomId);

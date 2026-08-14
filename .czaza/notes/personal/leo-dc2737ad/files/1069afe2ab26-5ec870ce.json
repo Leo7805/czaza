@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:23720fa364aace232860b578f7a79d6f7e315a8e31de22082729466cebd2cd69"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.226Z",
+    "updatedAt": "2026-08-14T01:32:08.226Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This provider coordinates the CZaza Notes webview, editor state, and user actions.",
+      "detail": "- runNotesGeneration, runSectionNoteGeneration, and runLineNoteGeneration: Capture the selected Store when generation starts and pass it through every AI task.\n- resolveCurrentNoteStoreLocation: Resolves the exact Team or Personal Store for the current resource.\n- blockPersonalTeamOnlyAction: Continues to restrict Runtime Status updates while allowing Personal AI generation."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

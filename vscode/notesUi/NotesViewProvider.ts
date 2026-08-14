@@ -291,20 +291,33 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
   private readonly runtimeNoteStateRegistry?: RuntimeNoteStateRegistry;
-  private readonly generateFileNotes: (uri: vscode.Uri) => Promise<boolean>;
+  private readonly generateFileNotes: (
+    uri: vscode.Uri,
+    location?: NoteStoreLocation,
+  ) => Promise<boolean>;
   private readonly generateAllNotes?: (
     uri: vscode.Uri,
+    location?: NoteStoreLocation,
     options?: {
       allowBatching?: boolean;
       onProgress?: (progress: AllNotesProgress) => void | Promise<void>;
     },
   ) => Promise<boolean>;
-  private readonly generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>;
+  private readonly generateLineNote?: (
+    uri: vscode.Uri,
+    lineNumber: number,
+    location?: NoteStoreLocation,
+  ) => Promise<boolean>;
   private readonly generateLineBatchNotes?: (
     uri: vscode.Uri,
     lineNumber: number,
+    location?: NoteStoreLocation,
   ) => Promise<boolean>;
-  private readonly generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>;
+  private readonly generateSectionNote?: (
+    uri: vscode.Uri,
+    sectionId: string,
+    location?: NoteStoreLocation,
+  ) => Promise<boolean>;
   private readonly saveUserNote: (
     uri: vscode.Uri,
     target: UserNoteTarget,
@@ -334,18 +347,19 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   constructor(
     extensionUri: vscode.Uri,
     notes: WorkspaceNoteStore,
-    generateFileNotes: (uri: vscode.Uri) => Promise<boolean>,
+    generateFileNotes: (uri: vscode.Uri, location?: NoteStoreLocation) => Promise<boolean>,
     saveUserNote: (uri: vscode.Uri, target: UserNoteTarget, userNote: string, location?: NoteStoreLocation) => Promise<void>,
     generateAllNotes?: (
       uri: vscode.Uri,
+      location?: NoteStoreLocation,
       options?: {
         allowBatching?: boolean;
         onProgress?: (progress: AllNotesProgress) => void | Promise<void>;
       },
     ) => Promise<boolean>,
-    generateLineNote?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
-    generateSectionNote?: (uri: vscode.Uri, sectionId: string) => Promise<boolean>,
-    generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number) => Promise<boolean>,
+    generateLineNote?: (uri: vscode.Uri, lineNumber: number, location?: NoteStoreLocation) => Promise<boolean>,
+    generateSectionNote?: (uri: vscode.Uri, sectionId: string, location?: NoteStoreLocation) => Promise<boolean>,
+    generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number, location?: NoteStoreLocation) => Promise<boolean>,
     runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
     noteScope?: PersonalNoteScopeService,
     personalIdentities?: PersonalIdentityService,
@@ -1399,7 +1413,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     scope: "fileSection" | "all",
     allowBatching = false,
   ): Promise<void> {
-    if (await this.blockPersonalTeamOnlyAction("AI Generation")) return;
     const uri = this.currentResourceUri;
 
     if (!uri || this.currentPayload?.kind !== "file") {
@@ -1413,6 +1426,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     const resourceKey = uri.toString();
+    const location = await this.resolveCurrentNoteStoreLocation(uri);
 
     if (this.generatingResources.has(resourceKey)) {
       return;
@@ -1425,7 +1439,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       const saved =
         scope === "all"
-          ? await this.generateAllNotes?.(uri, {
+          ? await this.generateAllNotes?.(uri, location, {
               ...(allowBatching ? { allowBatching: true } : {}),
               onProgress: async (progress) => {
                 this.allNotesProgress.set(resourceKey, progress);
@@ -1434,7 +1448,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
                 }
               },
             })
-          : await generateNotes(uri);
+          : await generateNotes(uri, location);
       revealAiNotes = saved ? scope : undefined;
 
       if (saved && this.currentResourceUri?.toString() === resourceKey) {
@@ -1502,7 +1516,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   private async runSectionNoteGeneration(sectionId: string): Promise<void> {
-    if (await this.blockPersonalTeamOnlyAction("AI Generation")) return;
     const uri = this.currentResourceUri;
 
     if (
@@ -1515,6 +1528,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     const resourceKey = uri.toString();
+    const location = await this.resolveCurrentNoteStoreLocation(uri);
 
     if (this.generatingResources.has(resourceKey)) {
       return;
@@ -1525,7 +1539,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     let revealAiNotes: "section" | undefined;
 
     try {
-      const saved = await this.generateSectionNote(uri, sectionId);
+      const saved = await this.generateSectionNote(uri, sectionId, location);
       revealAiNotes = saved ? "section" : undefined;
 
       if (saved && this.currentResourceUri?.toString() === resourceKey) {
@@ -1547,7 +1561,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   private async runLineNoteGeneration(scope: "currentLine" | "nearbyLines"): Promise<void> {
-    if (await this.blockPersonalTeamOnlyAction("AI Generation")) return;
     const uri = this.currentResourceUri;
     const lineNumber =
       this.currentPayload?.kind === "file" ? this.currentPayload.activeLine : undefined;
@@ -1559,6 +1572,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 
     const resourceKey = uri.toString();
+    const location = await this.resolveCurrentNoteStoreLocation(uri);
 
     if (this.generatingResources.has(resourceKey)) {
       return;
@@ -1569,7 +1583,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     let revealAiNotes: "line" | undefined;
 
     try {
-      const saved = await generateLineNotes(uri, lineNumber);
+      const saved = await generateLineNotes(uri, lineNumber, location);
       revealAiNotes = saved ? "line" : undefined;
 
       if (saved && this.currentResourceUri?.toString() === resourceKey) {
@@ -1651,6 +1665,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       access.settings.outputDirectory,
     );
     return location?.kind === "personal";
+  }
+
+  /** Resolves the Note Store selected when a generation task starts. */
+  private async resolveCurrentNoteStoreLocation(uri: vscode.Uri): Promise<NoteStoreLocation | undefined> {
+    const access = evaluateCzazaResourceAccess(uri);
+    if (!access.allowed) return undefined;
+    return this.noteScope?.resolveLocation(
+      access.root.rootDirectory,
+      access.settings.outputDirectory,
+    );
   }
 
   /** Stops a Team-only action while Personal Notes are selected. */

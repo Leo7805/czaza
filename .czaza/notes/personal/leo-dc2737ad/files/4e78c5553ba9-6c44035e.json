@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:ad01e54ed4dba5cd9e9463a37e2bb0c93dc755ffb093df4eb491ab5ecd7cc44b"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.230Z",
+    "updatedAt": "2026-08-14T01:32:08.230Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This service generates and merges File and Section AI Notes.",
+      "detail": "- generateFileNotesForResource: Reads existing content and saves generated content in the selected Team or Personal Store."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

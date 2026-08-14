@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:255ac2ff04f3aed44169c0d407413c57329179ae198202ebdbf55f45c816fb60"
+  },
+  "defaults": {
+    "createdAt": "2026-08-14T01:32:08.220Z",
+    "updatedAt": "2026-08-14T01:32:08.220Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file tests regeneration of AI content for a selected Section Note.",
+      "detail": "- generateSectionNoteForResource tests: Verify section updates target the selected Personal Store."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
