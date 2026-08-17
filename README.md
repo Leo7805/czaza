@@ -101,6 +101,13 @@ only active inside the configured CZaza root directory.
 - DeepSeek API
 - Vitest
 
+## Installation
+
+1. Open the [v1.0.1 release](https://github.com/Leo7805/czaza/releases/tag/v1.0.1).
+2. Under **Assets**, download the `.vsix` file.
+3. In VS Code, open the Command Palette and select **Extensions: Install from VSIX...**.
+4. Select the downloaded file, then reload VS Code when prompted.
+
 ## Development
 
 Install dependencies:
