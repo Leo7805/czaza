@@ -4,6 +4,8 @@ CZaza is a VS Code extension for understanding source code with AI.
 
 It is focused on reading and explaining code. It does not modify source files.
 
+[![GitHub Release](https://img.shields.io/github/v/release/Leo7805/czaza)](https://github.com/Leo7805/czaza/releases/tag/v1.0.1)
+
 ![CZaza notes panel](docs/images/demo01.png)
 
 ## Why
