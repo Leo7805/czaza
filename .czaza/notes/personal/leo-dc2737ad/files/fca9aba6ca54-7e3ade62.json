@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:f5d10d3f86a7afe069a8cd1399280d293df4e266e8000a6db90ae20727c7905b"
+    "sourceHash": "sha256:b44eacff75653a67963bfb5d3df743578208c588fd5c39d16bff88ac7d8af0a9"
   },
   "defaults": {
     "createdAt": "2026-08-14T01:51:24.820Z",
-    "updatedAt": "2026-08-14T01:51:24.820Z"
+    "updatedAt": "2026-08-18T11:09:02.204Z"
   },
   "fileNote": {
     "aiExplanation": {
-      "summary": "此仓库负责校验并持久化工作区 Note Store 索引和单文件 Note 文档。",
-      "detail": "- loadIndex：读取并校验一个 Team 或 Personal Store 索引。\n- getIndexVersion：生成轻量元数据标记，用于检测外部原子替换索引的操作。\n- saveIndex 和 saveSourceFile：通过原子文件写入持久化索引和 Note 变更。\n- getSourceFile：根据索引条目定位并解码一个已存储的 Note 文档。"
+      "summary": "This repository validates and persists workspace Note Store indexes and per-file Note documents.",
+      "detail": "- loadIndex and getSourceFile: Read and validate Team or Personal Store data.\n- saveIndex and saveSourceFile: Persist Store changes through atomic file replacement.\n- writeRawJsonFile: Marks both temporary and final paths as internal writes so filesystem events do not trigger false external refreshes."
     }
   },
   "sectionNotes": {},

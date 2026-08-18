@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:43afbebb87095920df18c496fe7c6dff38cc96575f64df8355e20aeadbabed45"
+    "sourceHash": "sha256:311a9cf9049b6c51c282cafb0d25a77298ef6f12c3259335406beeadd7c0799f"
   },
   "defaults": {
     "createdAt": "2026-08-14T01:32:08.214Z",
-    "updatedAt": "2026-08-14T01:32:08.214Z"
+    "updatedAt": "2026-08-18T11:09:02.215Z"
   },
   "fileNote": {
     "aiExplanation": {
-      "summary": "This file verifies NotesViewProvider UI behavior and Store-aware actions.",
-      "detail": "- NotesViewProvider tests: Cover Personal Notes AI generation location forwarding alongside existing view behavior."
+      "summary": "This file verifies NotesViewProvider UI behavior, Store-aware actions, and Section draft lifecycle.",
+      "detail": "- Section draft tests: Confirm a new range is shown without persistence, cancellation writes nothing, and non-empty save invokes Section creation.\n- Existing provider tests: Cover resource rendering, navigation, Runtime State, relocation, AI generation, and Team or Personal Store forwarding."
     }
   },
   "sectionNotes": {},

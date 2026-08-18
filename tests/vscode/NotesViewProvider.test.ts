@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   relocateSectionNoteService: vi.fn(),
   relocateLineNoteService: vi.fn(),
   ensureFileNoteResourceAvailability: vi.fn(),
+  createUserSectionNoteService: vi.fn(),
   postMessage: vi.fn().mockResolvedValue(true),
   setDecorations: vi.fn(),
   decorationDispose: vi.fn(),
@@ -58,6 +59,10 @@ vi.mock("@vscode/services/resourceAccess", () => ({
 
 vi.mock("@vscode/services/ensureFileNoteResourceAvailabilityService", () => ({
   ensureFileNoteResourceAvailability: mocks.ensureFileNoteResourceAvailability,
+}));
+
+vi.mock("@vscode/services/createUserSectionNoteService", () => ({
+  createUserSectionNoteService: mocks.createUserSectionNoteService,
 }));
 
 vi.mock("@vscode/services/clearNoteStaleStatusService", () => ({
@@ -240,6 +245,7 @@ describe("NotesViewProvider", () => {
     mocks.relocateSectionNoteService.mockReset();
     mocks.relocateLineNoteService.mockReset();
     mocks.ensureFileNoteResourceAvailability.mockReset();
+    mocks.createUserSectionNoteService.mockReset().mockResolvedValue("section:user:1-2");
     mocks.getNavigatorNotes.mockReset();
     mocks.fsStat.mockReset().mockResolvedValue({
       type: 1,
@@ -1234,6 +1240,87 @@ describe("NotesViewProvider", () => {
       "Review this line.",
     );
 
+    provider.dispose();
+  });
+
+  it("shows and cancels a new Section draft without persisting it", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    const document = createDraftDocument(uri);
+
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.openUserSectionNoteEditor({ document, startLine: 1, endLine: 2 });
+
+    expect(mocks.postMessage).toHaveBeenLastCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({
+        editTarget: { level: "section", sectionId: "section:draft:1-2" },
+        sectionNotes: [expect.objectContaining({ id: "section:draft:1-2", isDraft: true })],
+      }),
+    });
+
+    mocks.messageListeners[0]?.({
+      type: "cancelSectionNoteDraft",
+      sectionId: "section:draft:1-2",
+    });
+    await vi.waitFor(() => expect(mocks.postMessage).toHaveBeenCalledTimes(3));
+    expect(mocks.createUserSectionNoteService).not.toHaveBeenCalled();
+    expect(mocks.postMessage).toHaveBeenLastCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({ sectionNotes: [] }),
+    });
+    provider.dispose();
+  });
+
+  it("persists a new Section draft only after non-empty content is saved", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      {} as never,
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    const document = createDraftDocument(uri);
+
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+    mocks.openTextDocument.mockResolvedValue(document);
+
+    await provider.resolveWebviewView(view);
+    await provider.openUserSectionNoteEditor({ document, startLine: 1, endLine: 2 });
+    mocks.messageListeners[0]?.({
+      type: "saveUserNote",
+      target: { level: "section", sectionId: "section:draft:1-2" },
+      userNote: "Saved section.",
+    });
+
+    await vi.waitFor(() => expect(mocks.createUserSectionNoteService).toHaveBeenCalledOnce());
+    expect(mocks.createUserSectionNoteService).toHaveBeenCalledWith(expect.objectContaining({
+      document,
+      startLine: 1,
+      endLine: 2,
+      userNote: "Saved section.",
+    }));
     provider.dispose();
   });
 
@@ -2776,6 +2863,19 @@ function createEditor(uri: vscodeTypes.Uri): vscodeTypes.TextEditor {
     revealRange: mocks.revealRange,
     setDecorations: mocks.setDecorations,
   } as unknown as vscodeTypes.TextEditor;
+}
+
+/** Creates a stable text document used by unsaved Section draft tests. */
+function createDraftDocument(uri: vscodeTypes.Uri): vscodeTypes.TextDocument {
+  const source = "const value = 1;\nreturn value;";
+
+  return {
+    uri,
+    languageId: "typescript",
+    lineCount: 2,
+    getText: () => source,
+    lineAt: (line: number) => ({ text: source.split("\n")[line] ?? "" }),
+  } as vscodeTypes.TextDocument;
 }
 
 /**

@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:ce769b29faf7d6246e9b5d88932d584e8accc21ed5dd2296e146d104a13560df"
+  },
+  "defaults": {
+    "createdAt": "2026-08-18T08:34:35.075Z",
+    "updatedAt": "2026-08-18T11:09:02.219Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file verifies save-time Section creation and Team or Personal Store isolation.",
+      "detail": "- Personal Store test: Confirms saved Section content is created without changing Team Notes.\n- Team Store test: Confirms omitted location preserves the Team default.\n- Empty draft test: Confirms whitespace-only content creates no storage."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

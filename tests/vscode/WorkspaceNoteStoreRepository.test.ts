@@ -6,7 +6,7 @@ import { writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, unlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
 import {
   createWorkspaceNoteFileName,
@@ -16,6 +16,11 @@ import {
   isWorkspaceNoteIndexV2,
   WorkspaceNoteStoreRepository,
 } from "@vscode/notes/WorkspaceNoteStoreRepository";
+
+vi.mock("node:crypto", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:crypto")>()),
+  randomUUID: () => "internal-write-test",
+}));
 
 const now = "2026-07-13T00:00:00.000Z";
 const outputDirectory = ".caca";
@@ -115,6 +120,9 @@ describe("WorkspaceNoteStoreRepository", () => {
     });
     expect(isRecentInternalWorkspaceNoteWrite(
       getWorkspaceNoteIndexPath(root, outputDirectory),
+    )).toBe(true);
+    expect(isRecentInternalWorkspaceNoteWrite(
+      `${getWorkspaceNoteIndexPath(root, outputDirectory)}.internal-write-test.tmp`,
     )).toBe(true);
   });
 

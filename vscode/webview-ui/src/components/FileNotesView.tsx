@@ -128,6 +128,11 @@ export function FileNotesView({
     getVsCodeApi()?.postMessage({ type: "saveUserNote", target, userNote });
   };
 
+  /** Notifies the extension host that one unsaved Section draft was cancelled. */
+  const cancelSectionDraft = (sectionId: string): void => {
+    getVsCodeApi()?.postMessage({ type: "cancelSectionNoteDraft", sectionId });
+  };
+
   const clearStale = (target: UserNoteTarget): void => {
     getVsCodeApi()?.postMessage({ type: "clearNoteStaleStatus", target });
   };
@@ -205,22 +210,27 @@ export function FileNotesView({
         aiActionLabel={selectedSection?.aiExplanation ? "Regenerate" : "Generate"}
         isAiActionRunning={runningScope === "section"}
         isAiActionDisabled={isAnyAiActionRunning && runningScope !== "section"}
-        onGenerateAi={selectedSection ? generateSectionNote : undefined}
+        onGenerateAi={selectedSection && !selectedSection.isDraft ? generateSectionNote : undefined}
         userNote={selectedSection?.userNote}
         aiExplanation={selectedSection?.aiExplanation}
         status={selectedSection?.status}
         runtimeStatus={selectedSection?.runtimeStatus}
-        statusTarget={
-          selectedSection ? { level: "section", sectionId: selectedSection.id } : undefined
-        }
+        statusTarget={selectedSection && !selectedSection.isDraft
+          ? { level: "section", sectionId: selectedSection.id }
+          : undefined}
         onClearStaleStatus={clearStale}
-        onRelocate={selectedSection ? startSectionRelocate : undefined}
+        onRelocate={selectedSection && !selectedSection.isDraft ? startSectionRelocate : undefined}
         editKey={selectedSection ? `section:${selectedSection.id}` : undefined}
         startInEditMode={shouldEditSection}
         onSaveUserNote={
           selectedSection
             ? (userNote) =>
                 saveUserNote({ level: "section", sectionId: selectedSection.id }, userNote)
+            : undefined
+        }
+        onCancelUserNote={
+          selectedSection?.isDraft
+            ? () => cancelSectionDraft(selectedSection.id)
             : undefined
         }
         headerAccessory={

@@ -721,6 +721,10 @@ async function writeRawJsonFile(filePath: string, raw: string): Promise<void> {
   const temporaryPath = `${filePath}.${randomUUID()}.tmp`;
 
   try {
+    recentInternalWrites.set(
+      path.resolve(temporaryPath),
+      Date.now() + INTERNAL_WRITE_SUPPRESS_MS,
+    );
     await writeFile(temporaryPath, raw, "utf-8");
     recentInternalWrites.set(
       path.resolve(filePath),

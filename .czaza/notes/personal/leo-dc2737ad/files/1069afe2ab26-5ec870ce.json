@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:23720fa364aace232860b578f7a79d6f7e315a8e31de22082729466cebd2cd69"
+    "sourceHash": "sha256:70410e31177d47b3bb11b50ce2fcaa91db7b0c1beff1f3e045cda69a2c7a07b9"
   },
   "defaults": {
     "createdAt": "2026-08-14T01:32:08.226Z",
-    "updatedAt": "2026-08-14T01:32:08.226Z"
+    "updatedAt": "2026-08-18T11:09:02.207Z"
   },
   "fileNote": {
     "aiExplanation": {
-      "summary": "This provider coordinates the CZaza Notes webview, editor state, and user actions.",
-      "detail": "- runNotesGeneration, runSectionNoteGeneration, and runLineNoteGeneration: Capture the selected Store when generation starts and pass it through every AI task.\n- resolveCurrentNoteStoreLocation: Resolves the exact Team or Personal Store for the current resource.\n- blockPersonalTeamOnlyAction: Continues to restrict Runtime Status updates while allowing Personal AI generation."
+      "summary": "This provider coordinates the CZaza Notes webview, current Store, editor state, and user actions.",
+      "detail": "- openUserSectionNoteEditor: Opens an existing Section or presents a new range as an in-memory draft.\n- saveSectionNoteDraft: Validates the source snapshot and persists only a non-empty saved draft.\n- cancelSectionNoteDraft: Discards an unsaved draft without changing the Note Store.\n- runNotesGeneration, runSectionNoteGeneration, and runLineNoteGeneration: Preserve the selected Team or Personal Store for AI tasks."
     }
   },
   "sectionNotes": {},

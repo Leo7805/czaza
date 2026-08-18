@@ -156,6 +156,9 @@ export type ResourceSectionNoteContent = ResourceNoteContent & {
 
   /** One-based inclusive end line. */
   endLine: number;
+
+  /** Whether this section exists only as an unsaved in-memory draft. */
+  isDraft?: boolean;
 };
 
 /**
@@ -428,6 +431,11 @@ export type WebviewToExtensionMessage =
 	      /** Complete user-authored note content. */
 	      userNote: string;
 	    }
+  | {
+      /** Cancels an unsaved Section Note draft. */
+      type: "cancelSectionNoteDraft";
+      sectionId: string;
+    }
 	  | {
 	      /** Marks one stale note as content-current after user review. */
 	      type: "clearNoteStaleStatus";

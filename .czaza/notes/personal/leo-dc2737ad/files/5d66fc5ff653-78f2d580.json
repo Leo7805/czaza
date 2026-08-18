@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:d541f518861d03447d3f641f2cef6473432cefb24b7f55f8f3532db73c420f23"
+  },
+  "defaults": {
+    "createdAt": "2026-08-18T08:34:35.070Z",
+    "updatedAt": "2026-08-18T11:09:02.200Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file registers selection-aware commands for opening Line and Section user-note editors.",
+      "detail": "- registerAddNoteCommands: Registers the commands and keeps their editor-context availability current.\n- addLineNote: Opens a Line Note editor for the active source line.\n- addSectionNote: Captures the selected Store and range, then asks NotesViewProvider to open an unsaved Section draft."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

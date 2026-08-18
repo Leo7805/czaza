@@ -68,6 +68,7 @@ export type NoteCardVariant = "file" | "section" | "line" | "child";
  * @param props.onTabChange - Optional callback for externally controlled tab changes.
  * @param props.editKey - Stable target key used to cancel editing when context changes.
  * @param props.onSaveUserNote - Optional callback that enables User Note editing.
+ * @param props.onCancelUserNote - Optional callback notified when User Note editing is cancelled.
  * @param props.emptyText - Text shown when the active tab has no content.
  * @param props.headerAccessory - Optional control rendered beside the card title.
  * @param props.titleTooltip - Optional tooltip shown from the card title.
@@ -105,6 +106,7 @@ export function NoteCard({
   onTabChange,
   editKey,
   onSaveUserNote,
+  onCancelUserNote,
   emptyText,
   headerAccessory,
   titleTooltip,
@@ -131,6 +133,7 @@ export function NoteCard({
   onTabChange?: (tab: "user" | "ai") => void;
   editKey?: string;
   onSaveUserNote?: (userNote: string) => void;
+  onCancelUserNote?: () => void;
   emptyText: string;
   headerAccessory?: ReactNode;
   titleTooltip?: ReactNode;
@@ -289,6 +292,7 @@ export function NoteCard({
   const cancelEditing = (): void => {
     setIsEditing(false);
     setDraft("");
+    onCancelUserNote?.();
   };
 
   const saveEditing = (): void => {

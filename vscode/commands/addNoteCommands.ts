@@ -5,8 +5,6 @@
 import * as vscode from "vscode";
 
 import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
-import { createUserSectionNoteService } from "@vscode/services/createUserSectionNoteService";
-import type { WorkspaceNoteStore } from "@vscode/notes";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import { NOTES_VIEW_ID } from "@vscode/notesUi/registerNotesUi";
 
@@ -20,9 +18,6 @@ export type RegisterAddNoteCommandsInput = {
   /** Extension context used to own command and event subscriptions. */
   context: vscode.ExtensionContext;
 
-  /** Shared note store used when creating a new Section Note. */
-  notes: WorkspaceNoteStore;
-
   /** Notes provider that opens the User Note editor. */
   provider: NotesViewProvider;
 };
@@ -33,7 +28,7 @@ export type RegisterAddNoteCommandsInput = {
  * @param input - Command registration dependencies.
  *
  * @example
- * registerAddNoteCommands({ context, notes, provider });
+ * registerAddNoteCommands({ context, provider });
  */
 export function registerAddNoteCommands(input: RegisterAddNoteCommandsInput): void {
   const updateSelectionContext = (): void => {
@@ -45,7 +40,7 @@ export function registerAddNoteCommands(input: RegisterAddNoteCommandsInput): vo
       void addLineNote(input.provider);
     }),
     vscode.commands.registerCommand(ADD_SECTION_NOTE_COMMAND, () => {
-      void addSectionNote(input.notes, input.provider);
+      void addSectionNote(input.provider);
     }),
     vscode.window.onDidChangeActiveTextEditor(updateSelectionContext),
     vscode.window.onDidChangeTextEditorSelection(updateSelectionContext),
@@ -68,13 +63,14 @@ async function addLineNote(provider: NotesViewProvider): Promise<void> {
   });
 }
 
-async function addSectionNote(
-  notes: WorkspaceNoteStore,
-  provider: NotesViewProvider,
-): Promise<void> {
+async function addSectionNote(provider: NotesViewProvider): Promise<void> {
   const editor = getEligibleEditor();
 
-  if (!editor || !isMultiLineSelection(editor) || !(await canUseCzazaResource(editor.document.uri))) {
+  if (
+    !editor ||
+    !isMultiLineSelection(editor) ||
+    !(await canUseCzazaResource(editor.document.uri))
+  ) {
     return;
   }
 
@@ -82,16 +78,13 @@ async function addSectionNote(
   const endLine = editor.selection.end.line + 1;
 
   try {
-    const sectionId = await createUserSectionNoteService({
+    const location = await provider.resolveCurrentNoteStoreLocation(editor.document.uri);
+    await vscode.commands.executeCommand(`${NOTES_VIEW_ID}.focus`);
+    await provider.openUserSectionNoteEditor({
       document: editor.document,
-      notes,
       startLine,
       endLine,
-    });
-    await vscode.commands.executeCommand(`${NOTES_VIEW_ID}.focus`);
-    await provider.openUserNoteEditor(editor.document.uri, {
-      level: "section",
-      sectionId,
+      ...(location ? { location } : {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error.";

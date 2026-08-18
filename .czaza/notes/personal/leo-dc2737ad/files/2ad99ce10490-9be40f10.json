@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:19a3456136cf05073e07c7730f12aa984ce7014a41d05fb3bef88a71c5d00d89"
+  },
+  "defaults": {
+    "createdAt": "2026-08-18T08:34:35.074Z",
+    "updatedAt": "2026-08-18T11:09:02.209Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This service persists a non-empty user Section draft in the requested Team or Personal Store.",
+      "detail": "- createUserSectionNoteService: Ignores empty drafts, updates an exact-range Section when present, or creates a new anchored Section with the saved user content.\n- assertValidRange: Rejects invalid or out-of-document ranges.\n- createSectionId: Produces a unique stable identifier for a new selected range.\n- getRangeText: Extracts the selected source text used for the anchor hash."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

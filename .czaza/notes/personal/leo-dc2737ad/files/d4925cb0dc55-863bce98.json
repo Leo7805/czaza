@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:1b2d1c16b663afe71fbbcf80aa9753f4e477730fb3635f0f6214166aa963b795"
+  },
+  "defaults": {
+    "createdAt": "2026-08-18T11:09:02.210Z",
+    "updatedAt": "2026-08-18T11:09:02.210Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This component renders file, section, and line Notes for the active source file.",
+      "detail": "- FileNotesView: Selects visible Note cards and routes generation, save, status, relocation, and draft-cancellation actions.\n- cancelSectionDraft: Tells the extension host to discard an unsaved Section draft."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -1,12 +1,12 @@
 {
   "source": {
-    "sourceHash": "sha256:9964bc9dac2d21747b9d0a22e25fc0222e941774489ca4fc34b5a5ceebbf7709",
+    "sourceHash": "sha256:643856527bfbe536d5334b6d0b26eb9fcfeecf3acaff85abdcb22dac4340559c",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-07-29T11:46:06.276Z",
-    "updatedAt": "2026-07-29T11:46:06.276Z"
+    "updatedAt": "2026-08-18T11:19:23.956Z"
   },
   "fileNote": {
     "userNote": "Line/Section Note 命令复用统一 Gate。\ncanUseCzazaResource：判断命令目标是否合法。",

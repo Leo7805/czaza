@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:5be4c4908a833f2f855afa1410ad8fd1c4686a5d1ae0655af12bbcc6566fa890"
+  },
+  "defaults": {
+    "createdAt": "2026-08-18T11:09:02.203Z",
+    "updatedAt": "2026-08-18T11:09:02.203Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file registers CZaza command groups with their shared UI and identity dependencies.",
+      "detail": "- registerCzazaCommands: Registers Copy for AI, Add Note, settings, API key, and Personal identity commands."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

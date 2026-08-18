@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:2e43acd9f01a7cc136810c3d6b592c9bf2bea9ca9eeaf2f80461fd194ffa922a"
+  },
+  "defaults": {
+    "createdAt": "2026-08-18T11:09:02.214Z",
+    "updatedAt": "2026-08-18T11:09:02.214Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file defines the messages and view models shared by the CZaza extension host and React webview.",
+      "detail": "- ResourceSectionNoteContent: Marks optional in-memory Section drafts.\n- WebviewToExtensionMessage: Includes saving Notes and cancelling an unsaved Section draft alongside existing actions."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

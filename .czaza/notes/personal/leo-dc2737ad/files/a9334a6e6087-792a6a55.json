@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:c5199fcd29947740889d11adf60c92ae47391fb842a99b4632407d5f620e0da5"
+  },
+  "defaults": {
+    "createdAt": "2026-08-18T11:09:02.212Z",
+    "updatedAt": "2026-08-18T11:09:02.212Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This component renders a reusable File, Section, Line, or child Note card with viewing and editing controls.",
+      "detail": "- NoteCard: Coordinates tabs, edit state, status, AI actions, relocation, context menus, and emoji insertion.\n- cancelEditing: Clears the local draft and notifies the owner when an unsaved edit is cancelled."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

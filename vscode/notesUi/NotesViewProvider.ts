@@ -7,6 +7,7 @@ import * as path from "node:path";
 
 import * as vscode from "vscode";
 
+import { createSourceHash } from "@shared/utils/hashUtils";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { getNotesTypographyStyle } from "@vscode/config/notesTypography";
 import {
@@ -37,6 +38,7 @@ import { deleteNavigatorFileNotesService } from "@vscode/services/deleteNavigato
 import { deleteNavigatorLineNoteService } from "@vscode/services/deleteNavigatorLineNoteService";
 import { deleteNavigatorSectionNoteService } from "@vscode/services/deleteNavigatorSectionNoteService";
 import { markNavigatorFileNoteOrphanedService } from "@vscode/services/markNavigatorFileNoteOrphanedService";
+import { createUserSectionNoteService } from "@vscode/services/createUserSectionNoteService";
 import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import {
   AllNotesBatchRequiredError,
@@ -122,6 +124,7 @@ type NotesWebviewMessage =
 	      /** Complete user-authored note content. */
 	      userNote: string;
 	    }
+  | { type: "cancelSectionNoteDraft"; sectionId: string }
 	  | {
 	      /** Marks one stale note as content-current after user review. */
 	      type: "clearNoteStaleStatus";
@@ -249,6 +252,14 @@ type NotesWebviewMessage =
     };
 
 type AiActionScope = "fileSection" | "all" | "section" | "line";
+type SectionNoteDraft = {
+  uri: vscode.Uri;
+  sectionId: string;
+  startLine: number;
+  endLine: number;
+  sourceHash: string;
+  location?: NoteStoreLocation;
+};
 type NoteRelocateSession = {
   uri: vscode.Uri;
   target:
@@ -280,6 +291,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private selectedSectionId?: string;
   private isSectionSelectionManual = false;
   private pendingEditTarget?: UserNoteTarget;
+  private sectionNoteDraft?: SectionNoteDraft;
   private noteRelocateSession?: NoteRelocateSession;
   private requestVersion = 0;
   private readonly generatingResources = new Map<string, AiActionScope>();
@@ -538,6 +550,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 	        return;
 	      }
 
+      if (message.type === "cancelSectionNoteDraft") {
+        this.cancelSectionNoteDraft(message.sectionId);
+        return;
+      }
+
 	      if (message.type === "clearNoteStaleStatus") {
 	        void this.runClearNoteStaleStatus(message.target);
 	        return;
@@ -628,6 +645,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     webviewView.onDidDispose(() => {
       this.highlightController.clear();
       this.noteRelocateSession = undefined;
+      this.sectionNoteDraft = undefined;
 
       if (this.view === webviewView) {
         this.view = undefined;
@@ -800,6 +818,50 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.isSectionSelectionManual = true;
     }
 
+    await this.postCurrentResourceNotes();
+    this.updateEditorHighlights();
+  }
+
+  /**
+   * Opens an existing Section Note or an unsaved in-memory draft for one selected range.
+   *
+   * @param input - Selected document, range, and Team or Personal Store.
+   * @returns Promise resolved after the Section editor payload is posted.
+   */
+  async openUserSectionNoteEditor(input: {
+    document: vscode.TextDocument;
+    startLine: number;
+    endLine: number;
+    location?: NoteStoreLocation;
+  }): Promise<void> {
+    await this.loadResourceNotes(input.document.uri, false, getActiveLine(input.document.uri));
+
+    const existing = this.currentPayload?.kind === "file"
+      ? this.currentPayload.sectionNotes.find(
+          (section) =>
+            section.startLine === input.startLine && section.endLine === input.endLine,
+        )
+      : undefined;
+
+    if (existing) {
+      this.sectionNoteDraft = undefined;
+      this.pendingEditTarget = { level: "section", sectionId: existing.id };
+      this.selectedSectionId = existing.id;
+    } else {
+      const sectionId = `section:draft:${input.startLine}-${input.endLine}`;
+      this.sectionNoteDraft = {
+        uri: input.document.uri,
+        sectionId,
+        startLine: input.startLine,
+        endLine: input.endLine,
+        sourceHash: createSourceHash(input.document.getText()),
+        ...(input.location ? { location: input.location } : {}),
+      };
+      this.pendingEditTarget = { level: "section", sectionId };
+      this.selectedSectionId = sectionId;
+    }
+
+    this.isSectionSelectionManual = true;
     await this.postCurrentResourceNotes();
     this.updateEditorHighlights();
   }
@@ -989,6 +1051,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.selectedSectionId = undefined;
       this.isSectionSelectionManual = false;
       this.pendingEditTarget = undefined;
+      this.sectionNoteDraft = undefined;
       if (this.noteRelocateSession) {
         await this.view?.webview.postMessage({ type: "closeNoteRelocate" });
       }
@@ -1003,6 +1066,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         relativePath: access.relativePath,
       }));
     const resourceChanged = this.currentResourceUri?.toString() !== uri.toString();
+    if (resourceChanged) {
+      this.sectionNoteDraft = undefined;
+    }
     if (
       resourceChanged &&
       this.noteRelocateSession &&
@@ -1097,6 +1163,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.currentStoreLocation = undefined;
     this.currentNavigatorPayload = { kind: "outsideRoot" };
     this.pendingEditTarget = undefined;
+    this.sectionNoteDraft = undefined;
     this.selectedSectionId = undefined;
     this.isSectionSelectionManual = false;
     this.noteRelocateSession = undefined;
@@ -1158,7 +1225,32 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
                   }
                 : {}),
               ...(revealAiNotes ? { revealAiNotes } : {}),
-              ...(this.pendingEditTarget ? { editTarget: this.pendingEditTarget } : {}),
+              ...(this.sectionNoteDraft &&
+              this.sectionNoteDraft.uri.toString() === this.currentResourceUri.toString()
+                ? {
+                    editTarget: {
+                      level: "section" as const,
+                      sectionId: this.sectionNoteDraft.sectionId,
+                    },
+                  }
+                : this.pendingEditTarget
+                  ? { editTarget: this.pendingEditTarget }
+                  : {}),
+              ...(this.sectionNoteDraft &&
+              this.sectionNoteDraft.uri.toString() === this.currentResourceUri.toString()
+                ? {
+                    sectionNotes: [
+                      ...this.currentPayload.sectionNotes,
+                      {
+                        id: this.sectionNoteDraft.sectionId,
+                        title: `Lines ${this.sectionNoteDraft.startLine}–${this.sectionNoteDraft.endLine}`,
+                        startLine: this.sectionNoteDraft.startLine,
+                        endLine: this.sectionNoteDraft.endLine,
+                        isDraft: true,
+                      },
+                    ],
+                  }
+                : {}),
               ...(this.selectedSectionId
                 ? { selectedSectionId: this.selectedSectionId }
                 : {}),
@@ -1618,6 +1710,14 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     const resourceKey = uri.toString();
 
+    if (
+      target.level === "section" &&
+      this.sectionNoteDraft?.sectionId === target.sectionId
+    ) {
+      await this.saveSectionNoteDraft(this.sectionNoteDraft, userNote);
+      return;
+    }
+
     try {
       const access = evaluateCzazaResourceAccess(uri);
       const location = access.allowed
@@ -1667,8 +1767,58 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     return location?.kind === "personal";
   }
 
-  /** Resolves the Note Store selected when a generation task starts. */
-  private async resolveCurrentNoteStoreLocation(uri: vscode.Uri): Promise<NoteStoreLocation | undefined> {
+  /** Saves one non-empty Section draft after confirming its source snapshot is unchanged. */
+  private async saveSectionNoteDraft(draft: SectionNoteDraft, userNote: string): Promise<void> {
+    if (!userNote.trim()) {
+      this.cancelSectionNoteDraft(draft.sectionId);
+      return;
+    }
+
+    const document = await vscode.workspace.openTextDocument(draft.uri);
+
+    if (createSourceHash(document.getText()) !== draft.sourceHash) {
+      await this.postNotice({
+        tone: "warning",
+        title: "Section Source Changed",
+        message: "The selected source changed while this Section Note was being edited. Select the range again before saving.",
+      });
+      return;
+    }
+
+    try {
+      await createUserSectionNoteService({
+        document,
+        notes: this.notes,
+        startLine: draft.startLine,
+        endLine: draft.endLine,
+        userNote,
+        ...(draft.location ? { location: draft.location } : {}),
+      });
+      this.sectionNoteDraft = undefined;
+      this.pendingEditTarget = undefined;
+      await this.loadResourceNotes(draft.uri, false, getActiveLine(draft.uri));
+    } catch (error) {
+      await this.postNotice({
+        tone: "error",
+        title: "Could Not Save Section Note",
+        message: getErrorMessage(error),
+      });
+    }
+  }
+
+  /** Discards one matching unsaved Section draft without writing to the Note Store. */
+  private cancelSectionNoteDraft(sectionId: string): void {
+    if (this.sectionNoteDraft?.sectionId !== sectionId) return;
+    this.sectionNoteDraft = undefined;
+    this.pendingEditTarget = undefined;
+    this.selectedSectionId = selectAutomaticSectionId(this.currentPayload);
+    this.isSectionSelectionManual = false;
+    void this.postCurrentResourceNotes();
+    this.updateEditorHighlights();
+  }
+
+  /** Resolves the Team or Personal Note Store currently selected for a resource. */
+  async resolveCurrentNoteStoreLocation(uri: vscode.Uri): Promise<NoteStoreLocation | undefined> {
     const access = evaluateCzazaResourceAccess(uri);
     if (!access.allowed) return undefined;
     return this.noteScope?.resolveLocation(
@@ -2286,6 +2436,7 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
 	    (candidate.type === "saveUserNote" &&
 	      isUserNoteTarget(candidate.target) &&
 	      typeof candidate.userNote === "string") ||
+    (candidate.type === "cancelSectionNoteDraft" && typeof candidate.sectionId === "string") ||
 	    (candidate.type === "clearNoteStaleStatus" && isUserNoteTarget(candidate.target)) ||
 	    (candidate.type === "clearNavigatorFileStaleStatus" && typeof candidate.relativePath === "string") ||
     (candidate.type === "clearVisibleNavigatorStaleContent" &&

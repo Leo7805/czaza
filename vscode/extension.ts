@@ -69,7 +69,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // 2. Register command palette and context-menu commands.
   // ---------------------------------------------------------------------------
 
-  registerCzazaCommands({ context, notes, notesProvider, personalIdentities });
+  registerCzazaCommands({ context, notesProvider, personalIdentities });
 
   // ---------------------------------------------------------------------------
   // 3. Register lifecycle checks that are not user commands.

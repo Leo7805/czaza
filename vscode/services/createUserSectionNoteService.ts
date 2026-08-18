@@ -1,5 +1,5 @@
 /**
- * Creates an empty user-owned Section Note for a selected source range.
+ * Creates a user-owned Section Note when a non-empty draft is saved.
  */
 
 import * as vscode from "vscode";
@@ -13,7 +13,7 @@ import {
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, WorkspaceNoteStore } from "@vscode/notes";
 
 /** Input required to create or reuse a user Section Note. */
 export type CreateUserSectionNoteInput = {
@@ -28,16 +28,19 @@ export type CreateUserSectionNoteInput = {
 
   /** One-based inclusive end line. */
   endLine: number;
+
+  /** Team or Personal Store receiving the new Section Note. */
+  location?: NoteStoreLocation;
+
+  /** Complete user-authored content saved from the Section draft. */
+  userNote: string;
 };
 
 /**
- * Reuses an exact-range Section Note or creates a new empty user Section Note.
- *
- * The persisted title is intentionally empty. The UI supplies a temporary
- * range-based title until an AI explanation provides the real title.
+ * Updates an exact-range Section Note or creates it when a non-empty draft is saved.
  *
  * @param input - Document, note store, and selected one-based line range.
- * @returns Stable identifier of the existing or newly created Section Note.
+ * @returns Stable identifier of the saved Section Note, or undefined for an empty draft.
  * @throws When the selected range is invalid or outside the document.
  *
  * @example
@@ -46,12 +49,17 @@ export type CreateUserSectionNoteInput = {
  *   notes,
  *   startLine: 10,
  *   endLine: 20,
+ *   userNote: "Review this section.",
  * });
  */
 export async function createUserSectionNoteService(
   input: CreateUserSectionNoteInput,
-): Promise<string> {
+): Promise<string | undefined> {
   assertValidRange(input.startLine, input.endLine, input.document.lineCount);
+
+  if (!input.userNote.trim()) {
+    return undefined;
+  }
 
   const resolvedRoot = resolveCzazaRootDirectory(input.document.uri);
   const settings = getCzazaSettings(input.document.uri);
@@ -60,6 +68,7 @@ export async function createUserSectionNoteService(
     resolvedRoot.rootDirectory,
     settings.outputDirectory,
     relativePath,
+    input.location,
   );
   const existing = sourceFile?.sectionNotes.find(
     (section) =>
@@ -67,6 +76,14 @@ export async function createUserSectionNoteService(
   );
 
   if (existing) {
+    await input.notes.crud.upsertSectionNote(
+      resolvedRoot.rootDirectory,
+      settings.outputDirectory,
+      relativePath,
+      { ...existing, userNote: input.userNote },
+      new Date().toISOString(),
+      input.location,
+    );
     return existing.id;
   }
 
@@ -86,6 +103,7 @@ export async function createUserSectionNoteService(
     anchorHash: createSourceHash(getRangeText(input.document, input.startLine, input.endLine)),
     status: createCurrentConfirmedStatus(),
     createdBy: "user",
+    userNote: input.userNote,
   };
 
   if (!sourceFile) {
@@ -101,6 +119,8 @@ export async function createUserSectionNoteService(
       relativePath,
       nextSourceFile,
       now,
+      {},
+      input.location,
     );
     return sectionId;
   }
@@ -111,6 +131,7 @@ export async function createUserSectionNoteService(
     relativePath,
     sectionNote,
     now,
+    input.location,
   );
 
   return sectionId;

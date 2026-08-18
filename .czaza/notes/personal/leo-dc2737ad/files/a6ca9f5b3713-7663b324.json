@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:c4e0b308c88d30f54d6ae24be42e1ebba40b0aa1925fc2086ed77795f0cd1ee9"
+  },
+  "defaults": {
+    "createdAt": "2026-08-18T11:09:02.217Z",
+    "updatedAt": "2026-08-18T11:09:02.217Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file verifies Note Store repository validation, persistence, atomic writes, and path handling.",
+      "detail": "- Internal-write assertion: Confirms both final JSON and temporary atomic-write paths are recognized as recent CZaza writes.\n- Repository tests: Cover Team and Personal indexes, per-file documents, concurrency guards, unchanged writes, deletion, and schema validation."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
