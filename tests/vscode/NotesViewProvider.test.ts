@@ -264,7 +264,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -340,7 +340,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/line-notes.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -426,7 +426,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/overlap.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -561,7 +561,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() =>
       expect(mocks.relocateSectionNoteService).toHaveBeenCalledWith({
         uri,
-        notes: {},
+        notes: expect.objectContaining({ location: { kind: "team" } }),
         sectionId: "section:one",
         startLine: 20,
         endLine: 30,
@@ -572,7 +572,7 @@ describe("NotesViewProvider", () => {
     );
     expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledWith({
       document: expect.objectContaining({ uri }),
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       registry,
       now: expect.any(String),
     });
@@ -584,7 +584,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -625,7 +625,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       activeLine: 12,
     });
     expect(editor.selection.active).toEqual({ line: 11, character: 0 });
@@ -649,7 +649,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -676,7 +676,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       activeLine: 24,
     });
     expect(editor.selection.active).toEqual({ line: 23, character: 0 });
@@ -693,7 +693,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -767,7 +767,7 @@ describe("NotesViewProvider", () => {
     const directoryUri = createUri(`${workspaceRoot}/src`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -812,7 +812,7 @@ describe("NotesViewProvider", () => {
     const binaryUri = createUri(`${workspaceRoot}/dist/czaza-0.5.1.vsix`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -862,7 +862,7 @@ describe("NotesViewProvider", () => {
     );
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri: expect.objectContaining({ fsPath: binaryUri.fsPath }),
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
     });
     expect(mocks.showErrorMessage).not.toHaveBeenCalled();
 
@@ -874,7 +874,7 @@ describe("NotesViewProvider", () => {
     const generateFileNotes = vi.fn().mockResolvedValue(true);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       generateFileNotes,
       vi.fn().mockResolvedValue(undefined),
     );
@@ -894,7 +894,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(generateFileNotes).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
 
-    expect(generateFileNotes).toHaveBeenCalledWith(uri, undefined);
+    expect(generateFileNotes).toHaveBeenCalledWith(uri, { kind: "team" });
     expect(mocks.postMessage).toHaveBeenCalledWith({
       type: "resourceNotes",
       payload: expect.objectContaining({
@@ -923,7 +923,7 @@ describe("NotesViewProvider", () => {
     } as never;
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       generateFileNotes,
       vi.fn().mockResolvedValue(undefined),
       undefined,
@@ -956,7 +956,7 @@ describe("NotesViewProvider", () => {
     const generateAllNotes = vi.fn().mockResolvedValue(true);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
       generateAllNotes,
@@ -978,7 +978,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
 
     expect(mocks.showWarningMessage).not.toHaveBeenCalled();
-    expect(generateAllNotes).toHaveBeenCalledWith(uri, undefined, {
+    expect(generateAllNotes).toHaveBeenCalledWith(uri, { kind: "team" }, {
       onProgress: expect.any(Function),
     });
     expect(mocks.postMessage).toHaveBeenLastCalledWith({
@@ -1000,7 +1000,7 @@ describe("NotesViewProvider", () => {
     );
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
       generateAllNotes,
@@ -1059,7 +1059,7 @@ describe("NotesViewProvider", () => {
       .mockResolvedValueOnce(true);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
       generateAllNotes,
@@ -1101,10 +1101,10 @@ describe("NotesViewProvider", () => {
       action: "confirmBatchedAllNotes",
     });
     await vi.waitFor(() => expect(generateAllNotes).toHaveBeenCalledTimes(2));
-    expect(generateAllNotes).toHaveBeenNthCalledWith(1, uri, undefined, {
+    expect(generateAllNotes).toHaveBeenNthCalledWith(1, uri, { kind: "team" }, {
       onProgress: expect.any(Function),
     });
-    expect(generateAllNotes).toHaveBeenNthCalledWith(2, uri, undefined, {
+    expect(generateAllNotes).toHaveBeenNthCalledWith(2, uri, { kind: "team" }, {
       allowBatching: true,
       onProgress: expect.any(Function),
     });
@@ -1117,7 +1117,7 @@ describe("NotesViewProvider", () => {
     const generateLineNote = vi.fn().mockResolvedValue(true);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
       undefined,
@@ -1139,7 +1139,7 @@ describe("NotesViewProvider", () => {
     mocks.messageListeners[0]?.({ type: "generateLineNote", lineScope: "currentLine" });
 
     await vi.waitFor(() => expect(generateLineNote).toHaveBeenCalledOnce());
-    expect(generateLineNote).toHaveBeenCalledWith(uri, 12, undefined);
+    expect(generateLineNote).toHaveBeenCalledWith(uri, 12, { kind: "team" });
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.postMessage).toHaveBeenLastCalledWith({
       type: "resourceNotes",
@@ -1158,7 +1158,7 @@ describe("NotesViewProvider", () => {
     const generateSectionNote = vi.fn().mockResolvedValue(true);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
       undefined,
@@ -1190,7 +1190,7 @@ describe("NotesViewProvider", () => {
     });
 
     await vi.waitFor(() => expect(generateSectionNote).toHaveBeenCalledOnce());
-    expect(generateSectionNote).toHaveBeenCalledWith(uri, "section:run:1-3", undefined);
+    expect(generateSectionNote).toHaveBeenCalledWith(uri, "section:run:1-3", { kind: "team" });
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.postMessage).toHaveBeenLastCalledWith({
       type: "resourceNotes",
@@ -1209,7 +1209,7 @@ describe("NotesViewProvider", () => {
     const saveUserNote = vi.fn().mockResolvedValue(undefined);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       saveUserNote,
     );
@@ -1247,7 +1247,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1290,7 +1290,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1329,7 +1329,7 @@ describe("NotesViewProvider", () => {
     const saveUserNote = vi.fn().mockResolvedValue(undefined);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       saveUserNote,
     );
@@ -1380,7 +1380,7 @@ describe("NotesViewProvider", () => {
     const saveUserNote = vi.fn().mockResolvedValue(undefined);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       saveUserNote,
     );
@@ -1424,7 +1424,7 @@ describe("NotesViewProvider", () => {
     const saveUserNote = vi.fn().mockResolvedValue(undefined);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       generateFileNotes,
       saveUserNote,
     );
@@ -1469,7 +1469,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1524,7 +1524,7 @@ describe("NotesViewProvider", () => {
     const newUri = createUri("/workspace/src/new.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1553,7 +1553,7 @@ describe("NotesViewProvider", () => {
 
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri: expect.objectContaining({ fsPath: newUri.fsPath }),
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       activeLine: 12,
     });
 
@@ -1567,7 +1567,7 @@ describe("NotesViewProvider", () => {
     const newFileUri = createUri("/workspace/src/domain/nested/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1588,7 +1588,7 @@ describe("NotesViewProvider", () => {
 
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri: expect.objectContaining({ fsPath: newFileUri.fsPath }),
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       activeLine: 12,
     });
 
@@ -1599,7 +1599,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1648,7 +1648,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.clearNoteStaleStatusService).toHaveBeenCalledWith({
       uri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       target: { level: "file" },
     });
 
@@ -1694,10 +1694,71 @@ describe("NotesViewProvider", () => {
     expect(mocks.clearNoteStaleStatusService).not.toHaveBeenCalled();
     expect(mocks.confirmRuntimeNoteStaleStatusService).toHaveBeenCalledWith({
       uri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       registry,
       target: { level: "file" },
     });
+    provider.dispose();
+  });
+
+  it("confirms Runtime stale status in the selected Personal Store", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const personal = { kind: "personal" as const, memberId: "leo-12345678" };
+    const noteScope = {
+      resolveLocation: vi.fn().mockResolvedValue(personal),
+      getScope: vi.fn(),
+      setScope: vi.fn(),
+    };
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      createNotesStore(),
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      registry,
+      noteScope as never,
+    );
+    const view = createWebviewView();
+
+    mockAllowedResource("src/index.ts");
+    mocks.confirmRuntimeNoteStaleStatusService.mockResolvedValue({
+      kind: "confirmed",
+    });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(uri);
+    mocks.messageListeners[0]?.({
+      type: "clearNoteStaleStatus",
+      target: { level: "file" },
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.confirmRuntimeNoteStaleStatusService).toHaveBeenCalledOnce(),
+    );
+    expect(mocks.confirmRuntimeNoteStaleStatusService).toHaveBeenCalledWith({
+      uri,
+      notes: expect.objectContaining({ location: personal }),
+      registry,
+      target: { level: "file" },
+    });
+    expect(mocks.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        notice: expect.objectContaining({
+          title: "Status Updates Is Available in Team Notes",
+        }),
+      }),
+    );
     provider.dispose();
   });
 
@@ -1706,7 +1767,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1752,7 +1813,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
     expect(mocks.clearNoteStaleStatusService).toHaveBeenCalledWith({
       uri: expect.objectContaining({ fsPath: `${workspaceRoot}/src/missing.ts` }),
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       target: { level: "file" },
     });
     expect(mocks.postMessage).toHaveBeenCalledWith({
@@ -1817,7 +1878,7 @@ describe("NotesViewProvider", () => {
     );
     expect(mocks.confirmRuntimeNoteStaleStatusService).toHaveBeenCalledWith({
       uri: expect.objectContaining({ fsPath: "/tmp/src/other.ts" }),
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       registry,
       target: { level: "file" },
     });
@@ -1830,7 +1891,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1876,7 +1937,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -1918,6 +1979,87 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("explains when a stale note cannot be marked reviewed", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
+    const view = createWebviewView();
+
+    mockAllowedResource("src/index.ts");
+    mocks.confirmRuntimeNoteStaleStatusService.mockResolvedValue({
+      kind: "unchanged",
+    });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(uri);
+    mocks.messageListeners[0]?.({
+      type: "clearNoteStaleStatus",
+      target: { level: "file" },
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "notice",
+        notice: {
+          tone: "warning",
+          title: "Could Not Mark Reviewed",
+          message:
+            "This note's anchor no longer matches the current source. Relocate it before marking reviewed.",
+          actions: [{ label: "Close", variant: "primary" }],
+        },
+      }),
+    );
+    expect(mocks.clearNoteStaleStatusService).not.toHaveBeenCalled();
+    provider.dispose();
+  });
+
+  it("reports when a stale note is already up to date", async () => {
+    const uri = createUri("/workspace/src/index.ts");
+    const registry = new RuntimeNoteStateRegistry();
+    const provider = createProviderWithRuntimeRegistry(registry);
+    const view = createWebviewView();
+
+    mockAllowedResource("src/index.ts");
+    mocks.confirmRuntimeNoteStaleStatusService.mockResolvedValue({
+      kind: "notConfirmable",
+    });
+    mocks.getResourceNotes.mockResolvedValue({
+      kind: "file",
+      name: "index.ts",
+      relativePath: "src/index.ts",
+      aiAction: "generate",
+      sectionNotes: [],
+    });
+
+    await provider.resolveWebviewView(view);
+    await provider.showResourceNotes(uri);
+    mocks.messageListeners[0]?.({
+      type: "clearNoteStaleStatus",
+      target: { level: "file" },
+    });
+
+    await vi.waitFor(() =>
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: "notice",
+        notice: {
+          tone: "info",
+          title: "Already Up to Date",
+          message: "This note's content is already current.",
+          actions: [{ label: "Close", variant: "primary" }],
+        },
+      }),
+    );
+    expect(mocks.clearNoteStaleStatusService).not.toHaveBeenCalled();
+    provider.dispose();
+  });
+
   it("relocates a File Note through the unified session and opens the target", async () => {
     const workspaceRoot = "/tmp";
     const currentUri = createUri(`${workspaceRoot}/current.ts`);
@@ -1925,7 +2067,7 @@ describe("NotesViewProvider", () => {
     const runtimeRegistry = new RuntimeNoteStateRegistry();
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
       undefined,
@@ -2011,19 +2153,19 @@ describe("NotesViewProvider", () => {
     );
     expect(mocks.relocateFileNoteService).toHaveBeenCalledWith({
       currentUri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       fromRelativePath: "src/old.ts",
       toRelativePath: "src/new.ts",
     });
     expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledWith({
       document: expect.objectContaining({ uri: targetUri }),
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       registry: runtimeRegistry,
       now: expect.any(String),
     });
     expect(mocks.getNavigatorNotes).toHaveBeenCalledWith({
       uri: currentUri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       selectedSectionId: undefined,
       activeLine: undefined,
     });
@@ -2034,7 +2176,7 @@ describe("NotesViewProvider", () => {
     );
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri: targetUri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       activeLine: 12,
     });
 
@@ -2047,7 +2189,7 @@ describe("NotesViewProvider", () => {
     const targetUri = createUri(`${workspaceRoot}/src/index.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2095,7 +2237,7 @@ describe("NotesViewProvider", () => {
     const directoryUri = createUri(`${workspaceRoot}/src`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2138,7 +2280,7 @@ describe("NotesViewProvider", () => {
     expect(mocks.openTextDocument).not.toHaveBeenCalled();
     expect(mocks.getResourceNotes).toHaveBeenLastCalledWith({
       uri: expect.objectContaining({ fsPath: directoryUri.fsPath }),
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
     });
     expect(mocks.postMessage).toHaveBeenCalledWith({ type: "notesViewMode", mode: "detail" });
 
@@ -2150,7 +2292,7 @@ describe("NotesViewProvider", () => {
     const currentUri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2192,7 +2334,7 @@ describe("NotesViewProvider", () => {
     expect(mocks.showTextDocument).not.toHaveBeenCalled();
     expect(mocks.getStoredNavigatorFileNotes).toHaveBeenCalledWith({
       currentUri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       relativePath: "src/missing.ts",
     });
     expect(mocks.executeCommand).toHaveBeenCalledWith("setContext", "czaza.notesViewMode", "detail");
@@ -2213,7 +2355,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2248,7 +2390,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
     expect(mocks.markNavigatorFileNoteOrphanedService).toHaveBeenCalledWith({
       currentUri: uri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       relativePath: "src/index.ts",
     });
 
@@ -2260,7 +2402,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2296,7 +2438,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getResourceNotes).toHaveBeenCalledTimes(2));
     expect(mocks.deleteNavigatorFileNotesService).toHaveBeenCalledWith({
       currentUri: uri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       relativePath: "src/index.ts",
     });
 
@@ -2308,7 +2450,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2343,7 +2485,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2383,7 +2525,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
     expect(mocks.deleteNavigatorSectionNoteService).toHaveBeenCalledWith({
       currentUri: uri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       sectionId: "section:run:1-3",
     });
 
@@ -2395,7 +2537,7 @@ describe("NotesViewProvider", () => {
     const uri = createUri(`${workspaceRoot}/current.ts`);
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2435,7 +2577,7 @@ describe("NotesViewProvider", () => {
     await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
     expect(mocks.deleteNavigatorLineNoteService).toHaveBeenCalledWith({
       currentUri: uri,
-      notes: {},
+      notes: expect.objectContaining({ location: { kind: "team" } }),
       lineId: "line:3",
     });
 
@@ -2581,7 +2723,7 @@ describe("NotesViewProvider", () => {
     };
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
       undefined,
@@ -2615,8 +2757,16 @@ describe("NotesViewProvider", () => {
     provider.postViewMode("navigator");
 
     await vi.waitFor(() => expect(mocks.getNavigatorNotes).toHaveBeenCalledOnce());
-    expect(mocks.getResourceNotes).toHaveBeenCalledWith(expect.objectContaining({ location: personal }));
-    expect(mocks.getNavigatorNotes).toHaveBeenCalledWith(expect.objectContaining({ location: personal }));
+    expect(mocks.getResourceNotes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notes: expect.objectContaining({ location: personal }),
+      }),
+    );
+    expect(mocks.getNavigatorNotes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        notes: expect.objectContaining({ location: personal }),
+      }),
+    );
     provider.dispose();
   });
 
@@ -2632,7 +2782,7 @@ describe("NotesViewProvider", () => {
     };
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
       undefined,
@@ -2658,11 +2808,17 @@ describe("NotesViewProvider", () => {
     expect(noteScope.resolveLocation).toHaveBeenCalledTimes(2);
     expect(mocks.getResourceNotes).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({ uri: firstUri, location: team }),
+      expect.objectContaining({
+        uri: firstUri,
+        notes: expect.objectContaining({ location: team }),
+      }),
     );
     expect(mocks.getResourceNotes).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ uri: secondUri, location: personal }),
+      expect.objectContaining({
+        uri: secondUri,
+        notes: expect.objectContaining({ location: personal }),
+      }),
     );
     provider.dispose();
   });
@@ -2672,7 +2828,7 @@ describe("NotesViewProvider", () => {
     const nextUri = createUri("/workspace/src/next.ts");
     const provider = new NotesViewProvider(
       createUri("/extension"),
-      {} as never,
+      createNotesStore(),
       vi.fn().mockResolvedValue(true),
       vi.fn().mockResolvedValue(undefined),
     );
@@ -2737,7 +2893,7 @@ function createProviderWithRuntimeRegistry(
 ): NotesViewProvider {
   return new NotesViewProvider(
     createUri("/extension"),
-    {} as never,
+    createNotesStore(),
     vi.fn().mockResolvedValue(true),
     vi.fn().mockResolvedValue(undefined),
     undefined,
@@ -2760,6 +2916,21 @@ function mockAllowedResource(relativePath: string): void {
     root: { rootDirectory: "/workspace" },
     settings: { outputDirectory: ".czaza" },
   });
+}
+
+/**
+ * Creates a root Note Store test double that returns one Team-scoped Store.
+ *
+ * @returns Note Store constructor argument for the provider.
+ */
+function createNotesStore(): never {
+  return {
+    scope: (
+      workspaceRoot: string,
+      outputDirectory: string,
+      location: { kind: "team" } | { kind: "personal"; memberId: string },
+    ) => ({ workspaceRoot, outputDirectory, location }),
+  } as never;
 }
 
 /**

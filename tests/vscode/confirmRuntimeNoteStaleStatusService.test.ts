@@ -306,6 +306,9 @@ function createSourceFile(): StoredSourceFile {
  */
 function createNotes() {
   return {
+    workspaceRoot: "/workspace",
+    outputDirectory: ".czaza",
+    location: { kind: "team" },
     cache: {
       getSourceFile: vi.fn().mockImplementation(async () => mocks.sourceFile),
       saveSourceFile: mocks.saveSourceFile,
@@ -327,6 +330,7 @@ function createRegistry(status: {
   registry.setState({
     workspaceRoot: "/workspace",
     outputDirectory: ".czaza",
+    locationKey: "notes/team",
     relativePath: "src/index.ts",
     currentSourceHash: "sha256:new",
     issues: status.anchor === "confirmed" ? ["stale"] : ["stale", "locationReview"],

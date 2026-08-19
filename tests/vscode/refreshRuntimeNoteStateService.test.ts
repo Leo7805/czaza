@@ -3,7 +3,7 @@
  */
 
 import type { FileNotesDetectionReport } from "@shared/services/notes/noteDetectionService";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 import { RuntimeNoteStateRegistry } from "@vscode/services/runtimeState/RuntimeNoteStateRegistry";
 import type {
   DetectRuntimeNoteStateResult,
@@ -173,10 +173,13 @@ function createInput(registry: RuntimeNoteStateRegistry) {
       getText: () => "export const value = 2;\n",
     } as RuntimeNoteDetectionDocument,
     notes: {
+      workspaceRoot: "/workspace/project",
+      outputDirectory: ".czaza",
+      location: { kind: "team" },
       cache: {
         saveSourceFile: vi.fn(),
       },
-    } as unknown as WorkspaceNoteStore,
+    } as unknown as ScopedWorkspaceNoteStore,
     registry,
     now: "2026-07-29T00:00:00.000Z",
   };
@@ -251,5 +254,6 @@ function createScope() {
   return {
     workspaceRoot: "/workspace/project",
     outputDirectory: ".czaza",
+    locationKey: "notes/team",
   };
 }

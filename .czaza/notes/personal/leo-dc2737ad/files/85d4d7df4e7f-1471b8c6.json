@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:b4cb292e66586ba7a65fe4a05b92ec5bb3c7b2f37c4d4a77f007ab7bad0ea729"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T10:03:05.725Z",
+    "updatedAt": "2026-08-19T10:03:05.725Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这个根 Store 持有共享笔记管理器，并为工作流创建身份作用域 Store。",
+      "detail": "- WorkspaceNoteStore：持有由仓库支持、供各笔记操作共享的缓存。\n- scope：为确定的项目、输出目录及 Team 或 Personal 位置创建 ScopedWorkspaceNoteStore。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

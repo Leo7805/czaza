@@ -72,6 +72,26 @@ describe("RuntimeNoteStateRegistry", () => {
     ).toHaveLength(1);
   });
 
+  it("isolates identical resources across Team and Personal Stores", () => {
+    const registry = new RuntimeNoteStateRegistry();
+    const personalLocationKey = "notes/personal/leo-12345678";
+
+    registry.setState(createState("src/index.ts"));
+    registry.setState({
+      ...createState("src/index.ts"),
+      locationKey: personalLocationKey,
+      reason: "anchorChanged",
+    });
+
+    expect(registry.listStates(createScope())).toHaveLength(1);
+    expect(
+      registry.listStates({
+        ...createScope(),
+        locationKey: personalLocationKey,
+      }),
+    ).toEqual([expect.objectContaining({ reason: "anchorChanged" })]);
+  });
+
   it("deletes one state and clears only the requested scope", () => {
     const registry = new RuntimeNoteStateRegistry();
 
@@ -175,6 +195,7 @@ function createState(relativePath: string): RuntimeNoteState {
   return {
     workspaceRoot: "/workspace/project",
     outputDirectory: ".czaza",
+    locationKey: "notes/team",
     relativePath,
     currentSourceHash: "sha256:current",
     issues: ["stale"],
@@ -216,5 +237,6 @@ function createScope() {
   return {
     workspaceRoot: "/workspace/project",
     outputDirectory: ".czaza",
+    locationKey: "notes/team",
   };
 }

@@ -14,6 +14,7 @@ import type { RuntimeNoteState } from "../../vscode/services/runtimeState/runtim
 const coordinates = {
   workspaceRoot: "/workspace",
   outputDirectory: ".czaza",
+  locationKey: "notes/team",
   relativePath: "src/index.ts",
 };
 
@@ -162,6 +163,7 @@ function createRuntimeState(
   return {
     workspaceRoot: "/workspace",
     outputDirectory: ".czaza",
+    locationKey: "notes/team",
     relativePath,
     issues: issue === "missing" ? ["missing", "locationReview"] : ["stale"],
     reason: issue === "missing" ? "resourceMissing" : "sourceChanged",

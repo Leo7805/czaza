@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:ab71c7fa923c799d8f21e820669f7e0f04ef22eb4097fd58ee066b63df36bbdb"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.909Z",
+    "updatedAt": "2026-08-19T12:58:18.909Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "把已删除但仍被笔记跟踪的源码记录为会话级的 missing Runtime State。",
+      "detail": "- refreshMissingRuntimeNoteStateService：仅当删除的资源仍有笔记时写入 missing + locationReview 状态。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

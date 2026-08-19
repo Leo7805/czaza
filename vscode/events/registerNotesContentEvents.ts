@@ -2,9 +2,14 @@
  * Registers VS Code document save events that refresh note status after content changes.
  */
 
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import {
+  TEAM_NOTE_STORE,
+  type ScopedWorkspaceNoteStore,
+  type WorkspaceNoteStore,
+} from "@vscode/notes";
 import { isRecentInternalWorkspaceNoteWrite } from "@vscode/notes/WorkspaceNoteStoreRepository";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
+import type { PersonalNoteScopeService } from "@vscode/personalNotes";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
@@ -62,6 +67,7 @@ export function registerNotesContentEvents(
   runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
   relocationHistoryService?: SourceRelocationHistoryService,
   changeCoordinator?: ChangeTaskCoordinator,
+  noteScope?: PersonalNoteScopeService,
 ): void {
   const taskCoordinator =
     changeCoordinator ?? new ChangeTaskCoordinator(EXTERNAL_CHANGE_DEBOUNCE_MS);
@@ -81,6 +87,7 @@ export function registerNotesContentEvents(
         taskCoordinator,
         runtimeNoteStateRegistry,
         relocationHistory,
+        noteScope,
       );
     }),
     vscode.workspace.onDidSaveTextDocument((document) => {
@@ -92,6 +99,7 @@ export function registerNotesContentEvents(
         pendingDocumentChanges,
         taskCoordinator,
         runtimeNoteStateRegistry,
+        noteScope,
       );
     }),
     watcher.onDidChange((uri) => {
@@ -106,6 +114,7 @@ export function registerNotesContentEvents(
         recentlySavedTimers,
         taskCoordinator,
         runtimeNoteStateRegistry,
+        noteScope,
       );
     }),
     watcher.onDidCreate((uri) => {
@@ -116,6 +125,7 @@ export function registerNotesContentEvents(
         recentlySavedTimers,
         taskCoordinator,
         runtimeNoteStateRegistry,
+        noteScope,
       );
     }),
     watcher.onDidDelete((uri) => {
@@ -125,6 +135,7 @@ export function registerNotesContentEvents(
         notesProvider,
         taskCoordinator,
         runtimeNoteStateRegistry,
+        noteScope,
       );
     }),
     vscode.workspace.onDidCloseTextDocument((document) => {
@@ -160,6 +171,7 @@ function scheduleExternalDeleteCheck(
   notesProvider: NotesViewProvider | undefined,
   taskCoordinator: ChangeTaskCoordinator,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
+  noteScope: PersonalNoteScopeService | undefined,
 ): void {
   const access = evaluateCzazaResourceAccess(uri);
 
@@ -193,13 +205,20 @@ function scheduleExternalDeleteCheck(
           taskCoordinator,
           token,
           runtimeNoteStateRegistry,
+          noteScope,
         );
+        return;
+      }
+
+      const scopedNotes = await resolveScopedNotes(uri, notes, noteScope);
+
+      if (!scopedNotes) {
         return;
       }
 
       await refreshMissingRuntimeNoteStateService({
         uri,
-        notes,
+        notes: scopedNotes,
         registry: runtimeNoteStateRegistry,
         now: new Date().toISOString(),
       });
@@ -251,55 +270,66 @@ async function handleTextDocumentChange(
   taskCoordinator: ChangeTaskCoordinator,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
   relocationHistory: SourceRelocationHistoryService,
+  noteScope: PersonalNoteScopeService | undefined,
 ): Promise<void> {
-  try {
-    const editReason = getSourceChangeEditReason(event.reason);
+  const editReason = getSourceChangeEditReason(event.reason);
 
-    if (!evaluateCzazaResourceAccess(event.document.uri).allowed) {
-      return;
-    }
+  const key = event.document.uri.toString();
+  const document = createTextDocumentSnapshot(event.document);
+  const token = taskCoordinator.captureToken();
+  const access = evaluateCzazaResourceAccess(event.document.uri);
 
-    const key = event.document.uri.toString();
-    const document = createTextDocumentSnapshot(event.document);
-    const token = taskCoordinator.captureToken();
+  if (!access.allowed) {
+    return;
+  }
 
-    if (event.document.isDirty === false && !editReason) {
-      enqueueRuntimeStateRefresh(
-        taskCoordinator,
-        key,
-        document,
-        notes,
-        notesProvider,
-        runtimeNoteStateRegistry,
-        () => taskCoordinator.canApply(token),
+  const classifiedBatch = classifySourceChangeBatch({
+    contentChanges: event.contentChanges,
+  });
+  const state = getPendingDocumentChangeState(pendingDocumentChanges, key);
+  const isDirty = event.document.isDirty;
+
+  taskCoordinator.enqueue(key, async () => {
+    try {
+      const location = noteScope
+        ? await noteScope.resolveLocation(
+            access.root.rootDirectory,
+            access.settings.outputDirectory,
+          )
+        : TEAM_NOTE_STORE;
+      const scopedNotes = notes.scope(
+        access.root.rootDirectory,
+        access.settings.outputDirectory,
+        location,
       );
-      return;
-    }
 
-    const classifiedBatch = classifySourceChangeBatch({
-      contentChanges: event.contentChanges,
-    });
-    const state = getPendingDocumentChangeState(pendingDocumentChanges, key);
+      if (isDirty === false && !editReason) {
+        await refreshRuntimeState(
+          document,
+          scopedNotes,
+          notesProvider,
+          runtimeNoteStateRegistry,
+          () => taskCoordinator.canApply(token),
+        );
+        return;
+      }
 
-    if (classifiedBatch.kind === "unsupported") {
-      state.hasUnsupportedChange = true;
-      enqueueRuntimeStateRefresh(
-        taskCoordinator,
-        key,
-        document,
-        notes,
-        notesProvider,
-        runtimeNoteStateRegistry,
-        () => taskCoordinator.canApply(token),
-      );
-      return;
-    }
+      if (classifiedBatch.kind === "unsupported") {
+        state.hasUnsupportedChange = true;
+        await refreshRuntimeState(
+          document,
+          scopedNotes,
+          notesProvider,
+          runtimeNoteStateRegistry,
+          () => taskCoordinator.canApply(token),
+        );
+        return;
+      }
 
-    taskCoordinator.enqueue(key, async () => {
       if (editReason) {
         const historyResult = await applySourceRelocationHistoryService({
           document,
-          notes,
+          notes: scopedNotes,
           history: relocationHistory,
           direction: editReason,
           now: new Date().toISOString(),
@@ -310,7 +340,7 @@ async function handleTextDocumentChange(
           state.hasAppliedDeterministicChange = true;
           await refreshRuntimeStateAfterDocumentChange(
             document,
-            notes,
+            scopedNotes,
             runtimeNoteStateRegistry,
             () => taskCoordinator.canApply(token),
           );
@@ -322,7 +352,7 @@ async function handleTextDocumentChange(
           state.hasUnsupportedChange = true;
           await refreshRuntimeStateAfterDocumentChange(
             document,
-            notes,
+            scopedNotes,
             runtimeNoteStateRegistry,
             () => taskCoordinator.canApply(token),
           );
@@ -335,7 +365,7 @@ async function handleTextDocumentChange(
       const result = await applySourceChangeToNotesService({
         document,
         change: classifiedBatch,
-        notes,
+        notes: scopedNotes,
         now: new Date().toISOString(),
         canPersist: () => taskCoordinator.canApply(token),
       });
@@ -352,15 +382,15 @@ async function handleTextDocumentChange(
       state.hasAppliedDeterministicChange = true;
       await refreshRuntimeStateAfterDocumentChange(
         document,
-        notes,
+        scopedNotes,
         runtimeNoteStateRegistry,
         () => taskCoordinator.canApply(token),
       );
       await notesProvider?.refreshCurrentNotes(document.uri);
-    });
-  } catch (error) {
-    console.error("Failed to apply deterministic CZaza note updates after a text change.", error);
-  }
+    } catch (error) {
+      console.error("Failed to apply deterministic CZaza note updates after a text change.", error);
+    }
+  });
 }
 
 /**
@@ -397,7 +427,7 @@ function getSourceChangeEditReason(
  */
 async function refreshRuntimeStateAfterDocumentChange(
   document: TextDocumentSnapshot,
-  notes: WorkspaceNoteStore,
+  notes: ScopedWorkspaceNoteStore,
   registry: RuntimeNoteStateRegistry | undefined,
   canApply: () => boolean,
 ): Promise<boolean> {
@@ -436,22 +466,42 @@ function enqueueRuntimeStateRefresh(
   taskCoordinator: ChangeTaskCoordinator,
   key: string,
   document: TextDocumentSnapshot,
-  notes: WorkspaceNoteStore,
+  notes: ScopedWorkspaceNoteStore,
   notesProvider: NotesViewProvider | undefined,
   registry: RuntimeNoteStateRegistry | undefined,
   canApply: () => boolean,
 ): void {
-  taskCoordinator.enqueue(key, async () => {
-    const changed = await refreshRuntimeStateAfterDocumentChange(
-      document,
-      notes,
-      registry,
-      canApply,
-    );
-    if (changed) {
-      await notesProvider?.refreshCurrentNotes(document.uri);
-    }
-  });
+  taskCoordinator.enqueue(key, () =>
+    refreshRuntimeState(document, notes, notesProvider, registry, canApply),
+  );
+}
+
+/**
+ * Re-detects one changed resource and refreshes its Runtime State and Notes view.
+ *
+ * @param document - Immutable post-change source snapshot.
+ * @param notes - Shared persistent Note Store reader.
+ * @param notesProvider - Optional Notes view refreshed after Runtime State changes.
+ * @param registry - Optional session-only Runtime Note State Registry.
+ * @param canApply - Final revision check for the asynchronous registry mutation.
+ * @returns Nothing.
+ */
+async function refreshRuntimeState(
+  document: TextDocumentSnapshot,
+  notes: ScopedWorkspaceNoteStore,
+  notesProvider: NotesViewProvider | undefined,
+  registry: RuntimeNoteStateRegistry | undefined,
+  canApply: () => boolean,
+): Promise<void> {
+  const changed = await refreshRuntimeStateAfterDocumentChange(
+    document,
+    notes,
+    registry,
+    canApply,
+  );
+  if (changed) {
+    await notesProvider?.refreshCurrentNotes(document.uri);
+  }
 }
 
 /**
@@ -472,10 +522,25 @@ async function handleSavedDocument(
   pendingDocumentChanges: Map<string, PendingDocumentChangeState>,
   taskCoordinator: ChangeTaskCoordinator,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
+  noteScope: PersonalNoteScopeService | undefined,
 ): Promise<void> {
-  if (!evaluateCzazaResourceAccess(document.uri).allowed) {
+  const access = evaluateCzazaResourceAccess(document.uri);
+
+  if (!access.allowed) {
     return;
   }
+
+  const location = noteScope
+    ? await noteScope.resolveLocation(
+        access.root.rootDirectory,
+        access.settings.outputDirectory,
+      )
+    : TEAM_NOTE_STORE;
+  const scopedNotes = notes.scope(
+    access.root.rootDirectory,
+    access.settings.outputDirectory,
+    location,
+  );
 
   const key = document.uri.toString();
   const token = taskCoordinator.captureToken();
@@ -495,7 +560,7 @@ async function handleSavedDocument(
 
   const changed = await refreshRuntimeStateAfterDocumentChange(
     createTextDocumentSnapshot(document),
-    notes,
+    scopedNotes,
     runtimeNoteStateRegistry,
     () => taskCoordinator.canApply(token),
   );
@@ -552,6 +617,7 @@ function scheduleExternalChangeCheck(
   recentlySavedTimers: Map<string, ReturnType<typeof setTimeout>>,
   taskCoordinator: ChangeTaskCoordinator,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
+  noteScope: PersonalNoteScopeService | undefined,
 ): void {
   const access = evaluateCzazaResourceAccess(uri);
 
@@ -579,6 +645,7 @@ function scheduleExternalChangeCheck(
       taskCoordinator,
       token,
       runtimeNoteStateRegistry,
+      noteScope,
     ),
   );
 }
@@ -633,8 +700,15 @@ async function handleExternalChange(
   taskCoordinator: ChangeTaskCoordinator,
   token: ChangeTaskToken,
   runtimeNoteStateRegistry: RuntimeNoteStateRegistry | undefined,
+  noteScope: PersonalNoteScopeService | undefined,
 ): Promise<void> {
   try {
+    const scopedNotes = await resolveScopedNotes(uri, notes, noteScope);
+
+    if (!scopedNotes) {
+      return;
+    }
+
     const fingerprint = await getResourceFingerprint(uri);
 
     if (fingerprint.kind === "text") {
@@ -642,7 +716,7 @@ async function handleExternalChange(
         taskCoordinator,
         uri.toString(),
         createTextDocumentSnapshot(fingerprint.document),
-        notes,
+        scopedNotes,
         notesProvider,
         runtimeNoteStateRegistry,
         () => taskCoordinator.canApply(token),
@@ -659,7 +733,7 @@ async function handleExternalChange(
         const result = await refreshBinaryRuntimeNoteStateService({
           uri,
           currentSourceHash: fingerprint.hash,
-          notes,
+          notes: scopedNotes,
           registry: runtimeNoteStateRegistry,
           now: new Date().toISOString(),
           canApply: () => taskCoordinator.canApply(token),
@@ -673,6 +747,38 @@ async function handleExternalChange(
   } catch (error) {
     console.error("Failed to inspect externally changed CZaza resource.", error);
   }
+}
+
+/**
+ * Resolves one source event to a Store whose Team or Personal identity cannot change mid-task.
+ *
+ * @param uri - Source resource that identifies the CZaza project.
+ * @param notes - Root Store that owns shared cache state.
+ * @param noteScope - Optional UI scope resolver; tests explicitly fall back to Team.
+ * @returns Scoped Store, or undefined when the resource is outside CZaza access.
+ */
+async function resolveScopedNotes(
+  uri: vscode.Uri,
+  notes: WorkspaceNoteStore,
+  noteScope: PersonalNoteScopeService | undefined,
+): Promise<ScopedWorkspaceNoteStore | undefined> {
+  const access = evaluateCzazaResourceAccess(uri);
+
+  if (!access.allowed) {
+    return undefined;
+  }
+
+  const location = noteScope
+    ? await noteScope.resolveLocation(
+        access.root.rootDirectory,
+        access.settings.outputDirectory,
+      )
+    : TEAM_NOTE_STORE;
+  return notes.scope(
+    access.root.rootDirectory,
+    access.settings.outputDirectory,
+    location,
+  );
 }
 
 function markRecentlySaved(

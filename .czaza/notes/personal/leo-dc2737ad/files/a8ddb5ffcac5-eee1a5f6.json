@@ -1,15 +1,22 @@
 {
   "source": {
-    "sourceHash": "sha256:dd1f949a5fafa1d5d6315d0c6599aeeb3167830ff24a1634f0300973608b3eb4",
+    "sourceHash": "sha256:4eb4c42ed564766fe88addbe3339ced7f70801d8edc1b693fc1a286842544c3e",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-08-13T11:36:05.213Z",
-    "updatedAt": "2026-08-13T11:36:05.213Z"
+    "updatedAt": "2026-08-19T12:58:18.886Z"
   },
   "fileNote": {
     "userNote": "外部 Agent 写入 Notes 后清除全部空间缓存并刷新界面。\ninvalidateManagedNoteStore：不再只清除默认 Team 缓存。",
+    "aiExplanation": {
+      "summary": "这个文件在当前选定的笔记身份内协调源码文档事件、确定性笔记移动和 Runtime State 刷新。",
+      "detail": "- registerNotesContentEvents：让编辑、保存、Watcher 和删除事件统一经过当前 Team 或 Personal 作用域。\n- handleTextDocumentChange：在进入任何 await 前同步捕获文档快照、token 与分类结果并立即入队，再在队内解析作用域，保证连续编辑按事件顺序串行处理。\n- resolveScopedNotes：为外部修改检查统一解析项目和笔记身份。\n- refreshRuntimeState：重新检测一个资源并仅在 Runtime State 变化后刷新 Notes 视图，供外部变更与被动检查复用。\n- invalidateManagedNoteStore：外部 Note Store 变化后清除全部位置缓存。",
+      "aiNotes": [
+        "入队必须发生在任何 await 之前，否则快速连续编辑会因作用域解析乱序而让锚点错位。"
+      ]
+    },
     "createdBy": "user"
   },
   "sectionNotes": {},

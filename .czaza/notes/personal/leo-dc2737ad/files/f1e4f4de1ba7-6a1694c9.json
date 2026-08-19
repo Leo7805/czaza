@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:72d02989eee1c26c6aaf212c9b7388fa7f58e490c17d7ba9e795e56ab8fbe7fa"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T09:15:26.990Z",
+    "updatedAt": "2026-08-19T09:15:26.990Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这个服务把一次确定性源码修改应用到对应的持久化笔记包。",
+      "detail": "- applySourceChangeToNotesService：在指定的团队或个人笔记空间中读取、移动并保存笔记，同时保留默认团队空间的兼容行为。\n- normalizeSourceChangeBatch：把单个受支持的修改包装成原子批次。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

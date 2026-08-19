@@ -23,9 +23,10 @@ import {
  */
 export class WorkspaceNoteStoreCache {
   readonly repository: WorkspaceNoteStoreRepository;
-  readonly indexCache = new Map<string, WorkspaceNoteIndexV2 | null>();
-  readonly indexVersionCache = new Map<string, string | undefined>();
-  readonly sourceFileCache = new Map<string, StoredSourceFile | undefined>();
+  readonly indexCache: Map<string, WorkspaceNoteIndexV2 | null>;
+  readonly indexVersionCache: Map<string, string | undefined>;
+  readonly sourceFileCache: Map<string, StoredSourceFile | undefined>;
+  private readonly boundLocation?: NoteStoreLocation;
 
   /**
    * Creates a workspace note store cache.
@@ -35,8 +36,34 @@ export class WorkspaceNoteStoreCache {
    * @example
    * const cache = new WorkspaceNoteStoreCache(new WorkspaceNoteStoreRepository());
    */
-  constructor(repository = new WorkspaceNoteStoreRepository()) {
+  constructor(
+    repository = new WorkspaceNoteStoreRepository(),
+    boundLocation?: NoteStoreLocation,
+    sharedCaches?: {
+      indexCache: Map<string, WorkspaceNoteIndexV2 | null>;
+      indexVersionCache: Map<string, string | undefined>;
+      sourceFileCache: Map<string, StoredSourceFile | undefined>;
+    },
+  ) {
     this.repository = repository;
+    this.boundLocation = boundLocation;
+    this.indexCache = sharedCaches?.indexCache ?? new Map();
+    this.indexVersionCache = sharedCaches?.indexVersionCache ?? new Map();
+    this.sourceFileCache = sharedCaches?.sourceFileCache ?? new Map();
+  }
+
+  /**
+   * Creates a cache view that always uses one Team or Personal Note Store.
+   *
+   * @param location - Exact Note Store location enforced by the returned cache.
+   * @returns Cache view sharing repository IO and in-memory state with this cache.
+   */
+  forLocation(location: NoteStoreLocation): WorkspaceNoteStoreCache {
+    return new WorkspaceNoteStoreCache(this.repository, location, {
+      indexCache: this.indexCache,
+      indexVersionCache: this.indexVersionCache,
+      sourceFileCache: this.sourceFileCache,
+    });
   }
 
   /**
@@ -49,7 +76,8 @@ export class WorkspaceNoteStoreCache {
    * @example
    * const index = await cache.loadIndex("/workspace/project", ".czaza");
    */
-  async loadIndex(workspaceRoot: string, outputDirectory: string, location: NoteStoreLocation = TEAM_NOTE_STORE): Promise<WorkspaceNoteIndexV2 | null> {
+  async loadIndex(workspaceRoot: string, outputDirectory: string, location?: NoteStoreLocation): Promise<WorkspaceNoteIndexV2 | null> {
+    location = this.resolveLocation(location);
     const key = getWorkspaceCacheKey(workspaceRoot, outputDirectory, location);
     const currentVersion = await this.repository.getIndexVersion(
       workspaceRoot,
@@ -81,7 +109,8 @@ export class WorkspaceNoteStoreCache {
    * @example
    * cache.clearCache("/workspace/project", ".czaza");
    */
-  clearCache(workspaceRoot: string, outputDirectory: string, location: NoteStoreLocation = TEAM_NOTE_STORE): void {
+  clearCache(workspaceRoot: string, outputDirectory: string, location?: NoteStoreLocation): void {
+    location = this.resolveLocation(location);
     const prefix = `${getWorkspaceCacheKey(workspaceRoot, outputDirectory, location)}::`;
 
     const workspaceKey = getWorkspaceCacheKey(workspaceRoot, outputDirectory, location);
@@ -132,8 +161,9 @@ export class WorkspaceNoteStoreCache {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
-    location: NoteStoreLocation = TEAM_NOTE_STORE,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile | undefined> {
+    location = this.resolveLocation(location);
     const key = getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath, location);
 
     if (!this.sourceFileCache.has(key)) {
@@ -167,8 +197,9 @@ export class WorkspaceNoteStoreCache {
     sourceFile: StoredSourceFile,
     now: string,
     options: NoteStorePersistenceOptions = {},
-    location: NoteStoreLocation = TEAM_NOTE_STORE,
+    location?: NoteStoreLocation,
   ): Promise<void> {
+    location = this.resolveLocation(location);
     const result = await this.repository.saveSourceFile(
       workspaceRoot,
       outputDirectory,
@@ -212,8 +243,9 @@ export class WorkspaceNoteStoreCache {
     outputDirectory: string,
     relativeFilePath: string,
     noteFile: string,
-    location: NoteStoreLocation = TEAM_NOTE_STORE,
+    location?: NoteStoreLocation,
   ): Promise<void> {
+    location = this.resolveLocation(location);
     await this.repository.deleteSourceFileNoteFile(workspaceRoot, outputDirectory, noteFile, location);
     this.sourceFileCache.set(
       getSourceFileCacheKey(workspaceRoot, outputDirectory, relativeFilePath, location),
@@ -236,8 +268,9 @@ export class WorkspaceNoteStoreCache {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
-    location: NoteStoreLocation = TEAM_NOTE_STORE,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
+    location = this.resolveLocation(location);
     const sourceFile = await this.getSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
 
     if (!sourceFile) {
@@ -259,8 +292,9 @@ export class WorkspaceNoteStoreCache {
     workspaceRoot: string,
     outputDirectory: string,
     relativeFilePath: string,
-    location: NoteStoreLocation = TEAM_NOTE_STORE,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile | undefined> {
+    location = this.resolveLocation(location);
     const index = await this.loadIndex(workspaceRoot, outputDirectory, location);
     if (!index) {
       return undefined;
@@ -295,8 +329,9 @@ export class WorkspaceNoteStoreCache {
     relativeFilePath: string,
     now: string,
     update: (sourceFile: StoredSourceFile) => StoredSourceFile,
-    location: NoteStoreLocation = TEAM_NOTE_STORE,
+    location?: NoteStoreLocation,
   ): Promise<StoredSourceFile> {
+    location = this.resolveLocation(location);
     const sourceFile = await this.getRequiredSourceFile(workspaceRoot, outputDirectory, relativeFilePath, location);
     const next = update(sourceFile);
 
@@ -318,8 +353,9 @@ export class WorkspaceNoteStoreCache {
   async getRequiredIndex(
     workspaceRoot: string,
     outputDirectory: string,
-    location: NoteStoreLocation = TEAM_NOTE_STORE,
+    location?: NoteStoreLocation,
   ): Promise<WorkspaceNoteIndexV2> {
+    location = this.resolveLocation(location);
     const index = await this.loadIndex(workspaceRoot, outputDirectory, location);
 
     if (!index) {
@@ -327,6 +363,19 @@ export class WorkspaceNoteStoreCache {
     }
 
     return index;
+  }
+
+  /** Resolves an optional call location against this cache view's enforced location. */
+  private resolveLocation(location?: NoteStoreLocation): NoteStoreLocation {
+    if (!this.boundLocation) {
+      return location ?? TEAM_NOTE_STORE;
+    }
+
+    if (location && getNoteStoreLocationKey(location) !== getNoteStoreLocationKey(this.boundLocation)) {
+      throw new Error("A scoped Note Store cannot access a different Team or Personal location.");
+    }
+
+    return this.boundLocation;
   }
 }
 

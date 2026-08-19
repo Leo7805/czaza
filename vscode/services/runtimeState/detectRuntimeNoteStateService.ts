@@ -9,7 +9,8 @@ import {
   type FileNotesDetectionReport,
 } from "@shared/services/notes/noteDetectionService";
 import { createSourceHash } from "@shared/utils/hashUtils";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import { getNoteStoreLocationKey } from "@vscode/notes/NoteStoreLocation";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 import {
   evaluateCzazaResourceAccess,
   type CzazaResourceAccessDenialReason,
@@ -41,10 +42,11 @@ export type DetectRuntimeNoteStateInput = {
   document: RuntimeNoteDetectionDocument;
 
   /** Shared Note Store used only to read existing persistent Notes. */
-  notes: WorkspaceNoteStore;
+  notes: ScopedWorkspaceNoteStore;
 
   /** ISO timestamp attached to the detected runtime state. */
   now: string;
+
 };
 
 /** Read-only Runtime Note detection result. */
@@ -100,6 +102,7 @@ export async function detectRuntimeNoteStateService(
   const coordinates = {
     workspaceRoot: access.root.rootDirectory,
     outputDirectory: access.settings.outputDirectory,
+    locationKey: getNoteStoreLocationKey(input.notes.location),
     relativePath: access.relativePath,
   };
 
@@ -143,9 +146,7 @@ export async function detectRuntimeNoteStateService(
     relativePath: access.relativePath,
     report,
     state: {
-      workspaceRoot: access.root.rootDirectory,
-      outputDirectory: access.settings.outputDirectory,
-      relativePath: access.relativePath,
+      ...coordinates,
       currentSourceHash: report.file.currentSourceHash,
       issues,
       reason: issues.includes("locationReview")

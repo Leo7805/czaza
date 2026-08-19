@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:60938ecf03757a157dfa60fa11cd26f863b98e3ec64b10f935e8c0728348f19d"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T09:15:26.992Z",
+    "updatedAt": "2026-08-19T09:15:26.992Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这个服务在 VS Code 执行 Undo 和 Redo 时恢复确定性的笔记位置。",
+      "detail": "- applySourceRelocationHistoryService：用源码哈希验证移动历史，并在指定的团队或个人笔记空间中恢复笔记。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

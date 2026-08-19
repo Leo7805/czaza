@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:337ba8234c0c59e26c1bbd37b1a164c742e77e56938f4de9d4481effe79ae388"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.903Z",
+    "updatedAt": "2026-08-19T12:58:18.903Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "把一条段落笔记重定位到用户确认的源码区间。",
+      "detail": "- relocateSectionNoteService：校验文本指纹与目标区间后，原子地更新区间、锚点哈希和锚点状态。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

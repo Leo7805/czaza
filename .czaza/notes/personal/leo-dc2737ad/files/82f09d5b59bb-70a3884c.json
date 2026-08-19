@@ -1,0 +1,20 @@
+{
+  "source": {
+    "sourceHash": "sha256:1fbb62908b3fdcffbffa251f6f3c482ba925e00f9949e81259fb6c95bcc43090"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.900Z",
+    "updatedAt": "2026-08-19T12:58:18.900Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "在用户确认新路径后重定位一条文件笔记。",
+      "detail": "- relocateFileNoteService：校验相对路径与目标存在性后移动文件笔记条目；移动到当前路径时仅把未确认的锚点标记为已确认。\n- getConfirmedStatus：把未确认的文件笔记状态转为 confirmed。\n- normalizeRelativePath / isSafeRelativePath：规范并校验用户输入的相对路径。",
+      "aiNotes": [
+        "重定位到 Note Store 目录内会被拒绝。"
+      ]
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

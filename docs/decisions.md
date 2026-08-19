@@ -3,3 +3,9 @@ Ignore rules should match at any directory depth (\*\*/...) rather than only pro
 ## Case-Insensitive Note Path Matching
 
 CZaza treats file paths as case-insensitive when matching Notes, while displaying the file name using the current real filesystem path.
+
+## Scoped Team and Personal Note Store Access
+
+Every interactive Notes workflow resolves its project and Team or Personal identity once, then uses a `ScopedWorkspaceNoteStore` for all reads, writes, relocation, and Runtime State checks. The scoped cache rejects attempts to access a different identity, preventing a missing location argument from silently falling back from Personal Notes to Team Notes.
+
+The root `WorkspaceNoteStore` remains the shared repository and cache owner. Explicit Team fallback is allowed only at compatibility boundaries where no Notes scope provider exists, such as isolated tests and legacy command-line workflows.

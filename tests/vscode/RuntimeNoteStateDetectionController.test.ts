@@ -87,6 +87,26 @@ describe("RuntimeNoteStateDetectionController", () => {
     });
   });
 
+  it("uses its scoped Note Store for current text detection", async () => {
+    const notes = createNotes({});
+    const registry = {} as never;
+    const document = createDocument("/workspace/src/index.ts");
+    const controller = new RuntimeNoteStateDetectionController(
+      notes,
+      registry,
+      () => "2026-07-30T00:00:00.000Z",
+    );
+
+    await controller.detectCurrentFileNotes(document);
+
+    expect(mocks.refreshRuntimeNoteStateService).toHaveBeenCalledWith({
+      document,
+      notes,
+      registry,
+      now: "2026-07-30T00:00:00.000Z",
+    });
+  });
+
   it("checks only indexed resources that contain File Notes", async () => {
     const textDocument = createDocument("/workspace/src/text.ts");
     const notes = createNotes({

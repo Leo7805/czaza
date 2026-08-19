@@ -12,13 +12,13 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 import { getResourceFingerprint } from "../../resourceFingerprint/getResourceFingerprintService";
 import * as vscode from "vscode";
 
 export type RelocateSectionNoteInput = {
   uri: vscode.Uri;
-  notes: WorkspaceNoteStore;
+  notes: ScopedWorkspaceNoteStore;
   sectionId: string;
   startLine: number;
   endLine: number;

@@ -8,7 +8,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 import * as vscode from "vscode";
 import {
   applySourceChangeBatch,
@@ -40,7 +40,7 @@ export type ApplySourceChangeToNotesInput = {
   change: ClassifiedSourceChange | ClassifiedSourceChangeBatch;
 
   /** Shared workspace note store. */
-  notes: WorkspaceNoteStore;
+  notes: ScopedWorkspaceNoteStore;
 
   /** ISO timestamp used for saved note metadata. */
   now: string;
@@ -189,6 +189,5 @@ function normalizeSourceChangeBatch(
   return {
     kind: "splices",
     splices: [change.splice],
-    requiresConfirmation: false,
   };
 }

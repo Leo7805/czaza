@@ -5,6 +5,8 @@
 import * as vscode from "vscode";
 
 import type { WorkspaceNoteStore } from "@vscode/notes";
+import { TEAM_NOTE_STORE } from "@vscode/notes";
+import { getNoteStoreLocationKey } from "@vscode/notes/NoteStoreLocation";
 import type { NotesViewProvider } from "@vscode/notesUi/NotesViewProvider";
 import type { ChangeTaskCoordinator } from "@vscode/services/changeCoordination";
 import type { SourceRelocationHistoryService } from "@vscode/services/noteRelocation";
@@ -102,17 +104,23 @@ async function handleRename(
       return;
     }
 
-    const location = await noteScope?.resolveLocation(
+    const location = noteScope
+      ? await noteScope.resolveLocation(
+          oldResource.root.rootDirectory,
+          oldResource.settings.outputDirectory,
+        )
+      : TEAM_NOTE_STORE;
+    const scopedNotes = notes.scope(
       oldResource.root.rootDirectory,
       oldResource.settings.outputDirectory,
+      location,
     );
-    const result = await notes.resources.moveSourceEntriesUnderPath(
+    const result = await scopedNotes.resources.moveSourceEntriesUnderPath(
       oldResource.root.rootDirectory,
       oldResource.settings.outputDirectory,
       oldResource.relativePath,
       newResource.relativePath,
       new Date().toISOString(),
-      location,
     );
 
     if (result.kind === "moved") {
@@ -120,6 +128,7 @@ async function handleRename(
         {
           workspaceRoot: oldResource.root.rootDirectory,
           outputDirectory: oldResource.settings.outputDirectory,
+          locationKey: getNoteStoreLocationKey(location),
         },
         oldResource.relativePath,
         newResource.relativePath,
@@ -154,22 +163,29 @@ async function handleDelete(
       return;
     }
 
-    const location = await noteScope?.resolveLocation(
+    const location = noteScope
+      ? await noteScope.resolveLocation(
+          resource.root.rootDirectory,
+          resource.settings.outputDirectory,
+        )
+      : TEAM_NOTE_STORE;
+    const scopedNotes = notes.scope(
       resource.root.rootDirectory,
       resource.settings.outputDirectory,
+      location,
     );
-    const result = await notes.resources.markSourceEntriesUnderPathDeleted(
+    const result = await scopedNotes.resources.markSourceEntriesUnderPathDeleted(
       resource.root.rootDirectory,
       resource.settings.outputDirectory,
       resource.relativePath,
       new Date().toISOString(),
-      location,
     );
 
     if (result.kind === "markedDeleted") {
       runtimeNoteStateRegistry?.deleteStatesUnderPath({
         workspaceRoot: resource.root.rootDirectory,
         outputDirectory: resource.settings.outputDirectory,
+        locationKey: getNoteStoreLocationKey(location),
       }, resource.relativePath);
       await notesProvider?.refreshAfterResourceDelete(uri);
     }

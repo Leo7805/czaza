@@ -8,7 +8,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 import type * as vscode from "vscode";
 import { SourceRelocationHistoryService } from "./SourceRelocationHistoryService";
 
@@ -18,7 +18,7 @@ export type ApplySourceRelocationHistoryInput = {
     uri: vscode.Uri;
     getText(): string;
   };
-  notes: WorkspaceNoteStore;
+  notes: ScopedWorkspaceNoteStore;
   history: SourceRelocationHistoryService;
   direction: "undo" | "redo";
   now: string;

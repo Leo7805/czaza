@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:0532eeb525624293b294d43fbb64de3a068978bb898ec52718d5c57ef599e605"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T10:03:05.733Z",
+    "updatedAt": "2026-08-19T10:03:05.733Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这个 Registry 按项目和笔记身份分别保存临时的笔记检测结果。",
+      "detail": "- setState、getState 和 deleteState：使用项目、输出目录、身份和源码路径定位一条 Runtime State。\n- listStates 和 clearScope：只在一个 Team 或 Personal Runtime State 作用域内操作。\n- normalizeScope：把没有身份的旧坐标视为 Team Notes，以保持兼容。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

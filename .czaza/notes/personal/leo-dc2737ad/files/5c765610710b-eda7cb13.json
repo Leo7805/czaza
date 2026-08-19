@@ -1,0 +1,20 @@
+{
+  "source": {
+    "sourceHash": "sha256:d4856be58d4c6184a6be53616714bc4e1dbd76d6c0fe775a516a53da52cec051"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.899Z",
+    "updatedAt": "2026-08-19T12:58:18.899Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "为打开和激活的源码文档注册按需的一致性检查，而不扫描整个工作区。",
+      "detail": "- registerPassiveRuntimeNoteChecks：按资源和源码哈希去重，串行化每次被动检查，并用代数(generation)让较新的快照使旧结果失效。\n- scheduleCheck：捕获不可变文档快照并为该资源排队一次被动检查。\n- createDocumentSnapshot：在异步检查开始前捕获源码文本与哈希。",
+      "aiNotes": [
+        "旧快照的异步结果会被 generation 与哈希双重校验拒绝，避免覆盖较新的状态。"
+      ]
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

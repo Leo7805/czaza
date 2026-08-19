@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:bec2254b993c47363cafdd96b035d0ccfe6a7125b4dc681a59bb358555f812ab"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T09:15:26.997Z",
+    "updatedAt": "2026-08-19T09:15:26.997Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这些测试验证文档和文件监视事件能够安全更新笔记与 Runtime State。",
+      "detail": "- registerNotesContentEvents 测试：覆盖确定性编辑、保存、外部修改、Undo/Redo、任务协调和个人笔记位置选择。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

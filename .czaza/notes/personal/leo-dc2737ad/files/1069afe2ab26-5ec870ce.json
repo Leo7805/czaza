@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:70410e31177d47b3bb11b50ce2fcaa91db7b0c1beff1f3e045cda69a2c7a07b9"
+    "sourceHash": "sha256:912e3e7e9e84315e5924fc2b8d22ea27dc7c73fc785ec65e6051cfd2eb3775aa"
   },
   "defaults": {
     "createdAt": "2026-08-14T01:32:08.226Z",
-    "updatedAt": "2026-08-18T11:09:02.207Z"
+    "updatedAt": "2026-08-19T11:06:13.797Z"
   },
   "fileNote": {
     "aiExplanation": {
-      "summary": "This provider coordinates the CZaza Notes webview, current Store, editor state, and user actions.",
-      "detail": "- openUserSectionNoteEditor: Opens an existing Section or presents a new range as an in-memory draft.\n- saveSectionNoteDraft: Validates the source snapshot and persists only a non-empty saved draft.\n- cancelSectionNoteDraft: Discards an unsaved draft without changing the Note Store.\n- runNotesGeneration, runSectionNoteGeneration, and runLineNoteGeneration: Preserve the selected Team or Personal Store for AI tasks."
+      "summary": "这个 Provider 协调 Notes Webview，并确保所有可见操作都留在选定的 Team 或 Personal Store 内。",
+      "detail": "- loadResourceNotes 和 loadNavigatorNotes：通过同一个作用域 Store 读取 Detail 与 Navigator 数据。\n- startNoteRelocate：捕获当前作用域 Store，使孤儿笔记能在原身份中被找到并重新定位。\n- runRelocateFileNote、runRelocateSectionNote 和 runRelocateLineNote：保存重新定位结果，并在 Registry 不存在时也能安全刷新 Runtime State。\n- createRuntimeStateDetectionController：为当前可见资源创建包含身份信息的 Runtime State 检测器。\n- clearStaleStatusForResource：清除 stale 时若运行时确认返回 notConfirmable 或 unchanged，会弹出提示而非静默失败。"
     }
   },
   "sectionNotes": {},

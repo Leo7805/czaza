@@ -51,7 +51,7 @@ vi.mock("vscode", () => ({
   },
 }));
 
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { NoteStoreLocation, ScopedWorkspaceNoteStore } from "@vscode/notes";
 import { detectRuntimeNoteStateService } from "@vscode/services/runtimeState";
 
 describe("detectRuntimeNoteStateService()", () => {
@@ -81,6 +81,7 @@ describe("detectRuntimeNoteStateService()", () => {
       coordinates: {
         workspaceRoot,
         outputDirectory: ".czaza",
+        locationKey: "notes/team",
         relativePath: "src/index.ts",
       },
     });
@@ -115,6 +116,7 @@ describe("detectRuntimeNoteStateService()", () => {
       coordinates: {
         workspaceRoot,
         outputDirectory: ".czaza",
+        locationKey: "notes/team",
         relativePath: "src/index.ts",
       },
     });
@@ -203,6 +205,40 @@ describe("detectRuntimeNoteStateService()", () => {
     expect(notes.saveSourceFile).not.toHaveBeenCalled();
   });
 
+  it("preserves the note store locationKey on affected state", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("personal-location-key");
+    const notes = createNotes(
+      createStoredSourceFile("export const value = 1;\n"),
+      { kind: "personal", memberId: "leo" },
+    );
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    const result = await detectRuntimeNoteStateService({
+      document: createDocument(
+        path.join(workspaceRoot, "src/index.ts"),
+        "export const value = 2;\n",
+      ),
+      notes: notes.value,
+      now: "2026-07-29T02:30:00.000Z",
+    });
+
+    expect(result.kind).toBe("affected");
+
+    if (result.kind !== "affected") {
+      return;
+    }
+
+    expect(result.state).toEqual(
+      expect.objectContaining({
+        workspaceRoot,
+        outputDirectory: ".czaza",
+        locationKey: "notes/personal/leo",
+        relativePath: "src/index.ts",
+      }),
+    );
+    expect(notes.saveSourceFile).not.toHaveBeenCalled();
+  });
+
   it("returns untracked when no persistent source Note bundle exists", async () => {
     const workspaceRoot = await createTempWorkspaceRoot("untracked");
     const notes = createNotes(undefined);
@@ -220,6 +256,7 @@ describe("detectRuntimeNoteStateService()", () => {
       coordinates: {
         workspaceRoot,
         outputDirectory: ".czaza",
+        locationKey: "notes/team",
         relativePath: "src/index.ts",
       },
     });
@@ -271,8 +308,11 @@ describe("detectRuntimeNoteStateService()", () => {
  * @param sourceFile - Persistent source Note bundle returned by reads.
  * @returns Note Store mock and read/write spies.
  */
-function createNotes(sourceFile: StoredSourceFile | undefined): {
-  value: WorkspaceNoteStore;
+function createNotes(
+  sourceFile: StoredSourceFile | undefined,
+  location: NoteStoreLocation = { kind: "team" },
+): {
+  value: ScopedWorkspaceNoteStore;
   getSourceFile: ReturnType<typeof vi.fn>;
   saveSourceFile: ReturnType<typeof vi.fn>;
 } {
@@ -281,11 +321,14 @@ function createNotes(sourceFile: StoredSourceFile | undefined): {
 
   return {
     value: {
+      workspaceRoot: "/workspace",
+      outputDirectory: ".caca",
+      location,
       cache: {
         getSourceFile,
         saveSourceFile,
       },
-    } as unknown as WorkspaceNoteStore,
+    } as unknown as ScopedWorkspaceNoteStore,
     getSourceFile,
     saveSourceFile,
   };

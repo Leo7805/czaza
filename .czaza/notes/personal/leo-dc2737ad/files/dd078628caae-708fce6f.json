@@ -1,18 +1,18 @@
 {
   "source": {
-    "sourceHash": "sha256:388dadb0798d2b41e2705a24d53e6d7534a7bff84451eb01514c61d9f33fdccf",
+    "sourceHash": "sha256:18b8dd43bcb5194b74fe9f388bde6ae5198d27470f2e245449ef4f2ab3de4077",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-08-13T11:35:49.456Z",
-    "updatedAt": "2026-08-14T01:51:24.818Z"
+    "updatedAt": "2026-08-19T10:03:05.727Z"
   },
   "fileNote": {
     "userNote": "支持一次清除项目下所有 Team/Personal 缓存。\nclearAllLocationCaches：清除同一输出目录下的全部 Notes 空间缓存。",
     "aiExplanation": {
-      "summary": "此类协调 Note Store 文件系统访问和按位置隔离的内存缓存。",
-      "detail": "- loadIndex：每次查询前比较当前索引文件版本，只清除发生变化的 Team 或 Personal Store 缓存。\n- clearCache 和 clearAllLocationCaches：按指定范围清除索引、版本标记和源文件缓存。\n- saveSourceFile：内部保存完成后刷新缓存索引及其磁盘版本。\n- getSourceFileCaseInsensitive：先使用已校验新鲜度的索引，再解析存储的源文件路径。"
+      "summary": "这个缓存协调 Note Store 文件访问，并强制隔离 Team 和 Personal 身份。",
+      "detail": "- forLocation：创建绑定身份的缓存视图，并共享仓库状态和缓存映射。\n- resolveLocation：参数省略时使用已绑定身份，并拒绝显式跨身份访问。\n- clearCache 和 clearAllLocationCaches：清除选定项目输出下的单个身份或全部身份缓存。\n- saveSourceFile：按照解析后的身份键持久化并刷新缓存记录。"
     },
     "createdBy": "user"
   },

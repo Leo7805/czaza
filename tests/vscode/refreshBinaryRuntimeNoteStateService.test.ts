@@ -9,7 +9,7 @@ import type * as vscodeTypes from "vscode";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 
 type MockWorkspaceFolder = {
   uri: vscodeTypes.Uri;
@@ -215,17 +215,20 @@ function createBinarySourceFile(sourceHash: string): StoredSourceFile {
  * @returns Store and persistent-write spy.
  */
 function createNotes(sourceFile: StoredSourceFile | undefined): {
-  value: WorkspaceNoteStore;
+  value: ScopedWorkspaceNoteStore;
   saveSourceFile: ReturnType<typeof vi.fn>;
 } {
   const saveSourceFile = vi.fn();
   return {
     value: {
+      workspaceRoot: "/workspace",
+      outputDirectory: ".caca",
+      location: { kind: "team" },
       cache: {
         getSourceFile: vi.fn().mockResolvedValue(sourceFile),
         saveSourceFile,
       },
-    } as unknown as WorkspaceNoteStore,
+    } as unknown as ScopedWorkspaceNoteStore,
     saveSourceFile,
   };
 }

@@ -9,7 +9,12 @@ import type * as vscodeTypes from "vscode";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { StoredSourceFile } from "@shared/models/store/sourceFile";
-import { WorkspaceNoteStore, WorkspaceNoteStoreRepository } from "@vscode/notes";
+import {
+  TEAM_NOTE_STORE,
+  WorkspaceNoteStore,
+  WorkspaceNoteStoreRepository,
+  type ScopedWorkspaceNoteStore,
+} from "@vscode/notes";
 import { relocateFileNoteService } from "@vscode/services/noteRelocation";
 
 type MockWorkspaceFolder = {
@@ -299,12 +304,12 @@ async function createStoreWithSourceFile(
   workspaceRoot: string,
   relativePath: string,
   anchor: "confirmed" | "needsConfirmation" | "orphaned" = "needsConfirmation",
-): Promise<WorkspaceNoteStore> {
+): Promise<ScopedWorkspaceNoteStore> {
   const notes = new WorkspaceNoteStore(new WorkspaceNoteStoreRepository(() => "fixed001"));
 
   await notes.cache.saveSourceFile(workspaceRoot, ".caca", relativePath, createStoredSourceFile(anchor), createdAt);
 
-  return notes;
+  return notes.scope(workspaceRoot, ".caca", TEAM_NOTE_STORE);
 }
 
 async function writeSourceFile(workspaceRoot: string, relativePath: string): Promise<void> {

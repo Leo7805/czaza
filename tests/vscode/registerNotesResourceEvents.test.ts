@@ -116,7 +116,6 @@ describe("registerNotesResourceEvents()", () => {
       "src/old.ts",
       "src/new.ts",
       expect.any(String),
-      undefined,
     );
     expect(runtimeRegistry.getState({
       workspaceRoot,
@@ -162,7 +161,6 @@ describe("registerNotesResourceEvents()", () => {
       ".caca",
       "src/deleted.ts",
       expect.any(String),
-      undefined,
     );
     expect(runtimeRegistry.getState({
       workspaceRoot,
@@ -303,14 +301,21 @@ function createNotes(): {
     kind: "markedDeleted",
     relativePaths: [],
   });
+  const value = {
+    resources: {
+      moveSourceEntriesUnderPath,
+      markSourceEntriesUnderPathDeleted,
+    },
+  } as unknown as WorkspaceNoteStore;
+  value.scope = vi.fn((workspaceRoot, outputDirectory, location) => ({
+    ...value,
+    workspaceRoot,
+    outputDirectory,
+    location,
+  })) as unknown as WorkspaceNoteStore["scope"];
 
   return {
-    value: {
-      resources: {
-        moveSourceEntriesUnderPath,
-        markSourceEntriesUnderPathDeleted,
-      },
-    } as unknown as WorkspaceNoteStore,
+    value,
     moveSourceEntriesUnderPath,
     markSourceEntriesUnderPathDeleted,
   };

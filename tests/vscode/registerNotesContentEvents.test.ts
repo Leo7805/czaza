@@ -714,6 +714,141 @@ describe("registerNotesContentEvents()", () => {
     );
   });
 
+  it("moves the current Personal Line Note down after two Enter presses", async () => {
+    vi.useFakeTimers();
+    const workspaceRoot = await createTempWorkspaceRoot("personal-two-enters");
+    const previousText = "export const value = 1;\n";
+    const firstText = `\n${previousText}`;
+    const secondText = `\n${firstText}`;
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const location = { kind: "personal" as const, memberId: "leo-12345678" };
+    const noteScope = {
+      resolveLocation: vi.fn().mockResolvedValue(location),
+    };
+    const documentPath = path.join(workspaceRoot, "src/index.ts");
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      noteScope as never,
+    );
+    mocks.textDocumentChangeListeners[0]?.({
+      document: createDocument(documentPath, firstText),
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 },
+          },
+          rangeLength: 0,
+          text: "\n",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    mocks.textDocumentChangeListeners[0]?.({
+      document: createDocument(documentPath, secondText),
+      contentChanges: [
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 },
+          },
+          rangeLength: 0,
+          text: "\n",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(noteScope.resolveLocation).toHaveBeenCalledWith(workspaceRoot, ".caca");
+    expect(notes.saveSourceFile).toHaveBeenCalledTimes(2);
+    expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
+      workspaceRoot,
+      ".caca",
+      "src/index.ts",
+      expect.objectContaining({
+        lineNotes: [expect.objectContaining({ line: 3 })],
+      }),
+      expect.any(String),
+      { canPersist: expect.any(Function) },
+    );
+  });
+
+  it("applies rapid edits in event order even when scope resolution completes out of order", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("rapid-out-of-order");
+    const previousText = "export const value = 1;\n";
+    const firstText = "world\nexport const value = 1;\n";
+    const secondText = "world\n!\nexport const value = 1;\n";
+    const notes = createNotes(createStoredSourceFile(previousText));
+    const location = { kind: "personal" as const, memberId: "leo-12345678" };
+    const documentPath = path.join(workspaceRoot, "src/index.ts");
+
+    let resolveFirst!: (value: typeof location) => void;
+    const firstDeferred = new Promise<typeof location>((resolve) => {
+      resolveFirst = resolve;
+    });
+    let callCount = 0;
+    const noteScope = {
+      resolveLocation: vi.fn().mockImplementation(() => {
+        callCount += 1;
+        return callCount === 1 ? firstDeferred : Promise.resolve(location);
+      }),
+    };
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+    registerNotesContentEvents(
+      createExtensionContext(),
+      notes.value,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      noteScope as never,
+    );
+    mocks.textDocumentChangeListeners[0]?.({
+      document: createDocument(documentPath, firstText, true),
+      contentChanges: [
+        {
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+          rangeLength: 0,
+          text: "world\n",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+    mocks.textDocumentChangeListeners[0]?.({
+      document: createDocument(documentPath, secondText, true),
+      contentChanges: [
+        {
+          range: { start: { line: 1, character: 0 }, end: { line: 1, character: 0 } },
+          rangeLength: 0,
+          text: "!\n",
+        },
+      ],
+    } as unknown as vscodeTypes.TextDocumentChangeEvent);
+
+    await waitForMicrotasks();
+    resolveFirst(location);
+    await waitForMicrotasks();
+
+    expect(notes.saveSourceFile).toHaveBeenCalledTimes(2);
+    expect(notes.saveSourceFile).toHaveBeenLastCalledWith(
+      workspaceRoot,
+      ".caca",
+      "src/index.ts",
+      expect.objectContaining({
+        lineNotes: [expect.objectContaining({ line: 3 })],
+      }),
+      expect.any(String),
+      { canPersist: expect.any(Function) },
+    );
+  });
+
   it("restores persisted relocation state across real Undo and Redo events", async () => {
     vi.useFakeTimers();
 
@@ -1175,15 +1310,22 @@ function createNotes(sourceFile: StoredSourceFile | undefined): {
   ) => {
     cachedSourceFile = nextSourceFile;
   });
+  const value = {
+    cache: {
+      getSourceFile: vi.fn().mockImplementation(async () => cachedSourceFile),
+      saveSourceFile,
+      clearAllLocationCaches,
+    },
+  } as unknown as WorkspaceNoteStore;
+  value.scope = vi.fn((workspaceRoot, outputDirectory, location) => ({
+    ...value,
+    workspaceRoot,
+    outputDirectory,
+    location,
+  })) as unknown as WorkspaceNoteStore["scope"];
 
   return {
-    value: {
-      cache: {
-        getSourceFile: vi.fn().mockImplementation(async () => cachedSourceFile),
-        saveSourceFile,
-        clearAllLocationCaches,
-      },
-    } as unknown as WorkspaceNoteStore,
+    value,
     saveSourceFile,
     clearAllLocationCaches,
   };

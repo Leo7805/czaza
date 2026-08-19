@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:b21e839d48581e32a5afa449c2206471fbea24fba8f108a34b1c4f7c864afe14"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T09:15:26.993Z",
+    "updatedAt": "2026-08-19T09:15:26.993Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这个控制器提供检测临时笔记状态的共享入口。",
+      "detail": "- detectCurrentFileNotes：把可选的团队或个人笔记位置传给当前文件检测。\n- detectResourceNotes：把文本、二进制、缺失和目录资源交给相应检测器。\n- detectAllFileNotes：检查索引中具有文件笔记的资源。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

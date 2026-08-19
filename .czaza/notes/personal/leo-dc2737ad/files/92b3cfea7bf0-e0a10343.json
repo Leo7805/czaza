@@ -1,0 +1,20 @@
+{
+  "source": {
+    "sourceHash": "sha256:fdd6d59047ac3bff9e695740a68addf19f786332e6af06d38f489ff08bec1080"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T09:15:26.994Z",
+    "updatedAt": "2026-08-19T11:06:13.792Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这个服务只读比较当前源码与持久化笔记，不直接保存修改。",
+      "detail": "- detectRuntimeNoteStateService：读取指定的团队或个人笔记空间，并报告当前、受影响、未跟踪或已忽略状态。",
+      "aiNotes": [
+        "受影响（affected）分支的 state 必须展开 ...coordinates 以携带 locationKey；否则注册表会把缺失的 key 兜底为 notes/team，Personal Store 的运行时 stale 查询会静默落空，表现为「Mark Section Reviewed」点击无效。"
+      ]
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

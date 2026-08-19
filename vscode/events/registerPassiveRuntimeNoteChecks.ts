@@ -3,7 +3,9 @@
  */
 
 import { createSourceHash } from "@shared/utils/hashUtils";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import { TEAM_NOTE_STORE, type WorkspaceNoteStore } from "@vscode/notes";
+import type { PersonalNoteScopeService } from "@vscode/personalNotes";
+import { evaluateCzazaResourceAccess } from "@vscode/services/resourceAccess";
 import {
   passiveRuntimeNoteCheckService,
   type RuntimeNoteDetectionDocument,
@@ -34,6 +36,7 @@ export function registerPassiveRuntimeNoteChecks(
   context: vscode.ExtensionContext,
   notes: WorkspaceNoteStore,
   registry: RuntimeNoteStateRegistry,
+  noteScope?: PersonalNoteScopeService,
 ): void {
   const observedHashes = new Map<string, string>();
   const generations = new Map<string, number>();
@@ -69,9 +72,25 @@ export function registerPassiveRuntimeNoteChecks(
           return;
         }
 
+        const access = evaluateCzazaResourceAccess(snapshot.uri);
+
+        if (!access.allowed) {
+          return;
+        }
+
+        const location = noteScope
+          ? await noteScope.resolveLocation(
+              access.root.rootDirectory,
+              access.settings.outputDirectory,
+            )
+          : TEAM_NOTE_STORE;
         await passiveRuntimeNoteCheckService({
           document: snapshot,
-          notes,
+          notes: notes.scope(
+            access.root.rootDirectory,
+            access.settings.outputDirectory,
+            location,
+          ),
           registry,
           now: new Date().toISOString(),
           canApply: () =>

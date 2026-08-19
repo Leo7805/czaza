@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:52e890f1097cc2eb5745f004561602eb46446bbcaac7e664e2a8f160f3dd7b54"
+    "sourceHash": "sha256:99f7701a251a45ed9c22bd71fb5d8bba29d75f34e92674e9cfa2b46b2d34a7e3"
   },
   "defaults": {
     "createdAt": "2026-08-14T01:32:08.222Z",
-    "updatedAt": "2026-08-14T01:32:08.222Z"
+    "updatedAt": "2026-08-19T12:58:18.891Z"
   },
   "fileNote": {
     "aiExplanation": {
-      "summary": "This file activates CZaza and wires extension services, providers, and commands.",
-      "detail": "- activate: Passes each fixed Team or Personal NoteStoreLocation through every AI generation callback."
+      "summary": "这个文件负责激活 CZaza，并组装扩展所需的服务、Provider 和命令。",
+      "detail": "- activate：创建共享的 Note Store、Runtime State Registry、重定位历史、任务协调器和个人身份作用域，并把当前选中的团队或个人笔记位置传给界面、内容修改和资源事件工作流。\n- scopeNotes：把一次工作流绑定到选定的 Team 或 Personal Note Store，未选择时回退到团队空间。"
     }
   },
   "sectionNotes": {},

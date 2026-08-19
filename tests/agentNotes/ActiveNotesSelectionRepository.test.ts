@@ -31,4 +31,18 @@ describe("ActiveNotesSelectionRepository", () => {
 
     expect(await repository.load("/workspace")).toBeUndefined();
   });
+
+  it("does not lose the selection when two saves race on the same workspace", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "czaza-active-notes-concurrent-"));
+    const repository = new ActiveNotesSelectionRepository(directory);
+
+    await Promise.all([
+      repository.save("/workspace", ".czaza", { kind: "team" }),
+      repository.save("/workspace", ".czaza", { kind: "personal", memberId: "leo" }),
+    ]);
+
+    const loaded = await repository.load("/workspace");
+    expect(loaded).not.toBeUndefined();
+    expect(["team", "personal"]).toContain(loaded?.location.kind);
+  });
 });

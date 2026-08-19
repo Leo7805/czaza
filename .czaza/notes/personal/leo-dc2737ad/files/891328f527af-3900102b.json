@@ -1,0 +1,20 @@
+{
+  "source": {
+    "sourceHash": "sha256:7ebc37589c59f66d91587f420d5e7bced9ce366a72ac3660ce3a7bd5029aeb4a"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.908Z",
+    "updatedAt": "2026-08-19T12:58:18.908Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "把二进制资源的元数据变化对账到会话级的 Runtime Note State。",
+      "detail": "- refreshBinaryRuntimeNoteStateService：比较二进制指纹哈希与存储哈希，仅在文件笔记存在时创建文件级 stale 覆盖。",
+      "aiNotes": [
+        "二进制元数据无法支持 Section 或 Line 检测。"
+      ]
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

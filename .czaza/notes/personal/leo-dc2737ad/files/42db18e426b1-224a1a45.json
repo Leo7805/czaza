@@ -1,0 +1,20 @@
+{
+  "source": {
+    "sourceHash": "sha256:71a0ef8bed3c6c4e5d742d82829e7a1e57414e6670567e4be5bbc3f369eeea6c"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.892Z",
+    "updatedAt": "2026-08-19T12:58:18.892Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "把 VS Code 当前显示的笔记空间以本地快照形式共享给独立的 Agent Notes CLI。",
+      "detail": "- ActiveNotesSelectionRepository：在项目目录之外持久化每个工作区当前选中的 Team 或 Personal 笔记位置，供 CLI 读取而不依赖 VS Code 进程。\n- save：把选择写入唯一的临时文件后 rename 原子替换，避免并发写入互相覆盖。\n- load：读取并校验本地快照，返回有效选择或 undefined。\n- getPath：用工作区根路径的 SHA-256 生成稳定的状态文件路径。",
+      "aiNotes": [
+        "临时文件使用 randomUUID 后缀，否则并发 save 会因 rename 到已消失的临时文件而抛 ENOENT。"
+      ]
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

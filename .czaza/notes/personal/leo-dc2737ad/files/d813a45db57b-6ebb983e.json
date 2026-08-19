@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:4fcb1cf481b5deb38ae2355c9a28d73ce416179f0d92f26a92e6900e364e9c29"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.911Z",
+    "updatedAt": "2026-08-19T12:58:18.911Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "定义源码变更检测产生的内存态笔记状态覆盖。",
+      "detail": "- 定义 RuntimeNoteIssue、RuntimeNoteStateReason 和 RuntimeNoteState 等类型，描述每个资源的 issue、原因、目标变更与坐标。\n- 定义 RuntimeNoteStateChange 与 RuntimeNoteStateListener，供 UI 和生命周期订阅内存态变更。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -14,7 +14,7 @@ import {
   getCzazaRelativePath,
   resolveCzazaRootDirectory,
 } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore, WorkspaceNoteStore } from "@vscode/notes";
 import { getWorkspaceNoteIndexPath } from "@vscode/notes/WorkspaceNoteStoreRepository";
 import { ensureFileNoteResourceAvailability } from "@vscode/services/ensureFileNoteResourceAvailabilityService";
 import {
@@ -49,7 +49,8 @@ import {
   type AllNotesProgress,
 } from "@vscode/services/generateAllNotesService";
 import type { UserNoteTarget } from "@vscode/services/saveUserNoteService";
-import type { NoteStoreLocation } from "@vscode/notes";
+import { TEAM_NOTE_STORE, type NoteStoreLocation } from "@vscode/notes";
+import { getNoteStoreLocationKey } from "@vscode/notes/NoteStoreLocation";
 import {
   createEmailIdentityHash,
   readGitIdentity,
@@ -262,6 +263,7 @@ type SectionNoteDraft = {
 };
 type NoteRelocateSession = {
   uri: vscode.Uri;
+  notes: ScopedWorkspaceNoteStore;
   target:
     | { level: "file"; fromRelativePath: string; managedNotesRelativePath?: string }
     | { level: "section"; sectionId: string; startLine: number; endLine: number }
@@ -299,7 +301,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   private readonly highlightController = new NotesEditorHighlightController();
   private readonly notesTypographyConfigurationListener: vscode.Disposable;
   private readonly runtimeStateRefreshController?: NotesRuntimeStateRefreshController;
-  private readonly runtimeStateDetectionController?: RuntimeNoteStateDetectionController;
   private readonly extensionUri: vscode.Uri;
   private readonly notes: WorkspaceNoteStore;
   private readonly runtimeNoteStateRegistry?: RuntimeNoteStateRegistry;
@@ -387,9 +388,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     this.runtimeNoteStateRegistry = runtimeNoteStateRegistry;
     this.noteScope = noteScope;
     this.personalIdentities = personalIdentities;
-    this.runtimeStateDetectionController = runtimeNoteStateRegistry
-      ? new RuntimeNoteStateDetectionController(notes, runtimeNoteStateRegistry)
-      : undefined;
     this.notesTypographyConfigurationListener = vscode.workspace.onDidChangeConfiguration?.(
       (event) => {
         if (
@@ -411,16 +409,16 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
           getContext: () => this.getRuntimeRefreshContext(),
           detectCurrentResource: async () => {
             if (this.currentResourceUri) {
-              await this.runtimeStateDetectionController?.detectResourceNotes(
+              await this.createRuntimeStateDetectionController(
                 this.currentResourceUri,
-              );
+              )?.detectResourceNotes(this.currentResourceUri);
             }
           },
           detectAllFileNotes: async () => {
             if (this.currentResourceUri) {
-              await this.runtimeStateDetectionController?.detectAllFileNotes(
+              await this.createRuntimeStateDetectionController(
                 this.currentResourceUri,
-              );
+              )?.detectAllFileNotes(this.currentResourceUri);
             }
           },
           reloadCurrentResource: () => this.refreshCurrentNotes(),
@@ -1026,16 +1024,17 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       return;
     }
 
-    const location = await this.noteScope?.resolveLocation(
-      access.root.rootDirectory,
-      access.settings.outputDirectory,
-    );
+    const location = this.noteScope
+      ? await this.noteScope.resolveLocation(
+          access.root.rootDirectory,
+          access.settings.outputDirectory,
+        )
+      : TEAM_NOTE_STORE;
     const storeChanged = !isSameNoteStoreLocation(this.currentStoreLocation, location);
     const payload = await getResourceNotes({
       uri,
-      notes: this.notes,
+      notes: this.scopeNotes(uri, location),
       ...(activeLine ? { activeLine } : {}),
-      ...(location ? { location } : {}),
     });
 
     if (requestVersion !== this.requestVersion) {
@@ -1058,13 +1057,15 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.noteRelocateSession = undefined;
     }
 
-    const visiblePayload = location?.kind === "personal"
-      ? payload
-      : applyRuntimeStateToResourceNotes(payload, this.runtimeNoteStateRegistry?.getState({
+    const visiblePayload = applyRuntimeStateToResourceNotes(
+      payload,
+      this.runtimeNoteStateRegistry?.getState({
         workspaceRoot: access.root.rootDirectory,
         outputDirectory: access.settings.outputDirectory,
+        locationKey: getNoteStoreLocationKey(location ?? TEAM_NOTE_STORE),
         relativePath: access.relativePath,
-      }));
+      }),
+    );
     const resourceChanged = this.currentResourceUri?.toString() !== uri.toString();
     if (resourceChanged) {
       this.sectionNoteDraft = undefined;
@@ -1274,21 +1275,28 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     const payload = await getNavigatorNotes({
       uri: this.currentResourceUri,
-      notes: this.notes,
+      notes: this.currentResourceUri
+        ? this.scopeNotes(this.currentResourceUri)
+        : this.notes,
       selectedSectionId: this.selectedSectionId,
       activeLine,
-      ...(this.currentStoreLocation ? { location: this.currentStoreLocation } : {}),
+      ...(!this.currentResourceUri && this.currentStoreLocation
+        ? { location: this.currentStoreLocation }
+        : {}),
     });
     const access = this.currentResourceUri
       ? evaluateCzazaResourceAccess(this.currentResourceUri)
       : undefined;
     this.currentNavigatorPayload =
-      access?.allowed && this.runtimeNoteStateRegistry && this.currentStoreLocation?.kind !== "personal"
+      access?.allowed && this.runtimeNoteStateRegistry
         ? applyRuntimeStateToNavigatorNotes(
             payload,
             this.runtimeNoteStateRegistry.listStates({
               workspaceRoot: access.root.rootDirectory,
               outputDirectory: access.settings.outputDirectory,
+              locationKey: getNoteStoreLocationKey(
+                this.currentStoreLocation ?? TEAM_NOTE_STORE,
+              ),
             }),
           )
         : payload;
@@ -1345,7 +1353,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       const settings = getCzazaSettings(currentUri);
       const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
       const availability = await ensureFileNoteResourceAvailability({
-        notes: this.notes,
+        notes: this.scopeNotes(currentUri),
         workspaceRoot: rootDirectory,
         outputDirectory: settings.outputDirectory,
         relativePath,
@@ -1399,7 +1407,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       const settings = getCzazaSettings(currentUri);
       const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
       const availability = await ensureFileNoteResourceAvailability({
-        notes: this.notes,
+        notes: this.scopeNotes(currentUri),
         workspaceRoot: rootDirectory,
         outputDirectory: settings.outputDirectory,
         relativePath,
@@ -1755,18 +1763,6 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
 	  }
 
-  /** Reports whether the current resource is using a Personal Store. */
-  private async isPersonalScopeActive(): Promise<boolean> {
-    if (!this.currentResourceUri) return false;
-    const access = evaluateCzazaResourceAccess(this.currentResourceUri);
-    if (!access.allowed) return false;
-    const location = await this.noteScope?.resolveLocation(
-      access.root.rootDirectory,
-      access.settings.outputDirectory,
-    );
-    return location?.kind === "personal";
-  }
-
   /** Saves one non-empty Section draft after confirming its source snapshot is unchanged. */
   private async saveSectionNoteDraft(draft: SectionNoteDraft, userNote: string): Promise<void> {
     if (!userNote.trim()) {
@@ -1788,7 +1784,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       await createUserSectionNoteService({
         document,
-        notes: this.notes,
+        notes: this.scopeNotes(draft.uri, draft.location),
         startLine: draft.startLine,
         endLine: draft.endLine,
         userNote,
@@ -1821,25 +1817,53 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   async resolveCurrentNoteStoreLocation(uri: vscode.Uri): Promise<NoteStoreLocation | undefined> {
     const access = evaluateCzazaResourceAccess(uri);
     if (!access.allowed) return undefined;
-    return this.noteScope?.resolveLocation(
+    return this.noteScope
+      ? this.noteScope.resolveLocation(
+          access.root.rootDirectory,
+          access.settings.outputDirectory,
+        )
+      : TEAM_NOTE_STORE;
+  }
+
+  /**
+   * Creates the mandatory scoped Store used by one Notes UI workflow.
+   *
+   * @param uri - Resource whose CZaza project owns the Notes.
+   * @param location - Optional fixed location captured when the workflow began.
+   * @returns Store bound to the resource project and selected Notes identity.
+   */
+  private scopeNotes(
+    uri: vscode.Uri,
+    location: NoteStoreLocation | undefined = this.currentStoreLocation,
+  ): ScopedWorkspaceNoteStore {
+    const access = evaluateCzazaResourceAccess(uri);
+
+    if (!access.allowed || !location) {
+      throw new Error("The current Team or Personal Note Store could not be resolved.");
+    }
+
+    return this.notes.scope(
       access.root.rootDirectory,
       access.settings.outputDirectory,
+      location,
     );
   }
 
-  /** Stops a Team-only action while Personal Notes are selected. */
-  private async blockPersonalTeamOnlyAction(action: string): Promise<boolean> {
-    if (!(await this.isPersonalScopeActive())) return false;
-    await this.postNotice({
-      tone: "info",
-      title: `${action} Is Available in Team Notes`,
-      message: "Personal Notes currently support viewing and manual user-note editing only.",
-    });
-    return true;
+  /** Creates a Runtime State detector bound to the Notes identity visible in the UI. */
+  private createRuntimeStateDetectionController(
+    uri: vscode.Uri,
+  ): RuntimeNoteStateDetectionController | undefined {
+    if (!this.runtimeNoteStateRegistry) {
+      return undefined;
+    }
+
+    return new RuntimeNoteStateDetectionController(
+      this.scopeNotes(uri),
+      this.runtimeNoteStateRegistry,
+    );
   }
 
   private async runClearNoteStaleStatus(target: UserNoteTarget): Promise<void> {
-	    if (await this.blockPersonalTeamOnlyAction("Status Updates")) return;
 	    const uri = this.currentResourceUri;
 
 	    if (
@@ -1966,21 +1990,40 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     target: UserNoteTarget,
   ): Promise<boolean> {
     if (!this.runtimeNoteStateRegistry) {
-      return clearNoteStaleStatusService({ uri, notes: this.notes, target });
+      return clearNoteStaleStatusService({ uri, notes: this.scopeNotes(uri), target });
     }
 
     const result = await confirmRuntimeNoteStaleStatusService({
       uri,
-      notes: this.notes,
+      notes: this.scopeNotes(uri),
       registry: this.runtimeNoteStateRegistry,
       target,
     });
 
     if (result.kind === "notRuntime") {
-      return clearNoteStaleStatusService({ uri, notes: this.notes, target });
+      return clearNoteStaleStatusService({ uri, notes: this.scopeNotes(uri), target });
     }
 
-    return result.kind === "confirmed" || result.kind === "outdated";
+    if (result.kind === "confirmed" || result.kind === "outdated") {
+      return true;
+    }
+
+    if (result.kind === "notConfirmable") {
+      await this.postNotice({
+        tone: "info",
+        title: "Already Up to Date",
+        message: "This note's content is already current.",
+      });
+      return false;
+    }
+
+    await this.postNotice({
+      tone: "warning",
+      title: "Could Not Mark Reviewed",
+      message:
+        "This note's anchor no longer matches the current source. Relocate it before marking reviewed.",
+    });
+    return false;
   }
 
   private async viewNavigatorFileNotes(
@@ -2003,9 +2046,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
       const payload = await getStoredNavigatorFileNotes({
         currentUri,
-        notes: this.notes,
+        notes: this.scopeNotes(currentUri),
         relativePath,
-        ...(this.currentStoreLocation ? { location: this.currentStoreLocation } : {}),
       });
 
       this.currentResourceUri = targetUri;
@@ -2045,7 +2087,27 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
             managedNotesRelativePath: this.getManagedNotesRelativePath(uri),
           }
         : target;
-    this.noteRelocateSession = { uri, target: sessionTarget };
+    const access = evaluateCzazaResourceAccess(uri);
+    const location = this.currentStoreLocation;
+
+    if (!access.allowed || !location) {
+      await this.postNotice({
+        tone: "error",
+        title: "Relocate Note Failed",
+        message: "The current Team or Personal Note Store could not be resolved.",
+      });
+      return;
+    }
+
+    this.noteRelocateSession = {
+      uri,
+      notes: this.notes.scope(
+        access.root.rootDirectory,
+        access.settings.outputDirectory,
+        location,
+      ),
+      target: sessionTarget,
+    };
     await this.view.webview.postMessage({
       type: "openNoteRelocate",
       target: sessionTarget,
@@ -2092,12 +2154,14 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       const result = await relocateFileNoteService({
         currentUri: session.uri,
-        notes: this.notes,
+        notes: session.notes,
         fromRelativePath,
         toRelativePath,
       });
       this.noteRelocateSession = undefined;
-      await this.runtimeStateDetectionController?.detectResourceNotes(result.targetUri);
+      await this.createRuntimeStateDetectionController(result.targetUri)?.detectResourceNotes(
+        result.targetUri,
+      );
       await this.loadNavigatorNotes();
       await this.view?.webview.postMessage({ type: "noteRelocated" });
 
@@ -2131,13 +2195,15 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       await relocateSectionNoteService({
         uri: session.uri,
-        notes: this.notes,
+        notes: session.notes,
         sectionId,
         startLine,
         endLine,
       });
       this.noteRelocateSession = undefined;
-      await this.runtimeStateDetectionController?.detectResourceNotes(session.uri);
+      await this.createRuntimeStateDetectionController(
+        session.uri,
+      )?.detectResourceNotes(session.uri);
       await this.loadResourceNotes(session.uri, false, getActiveLine(session.uri));
       await this.view?.webview.postMessage({ type: "noteRelocated" });
     } catch (error) {
@@ -2159,12 +2225,14 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       await relocateLineNoteService({
         uri: session.uri,
-        notes: this.notes,
+        notes: session.notes,
         lineId,
         line,
       });
       this.noteRelocateSession = undefined;
-      await this.runtimeStateDetectionController?.detectResourceNotes(session.uri);
+      await this.createRuntimeStateDetectionController(
+        session.uri,
+      )?.detectResourceNotes(session.uri);
       await this.loadResourceNotes(session.uri, false, getActiveLine(session.uri));
       await this.view?.webview.postMessage({ type: "noteRelocated" });
     } catch (error) {
@@ -2186,7 +2254,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       const changed = await markNavigatorFileNoteOrphanedService({
         currentUri,
-        notes: this.notes,
+        notes: this.scopeNotes(currentUri),
         relativePath,
       });
 
@@ -2213,7 +2281,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       const changed = await deleteNavigatorFileNotesService({
         currentUri,
-        notes: this.notes,
+        notes: this.scopeNotes(currentUri),
         relativePath,
       });
 
@@ -2243,7 +2311,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       await deleteNavigatorSectionNoteService({
         currentUri,
-        notes: this.notes,
+        notes: this.scopeNotes(currentUri),
         sectionId,
       });
       await this.refreshCurrentNotes(currentUri);
@@ -2267,7 +2335,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       await deleteNavigatorLineNoteService({
         currentUri,
-        notes: this.notes,
+        notes: this.scopeNotes(currentUri),
         lineId,
       });
       await this.refreshCurrentNotes(currentUri);

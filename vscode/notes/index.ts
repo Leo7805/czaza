@@ -3,6 +3,7 @@
  */
 
 export { WorkspaceNoteStore } from "./WorkspaceNoteStore";
+export { ScopedWorkspaceNoteStore } from "./ScopedWorkspaceNoteStore";
 export { WorkspaceNoteStoreRepository } from "./WorkspaceNoteStoreRepository";
 export { TEAM_NOTE_STORE, type NoteStoreLocation } from "./NoteStoreLocation";
 export {

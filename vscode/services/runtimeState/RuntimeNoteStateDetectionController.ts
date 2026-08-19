@@ -8,7 +8,7 @@ import * as vscode from "vscode";
 
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
 
 import {
@@ -55,7 +55,7 @@ export type AllFileNotesDetectionResult = {
  * await controller.detectCurrentFileNotes(document);
  */
 export class RuntimeNoteStateDetectionController {
-  private readonly notes: WorkspaceNoteStore;
+  private readonly notes: ScopedWorkspaceNoteStore;
   private readonly registry: RuntimeNoteStateRegistry;
   private readonly now: () => string;
 
@@ -67,7 +67,7 @@ export class RuntimeNoteStateDetectionController {
    * @param now - Optional timestamp factory for deterministic tests.
    */
   constructor(
-    notes: WorkspaceNoteStore,
+    notes: ScopedWorkspaceNoteStore,
     registry: RuntimeNoteStateRegistry,
     now: () => string = () => new Date().toISOString(),
   ) {

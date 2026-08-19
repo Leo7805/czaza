@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:0ac1c421bf6a3ac3e1858090f1a42cd6ad8a566d3222cad62db995a85791a2bf"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T10:03:05.723Z",
+    "updatedAt": "2026-08-19T10:03:05.723Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这个类把所有 Note Store 管理器绑定到一个项目和一个 Team 或 Personal 身份。",
+      "detail": "- ScopedWorkspaceNoteStore：复用根 Store 的仓库和缓存，同时让各管理器使用已绑定身份的缓存。\n- scope：拒绝把正在执行的工作流重新绑定到其他项目、输出目录或笔记身份。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

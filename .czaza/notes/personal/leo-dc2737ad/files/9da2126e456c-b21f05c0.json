@@ -1,0 +1,20 @@
+{
+  "source": {
+    "sourceHash": "sha256:fa21fa75908347252884c36346b148e6d1fccdd235b856a3637974a7b5f3e5a5"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.906Z",
+    "updatedAt": "2026-08-19T12:58:18.906Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "在重新校验当前源码后确认一条过时的 Runtime 笔记目标。",
+      "detail": "- confirmRuntimeNoteStaleStatusService：校验访问与指纹后，把过时目标的 content 状态恢复为 current，并为 confirmed 锚点重算哈希或锚点文本。\n- findTargetChange：在 Runtime State 中定位 WebView 选中的目标。\n- reconcileConfirmedRuntimeTarget：只移除已确认的 stale 维度，保留位置复核状态。",
+      "aiNotes": [
+        "二进制资源只确认文件级 stale，不写 Section/Line。"
+      ]
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

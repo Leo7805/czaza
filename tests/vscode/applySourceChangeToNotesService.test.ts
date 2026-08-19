@@ -51,7 +51,7 @@ vi.mock("vscode", () => ({
 }));
 
 import { applySourceChangeToNotesService } from "@vscode/services/noteRelocation/sourceChanges/applySourceChangeToNotesService";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 
 describe("applySourceChangeToNotesService()", () => {
   beforeEach(() => {
@@ -87,6 +87,47 @@ describe("applySourceChangeToNotesService()", () => {
           sourceHash: createSourceHash(nextText),
           programmingLanguage: "typescript",
         },
+      }),
+      "2026-07-18T00:00:00.000Z",
+      { canPersist: expect.any(Function) },
+    );
+  });
+
+  it("moves a Personal Line Note down by two inserted lines", async () => {
+    const workspaceRoot = await createTempWorkspaceRoot("personal-two-lines");
+    const previousText = "export const value = 1;\n";
+    const nextText = `\n\n${previousText}`;
+    const location = { kind: "personal" as const, memberId: "leo-12345678" };
+    const notes = createNotes(createStoredSourceFile(previousText), location);
+
+    mocks.workspaceFolders.push(createWorkspaceFolder(workspaceRoot));
+
+    const result = await applySourceChangeToNotesService({
+      document: createDocument(path.join(workspaceRoot, "src/index.ts"), nextText),
+      change: {
+        kind: "splice",
+        splice: {
+          startLine: 0,
+          startCharacter: 0,
+          endLine: 0,
+          endCharacter: 0,
+          insertedLineCount: 2,
+          deletedLineCount: 0,
+          lineDelta: 2,
+          isLineBreakInsertion: true,
+        },
+      },
+      notes: notes.value,
+      now: "2026-07-18T00:00:00.000Z",
+    });
+
+    expect(result.kind).toBe("updated");
+    expect(notes.saveSourceFile).toHaveBeenCalledWith(
+      workspaceRoot,
+      ".caca",
+      "src/index.ts",
+      expect.objectContaining({
+        lineNotes: [expect.objectContaining({ line: 3 })],
       }),
       "2026-07-18T00:00:00.000Z",
       { canPersist: expect.any(Function) },
@@ -186,19 +227,25 @@ function createSpliceChange() {
  * @param sourceFile - Stored source bundle returned by the mock cache.
  * @returns Mock Note store and its save spy.
  */
-function createNotes(sourceFile: StoredSourceFile | undefined): {
-  value: WorkspaceNoteStore;
+function createNotes(
+  sourceFile: StoredSourceFile | undefined,
+  location: ScopedWorkspaceNoteStore["location"] = { kind: "team" },
+): {
+  value: ScopedWorkspaceNoteStore;
   saveSourceFile: ReturnType<typeof vi.fn>;
 } {
   const saveSourceFile = vi.fn().mockResolvedValue(undefined);
 
   return {
     value: {
+      workspaceRoot: "/workspace",
+      outputDirectory: ".caca",
+      location,
       cache: {
         getSourceFile: vi.fn().mockResolvedValue(sourceFile),
         saveSourceFile,
       },
-    } as unknown as WorkspaceNoteStore,
+    } as unknown as ScopedWorkspaceNoteStore,
     saveSourceFile,
   };
 }

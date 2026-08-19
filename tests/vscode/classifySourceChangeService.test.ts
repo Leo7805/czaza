@@ -191,7 +191,6 @@ describe("classifySourceChangeBatch()", () => {
     }
 
     expect(result.splices.map((splice) => splice.startLine)).toEqual([10, 2]);
-    expect(result.requiresConfirmation).toBe(false);
   });
 
   it("keeps same-position insertions deterministic", () => {
@@ -218,7 +217,6 @@ describe("classifySourceChangeBatch()", () => {
 
     expect(result).toMatchObject({
       kind: "splices",
-      requiresConfirmation: false,
     });
   });
 

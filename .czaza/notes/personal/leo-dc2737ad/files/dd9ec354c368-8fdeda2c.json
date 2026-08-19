@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:ae1ed94eb1fa64668f80da8c9ce9d004678961b156abc9a67e20cc717defdf63"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T09:15:26.999Z",
+    "updatedAt": "2026-08-19T09:15:26.999Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这些测试验证共享 Runtime State 检测能够正确路由资源和笔记位置。",
+      "detail": "- RuntimeNoteStateDetectionController 测试：覆盖当前文件路由、个人笔记位置传递和索引文件笔记检查。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

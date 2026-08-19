@@ -2,7 +2,7 @@
 
 ## Active Goal
 
-Plan the next CZaza workflow: enable an AI Agent to keep affected CZaza Notes semantically current after it changes project code.
+Keep Team and Personal Notes operations bound to the identity selected for the current workflow.
 
 ## Status
 
@@ -10,16 +10,17 @@ Plan the next CZaza workflow: enable an AI Agent to keep affected CZaza Notes se
 
 - The Runtime State source-change architecture and Git decoupling are implemented and validated.
 - Project-level Architecture Notes were moved from CZaza to the standalone `lj-arch` Skill.
+- Interactive Notes reads, writes, relocation, and Runtime State checks now use one project-and-identity-scoped Note Store.
+- Consecutive deterministic edits retain the selected Personal Store and update Line Note coordinates through the serialized document queue.
 
 ### In Progress
 
-- Maintain the completed Runtime State architecture and investigate any follow-up regression coverage.
+- Validate the scoped Note Store migration and update affected CZaza Notes.
 
 ### Next Step
 
-- Define the interfaces or Skill through which an AI Agent can identify CZaza Notes affected by its code changes, read the necessary context, and propose or apply Note updates.
-- Decide the update policy: which Note changes are automatic, which require user confirmation, and how the result remains consistent and traceable.
-- Keep this semantic Note-maintenance workflow separate from Runtime State, which handles safe source-location and status changes after code changes.
+- Manually verify Personal Line Note relocation in an Extension Development Host.
+- Keep semantic AI Note maintenance separate from Runtime State, which handles safe source-location and status changes after code changes.
 
 ### Future Improvements
 
@@ -33,6 +34,9 @@ Plan the next CZaza workflow: enable an AI Agent to keep affected CZaza Notes se
 - CZaza no longer initializes or manages project-level Architecture Notes.
 - Existing user-generated `.czaza/architecture-notes/` directories remain user data and must not be deleted.
 - Runtime State Registry, read-only detection, passive checks, Detail/Navigator status overlays, Clear Stale, manual Relocate, deterministic relocation, and Undo/Redo history are implemented.
+- Runtime State coordinates include the Note Store location key, so identical source paths in Team and Personal Notes cannot overwrite each other's session state.
+- `WorkspaceNoteStore.scope(...)` binds a workflow to one project, output directory, and Team or Personal location; its cache rejects cross-identity access.
+- Personal Notes support scoped stale-status confirmation and no longer use the old view-and-manual-edit-only UI restriction.
 - VS Code document changes that are non-deterministic or non-dirty now refresh session-only Runtime State without mutating persisted Notes; deterministic dirty relocation remains immediate.
 - Text-file watcher changes now share the per-document queue with VS Code events and refresh Runtime State without mutating persisted Notes.
 - Binary watcher changes now compare metadata hashes and expose File stale Runtime State without mutating persisted Notes.

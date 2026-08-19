@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:6ce4bcbb6abd5444ed063aa3bc97bcbc48db0fc257d9a2c303d6b7241931c667"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.897Z",
+    "updatedAt": "2026-08-19T12:58:18.897Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "注册文件重命名和删除事件，让笔记资源锚点随文件变化保持同步。",
+      "detail": "- registerNotesResourceEvents：订阅 onWillDeleteFiles、onDidRenameFiles 和 onDidDeleteFiles，并在身份变化时清理重定位历史。\n- handleRename：校验访问后把资源下的笔记条目移动到新路径，并同步移动 Runtime State。\n- handleDelete：校验访问后把资源下的笔记条目标记为已删除，并清除对应的 Runtime State。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

@@ -10,6 +10,8 @@ import { WorkspaceNoteSourceIndexManager } from "./WorkspaceNoteSourceIndexManag
 import { WorkspaceNoteStoreCache } from "./WorkspaceNoteStoreCache";
 import { WorkspaceNoteStoreRepository } from "./WorkspaceNoteStoreRepository";
 import { WorkspaceNoteUpdateManager } from "./WorkspaceNoteUpdateManager";
+import { ScopedWorkspaceNoteStore } from "./ScopedWorkspaceNoteStore";
+import type { NoteStoreLocation } from "./NoteStoreLocation";
 
 /**
  * Root workspace note store container.
@@ -60,5 +62,21 @@ export class WorkspaceNoteStore {
     this.resources = new WorkspaceNoteResourceManager(this.cache);
     this.sourceIndex = new WorkspaceNoteSourceIndexManager(this.cache);
     this.update = new WorkspaceNoteUpdateManager(this.cache);
+  }
+
+  /**
+   * Binds every Note operation in one workflow to an exact project and Store identity.
+   *
+   * @param workspaceRoot - Absolute CZaza project root.
+   * @param outputDirectory - Project-relative CZaza output directory.
+   * @param location - Team or Personal Note Store selected for the workflow.
+   * @returns Scoped Store sharing this root Store's repository and caches.
+   */
+  scope(
+    workspaceRoot: string,
+    outputDirectory: string,
+    location: NoteStoreLocation,
+  ): ScopedWorkspaceNoteStore {
+    return new ScopedWorkspaceNoteStore(this, workspaceRoot, outputDirectory, location);
   }
 }

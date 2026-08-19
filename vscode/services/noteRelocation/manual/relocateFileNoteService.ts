@@ -10,7 +10,7 @@ import {
 } from "@shared/utils/managedOutputPath";
 import { getCzazaSettings } from "@vscode/config/czazaSettings";
 import { resolveCzazaRootDirectory } from "@vscode/config/resolveCzazaRootDirectory";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
 import * as vscode from "vscode";
 
 /** Successful file-note relocation result. */
@@ -26,7 +26,7 @@ export type RelocateFileNoteInput = {
   currentUri: vscode.Uri;
 
   /** Shared workspace note store. */
-  notes: WorkspaceNoteStore;
+  notes: ScopedWorkspaceNoteStore;
 
   /** Existing CZaza-root-relative source path. */
   fromRelativePath: string;

@@ -17,7 +17,16 @@ import { generateLineNoteForResource } from "./services/generateLineNoteService"
 import { generateLineBatchNotesForResource } from "./services/generateLineBatchNoteService";
 import { generateSectionNoteForResource } from "./services/generateSectionNoteService";
 import { saveUserNoteService } from "./services/saveUserNoteService";
-import { WorkspaceNoteStore } from "./notes";
+import {
+  TEAM_NOTE_STORE,
+  WorkspaceNoteStore,
+  type NoteStoreLocation,
+  type ScopedWorkspaceNoteStore,
+} from "./notes";
+import {
+  resolveCzazaRootDirectory,
+} from "./config/resolveCzazaRootDirectory";
+import { getCzazaSettings } from "./config/czazaSettings";
 import { NotesViewProvider } from "./notesUi/NotesViewProvider";
 import { registerNotesUi } from "./notesUi/registerNotesUi";
 import {
@@ -53,12 +62,12 @@ export function activate(context: vscode.ExtensionContext): void {
   const notesProvider = new NotesViewProvider(
     context.extensionUri,
     notes,
-    (uri, location) => generateFileNotesForResource(context, notes, uri, location),
-    (uri, target, userNote, location) => saveUserNoteService({ uri, notes, target, userNote, location }),
-    (uri, location, options) => generateAllNotesForResource(context, notes, uri, location, options),
-    (uri, lineNumber, location) => generateLineNoteForResource(context, notes, uri, lineNumber, location),
-    (uri, sectionId, location) => generateSectionNoteForResource(context, notes, uri, sectionId, location),
-    (uri, lineNumber, location) => generateLineBatchNotesForResource(context, notes, uri, lineNumber, location),
+    (uri, location) => generateFileNotesForResource(context, scopeNotes(notes, uri, location), uri),
+    (uri, target, userNote, location) => saveUserNoteService({ uri, notes: scopeNotes(notes, uri, location), target, userNote }),
+    (uri, location, options) => generateAllNotesForResource(context, scopeNotes(notes, uri, location), uri, undefined, options),
+    (uri, lineNumber, location) => generateLineNoteForResource(context, scopeNotes(notes, uri, location), uri, lineNumber),
+    (uri, sectionId, location) => generateSectionNoteForResource(context, scopeNotes(notes, uri, location), uri, sectionId),
+    (uri, lineNumber, location) => generateLineBatchNotesForResource(context, scopeNotes(notes, uri, location), uri, lineNumber),
     runtimeNoteStateRegistry,
     noteScope,
     personalIdentities,
@@ -88,7 +97,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // ---------------------------------------------------------------------------
 
   registerNotesPreviewEvents(context, notesProvider);
-  registerPassiveRuntimeNoteChecks(context, notes, runtimeNoteStateRegistry);
+  registerPassiveRuntimeNoteChecks(context, notes, runtimeNoteStateRegistry, noteScope);
   registerNotesContentEvents(
     context,
     notes,
@@ -96,6 +105,7 @@ export function activate(context: vscode.ExtensionContext): void {
     runtimeNoteStateRegistry,
     sourceRelocationHistory,
     changeTaskCoordinator,
+    noteScope,
   );
   registerNotesResourceEvents(
     context,
@@ -112,3 +122,21 @@ export function activate(context: vscode.ExtensionContext): void {
  * Deactivates the CZaza VS Code extension.
  */
 export function deactivate() {}
+
+/**
+ * Binds one extension workflow to the selected Team or Personal Note Store.
+ *
+ * @param notes - Root Store that owns shared caches.
+ * @param uri - Resource used to resolve the CZaza project.
+ * @param location - Selected Store location, defaulting explicitly at this compatibility boundary.
+ * @returns Scoped Store for the resource project and location.
+ */
+function scopeNotes(
+  notes: WorkspaceNoteStore,
+  uri: vscode.Uri,
+  location?: NoteStoreLocation,
+): ScopedWorkspaceNoteStore {
+  const { rootDirectory } = resolveCzazaRootDirectory(uri);
+  const { outputDirectory } = getCzazaSettings(uri);
+  return notes.scope(rootDirectory, outputDirectory, location ?? TEAM_NOTE_STORE);
+}

@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:c113aecceeaf8eea8a6e7f957b5d46104b66bc07192ea5cdb772e9935731d0d2"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.901Z",
+    "updatedAt": "2026-08-19T12:58:18.901Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "把一条行笔记重定位到用户确认的源码行。",
+      "detail": "- relocateLineNoteService：校验文本指纹与目标行后，原子地更新行号、锚点文本和锚点状态，并拒绝目标行已有其他行笔记的情况。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

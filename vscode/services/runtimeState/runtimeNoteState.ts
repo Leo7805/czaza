@@ -58,6 +58,7 @@ export type RuntimeNoteTargetChange =
 export type RuntimeNoteState = {
   workspaceRoot: string;
   outputDirectory: string;
+  locationKey?: string;
   relativePath: string;
   currentSourceHash?: string;
   issues: readonly RuntimeNoteIssue[];
@@ -71,6 +72,7 @@ export type RuntimeNoteState = {
 export type RuntimeNoteStateCoordinates = {
   workspaceRoot: string;
   outputDirectory: string;
+  locationKey?: string;
   relativePath: string;
 };
 
@@ -78,6 +80,7 @@ export type RuntimeNoteStateCoordinates = {
 export type RuntimeNoteStateScope = {
   workspaceRoot: string;
   outputDirectory: string;
+  locationKey?: string;
 };
 
 /** Runtime registry mutation reported to UI or lifecycle consumers. */

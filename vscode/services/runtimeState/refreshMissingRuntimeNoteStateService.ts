@@ -4,7 +4,8 @@
 
 import type * as vscode from "vscode";
 
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
+import { getNoteStoreLocationKey } from "@vscode/notes/NoteStoreLocation";
 import {
   evaluateCzazaResourceAccess,
   type CzazaResourceAccessDenialReason,
@@ -42,7 +43,7 @@ export type RefreshMissingRuntimeNoteStateResult =
  */
 export async function refreshMissingRuntimeNoteStateService(input: {
   uri: vscode.Uri;
-  notes: WorkspaceNoteStore;
+  notes: ScopedWorkspaceNoteStore;
   registry: RuntimeNoteStateRegistry;
   now: string;
 }): Promise<RefreshMissingRuntimeNoteStateResult> {
@@ -59,6 +60,7 @@ export async function refreshMissingRuntimeNoteStateService(input: {
   const coordinates = {
     workspaceRoot: access.root.rootDirectory,
     outputDirectory: access.settings.outputDirectory,
+    locationKey: getNoteStoreLocationKey(input.notes.location),
     relativePath: access.relativePath,
   };
   const sourceFile = await input.notes.cache.getSourceFile(

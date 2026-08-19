@@ -17,6 +17,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("vscode", () => ({
   workspace: {
+    getWorkspaceFolder: () => ({
+      uri: { fsPath: "/workspace" },
+      name: "workspace",
+      index: 0,
+    }),
+    getConfiguration: () => ({
+      get: <T>(_key: string, defaultValue: T): T => defaultValue,
+    }),
     onDidOpenTextDocument: (listener: OpenDocumentListener) => {
       mocks.openListeners.push(listener);
       return { dispose: vi.fn() };
@@ -35,6 +43,15 @@ vi.mock("vscode", () => ({
 
 vi.mock("@vscode/services/runtimeState", () => ({
   passiveRuntimeNoteCheckService: mocks.passiveCheck,
+}));
+
+vi.mock("@vscode/services/resourceAccess", () => ({
+  evaluateCzazaResourceAccess: () => ({
+    allowed: true,
+    relativePath: "src/index.ts",
+    root: { rootDirectory: "/workspace" },
+    settings: { outputDirectory: ".czaza" },
+  }),
 }));
 
 import type { WorkspaceNoteStore } from "@vscode/notes";
@@ -178,7 +195,13 @@ function createContext(): vscodeTypes.ExtensionContext {
  * @returns Mock shared Note Store.
  */
 function createNotes(): WorkspaceNoteStore {
-  return {} as WorkspaceNoteStore;
+  const notes = {} as WorkspaceNoteStore;
+  notes.scope = vi.fn((workspaceRoot, outputDirectory, location) => ({
+    workspaceRoot,
+    outputDirectory,
+    location,
+  })) as unknown as WorkspaceNoteStore["scope"];
+  return notes;
 }
 
 /**

@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:ef057708ad87cacfe6f7d8f059f31f0f1a2244d0a6b462e43286e31dbb48421e"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.894Z",
+    "updatedAt": "2026-08-19T12:58:18.894Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "集中导出工作区 Note Store 的公共 API。",
+      "detail": "- 导出 WorkspaceNoteStore、ScopedWorkspaceNoteStore 和 WorkspaceNoteStoreRepository。\n- 再导出 TEAM_NOTE_STORE、NoteStoreLocation、WorkspaceNoteResourceManager 及其结果类型。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

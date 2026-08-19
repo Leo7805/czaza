@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:6dac4045188ba5fc25b991a7b9316a2a9869b0f9e9ce4b7089eb09271d5152fe"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T09:15:26.996Z",
+    "updatedAt": "2026-08-19T09:15:26.996Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "这些测试验证确定性源码修改会应用到正确的笔记空间。",
+      "detail": "- applySourceChangeToNotesService 测试：覆盖保存保护、非确定性修改、未跟踪文件，以及插入两行后个人行笔记向下移动两行。"
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

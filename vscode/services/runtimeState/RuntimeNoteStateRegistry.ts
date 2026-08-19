@@ -246,7 +246,7 @@ export class RuntimeNoteStateRegistry {
  */
 function createScopeKey(scope: RuntimeNoteStateScope): string {
   const normalized = normalizeScope(scope);
-  return `${normalized.workspaceRoot}\u0000${normalized.outputDirectory}`;
+  return `${normalized.workspaceRoot}\u0000${normalized.outputDirectory}\u0000${normalized.locationKey}`;
 }
 
 /**
@@ -269,6 +269,7 @@ function normalizeScope(scope: RuntimeNoteStateScope): RuntimeNoteStateScope {
   return {
     workspaceRoot: path.resolve(scope.workspaceRoot),
     outputDirectory: normalizeRelativePath(scope.outputDirectory),
+    locationKey: scope.locationKey ?? "notes/team",
   };
 }
 

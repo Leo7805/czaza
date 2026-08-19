@@ -16,7 +16,8 @@ import {
   updateSectionNoteStatus,
 } from "@shared/services/notes/noteStatusService";
 import { createSourceHash } from "@shared/utils/hashUtils";
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
+import { getNoteStoreLocationKey } from "@vscode/notes/NoteStoreLocation";
 import { getResourceFingerprint } from "@vscode/services/resourceFingerprint/getResourceFingerprintService";
 import {
   evaluateCzazaResourceAccess,
@@ -46,7 +47,7 @@ export type ConfirmRuntimeNoteStaleStatusInput = {
   uri: vscode.Uri;
 
   /** Shared persistent Note Store. */
-  notes: WorkspaceNoteStore;
+  notes: ScopedWorkspaceNoteStore;
 
   /** Shared session-only Runtime State registry. */
   registry: RuntimeNoteStateRegistry;
@@ -73,6 +74,7 @@ export async function confirmRuntimeNoteStaleStatusService(
   const coordinates = {
     workspaceRoot: access.root.rootDirectory,
     outputDirectory: access.settings.outputDirectory,
+    locationKey: getNoteStoreLocationKey(input.notes.location),
     relativePath: access.relativePath,
   };
   const state = input.registry.getState(coordinates);

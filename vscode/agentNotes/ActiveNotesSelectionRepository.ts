@@ -2,7 +2,7 @@
  * Shares the Notes space currently displayed by VS Code with the standalone Agent Notes CLI.
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -50,7 +50,7 @@ export class ActiveNotesSelectionRepository {
       updatedAt: new Date().toISOString(),
     };
     const target = this.getPath(workspaceRoot);
-    const temporary = `${target}.${process.pid}.tmp`;
+    const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`;
     await mkdir(this.stateDirectory, { recursive: true });
     await writeFile(temporary, `${JSON.stringify(selection, null, 2)}\n`, "utf8");
     await rename(temporary, target);

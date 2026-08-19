@@ -67,8 +67,6 @@ export type ClassifiedSourceChangeBatch =
       /** Valid non-overlapping splices ordered for deterministic application. */
       kind: "splices";
       splices: SourceChangeSplice[];
-      /** Whether the classified batch contains a known anchor ambiguity. */
-      requiresConfirmation: boolean;
     }
   | {
       /** The complete event must fall back to the recovery mechanism. */
@@ -142,7 +140,6 @@ export function classifySourceChangeBatch(
   return {
     kind: "splices",
     splices: sortSourceChangesForApplication(splices),
-    requiresConfirmation: false,
   };
 }
 

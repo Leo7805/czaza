@@ -2,7 +2,8 @@
  * Reconciles binary resource metadata changes with session-only Runtime Note State.
  */
 
-import type { WorkspaceNoteStore } from "@vscode/notes";
+import type { ScopedWorkspaceNoteStore } from "@vscode/notes";
+import { getNoteStoreLocationKey } from "@vscode/notes/NoteStoreLocation";
 import {
   evaluateCzazaResourceAccess,
   type CzazaResourceAccessDenialReason,
@@ -25,7 +26,7 @@ export type RefreshBinaryRuntimeNoteStateInput = {
   currentSourceHash: string;
 
   /** Shared persistent Note Store used only for reads. */
-  notes: WorkspaceNoteStore;
+  notes: ScopedWorkspaceNoteStore;
 
   /** Session-only registry receiving the detected state. */
   registry: RuntimeNoteStateRegistry;
@@ -85,6 +86,7 @@ export async function refreshBinaryRuntimeNoteStateService(
   const coordinates = {
     workspaceRoot: access.root.rootDirectory,
     outputDirectory: access.settings.outputDirectory,
+    locationKey: getNoteStoreLocationKey(input.notes.location),
     relativePath: access.relativePath,
   };
   const sourceFile = await input.notes.cache.getSourceFile(

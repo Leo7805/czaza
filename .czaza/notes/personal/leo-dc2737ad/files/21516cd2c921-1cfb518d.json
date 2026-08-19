@@ -1,0 +1,20 @@
+{
+  "source": {
+    "sourceHash": "sha256:eced1f11176667768b839067fcbad476a82059d9cb449a3d108ecb00cc578184"
+  },
+  "defaults": {
+    "createdAt": "2026-08-19T12:58:18.905Z",
+    "updatedAt": "2026-08-19T12:58:18.905Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "把简单的 VS Code 源码变更分类为确定性的笔记重定位更新。",
+      "detail": "- classifySourceChange：把单个内容变更分类为一个 splice 或 unsupported。\n- classifySourceChangeBatch：把一次事件的所有内容变更作为原子批次归一化、排序并校验重叠。\n- classifySourceContentChange：计算插入/删除行数并构造 splice，标记纯回车插入。\n- isLineBreakInsertion：识别只含一个换行和可选缩进的回车操作。",
+      "aiNotes": [
+        "同一位置的多行插入保持确定性；重叠替换会回退到 unsupported。"
+      ]
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}
