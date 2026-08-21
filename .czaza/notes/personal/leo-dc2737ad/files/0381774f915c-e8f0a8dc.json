@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:311a9cf9049b6c51c282cafb0d25a77298ef6f12c3259335406beeadd7c0799f"
+    "sourceHash": "sha256:219831c578b4b3d49b18a007a92a7b22d1b1fc862f857f8f35861892d8edc691"
   },
   "defaults": {
     "createdAt": "2026-08-14T01:32:08.214Z",
-    "updatedAt": "2026-08-18T11:09:02.215Z"
+    "updatedAt": "2026-08-21T00:57:27.766Z"
   },
   "fileNote": {
     "aiExplanation": {
-      "summary": "This file verifies NotesViewProvider UI behavior, Store-aware actions, and Section draft lifecycle.",
-      "detail": "- Section draft tests: Confirm a new range is shown without persistence, cancellation writes nothing, and non-empty save invokes Section creation.\n- Existing provider tests: Cover resource rendering, navigation, Runtime State, relocation, AI generation, and Team or Personal Store forwarding."
+      "summary": "This file verifies NotesViewProvider UI behavior, active-resource routing, Store-aware actions, and Note lifecycle workflows.",
+      "detail": "- Toolbar context tests: Confirm both Detail and Navigator rebind Project Notes state to the active file and cursor line.\n- Provider behavior tests: Cover resource rendering, navigation, Runtime State, relocation, AI generation, and Team or Personal Store forwarding.\n- Section draft tests: Confirm draft display, cancellation, and non-empty persistence behavior."
     }
   },
   "sectionNotes": {},

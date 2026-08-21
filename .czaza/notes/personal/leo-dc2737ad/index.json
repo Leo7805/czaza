@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-21T00:41:12.431Z",
+  "updatedAt": "2026-08-21T00:57:27.768Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "vscode/agentNotes/agentNoteTypes.ts": {
@@ -53,8 +53,8 @@
     },
     "tests/vscode/NotesViewProvider.test.ts": {
       "noteFile": "files/0381774f915c-e8f0a8dc.json",
-      "sourceHash": "sha256:311a9cf9049b6c51c282cafb0d25a77298ef6f12c3259335406beeadd7c0799f",
-      "updatedAt": "2026-08-18T11:09:02.215Z"
+      "sourceHash": "sha256:219831c578b4b3d49b18a007a92a7b22d1b1fc862f857f8f35861892d8edc691",
+      "updatedAt": "2026-08-21T00:57:27.766Z"
     },
     "tests/vscode/generateAllNotesService.test.ts": {
       "noteFile": "files/ac8346e8d2d4-b982f674.json",
@@ -88,8 +88,8 @@
     },
     "vscode/notesUi/NotesViewProvider.ts": {
       "noteFile": "files/1069afe2ab26-5ec870ce.json",
-      "sourceHash": "sha256:912e3e7e9e84315e5924fc2b8d22ea27dc7c73fc785ec65e6051cfd2eb3775aa",
-      "updatedAt": "2026-08-19T11:06:13.797Z"
+      "sourceHash": "sha256:aaaaf9c179139bcd950ac07e508c6c855052b2ac602199f40f0ec99cf13355e5",
+      "updatedAt": "2026-08-21T00:57:27.759Z"
     },
     "vscode/services/generateAllNotesService.ts": {
       "noteFile": "files/bc059f1ca821-d1d9eabc.json",
@@ -278,13 +278,13 @@
     },
     "vscode/notesUi/registerNotesUi.ts": {
       "noteFile": "files/7e891fd71695-f629eb5e.json",
-      "sourceHash": "sha256:9b3831c845bb61a03b0709e1e2cb0a9697d7815c81382d3c042925ccffa44216",
-      "updatedAt": "2026-08-21T00:29:38.962Z"
+      "sourceHash": "sha256:d12aceb43cc67bff1a93b7caed65ad8634ab8361e170f2ff26df85ab51081ea7",
+      "updatedAt": "2026-08-21T00:57:27.763Z"
     },
     "tests/vscode/registerNotesUi.test.ts": {
       "noteFile": "files/515a701728d1-a5ff840e.json",
-      "sourceHash": "sha256:f2c940b5ccb1ebc99efcd45dbce499d349821da11daf2d45f8c050cbbb2e06b8",
-      "updatedAt": "2026-08-21T00:29:38.967Z"
+      "sourceHash": "sha256:8ce397e1c418ea086168a3bd303962a82c579c05d902cc5072e81f90ce5498e8",
+      "updatedAt": "2026-08-21T00:57:27.768Z"
     },
     "tests/agentNotes/ActiveNotesSelectionRepository.test.ts": {
       "noteFile": "files/3d05e34ab7fe-00ebd12a.json",

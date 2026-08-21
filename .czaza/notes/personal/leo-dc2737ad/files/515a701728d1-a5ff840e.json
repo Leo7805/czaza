@@ -1,15 +1,15 @@
 {
   "source": {
-    "sourceHash": "sha256:f2c940b5ccb1ebc99efcd45dbce499d349821da11daf2d45f8c050cbbb2e06b8"
+    "sourceHash": "sha256:8ce397e1c418ea086168a3bd303962a82c579c05d902cc5072e81f90ce5498e8"
   },
   "defaults": {
     "createdAt": "2026-08-21T00:29:38.967Z",
-    "updatedAt": "2026-08-21T00:29:38.967Z"
+    "updatedAt": "2026-08-21T00:57:27.768Z"
   },
   "fileNote": {
     "aiExplanation": {
-      "summary": "This file verifies Notes toolbar commands load the correct Detail and Navigator content.",
-      "detail": "- Detail mode test: Confirms returning from another Notes view reloads the active resource.\n- Navigator mode test: Confirms Navigator continues through the existing mode-loading path."
+      "summary": "This file verifies both Notes toolbar commands bind their mode to the active resource.",
+      "detail": "- Detail command test: Confirms the command calls showActiveResourceNotes with detail.\n- Navigator command test: Confirms the command calls showActiveResourceNotes with navigator."
     }
   },
   "sectionNotes": {},

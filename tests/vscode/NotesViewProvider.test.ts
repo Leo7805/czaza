@@ -1465,6 +1465,57 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it.each(["detail", "navigator"] as const)(
+    "rebinds the %s toolbar mode from Project Notes to the active file",
+    async (mode) => {
+      const projectUri = createUri("/workspace");
+      const activeUri = createUri("/workspace/src/index.ts");
+      const provider = new NotesViewProvider(
+        createUri("/extension"),
+        createNotesStore(),
+        vi.fn().mockResolvedValue(true),
+        vi.fn().mockResolvedValue(undefined),
+      );
+      const view = createWebviewView();
+
+      mockAllowedResource("src/index.ts");
+      mocks.getResourceNotes.mockResolvedValue({
+        kind: "file",
+        name: "index.ts",
+        relativePath: "src/index.ts",
+        aiAction: "generate",
+        activeLine: 12,
+        sectionNotes: [],
+      });
+      mocks.getNavigatorNotes.mockResolvedValue({
+        kind: "resource",
+        projectRootName: "workspace",
+        currentFile: "src/index.ts",
+        files: [],
+        sections: [],
+        lines: [],
+      });
+
+      await provider.resolveWebviewView(view);
+      await provider.showResourceNotes(projectUri);
+      mocks.activeTextEditor = createEditor(activeUri);
+      mocks.getResourceNotes.mockClear();
+      mocks.getNavigatorNotes.mockClear();
+
+      await provider.showActiveResourceNotes(mode);
+
+      expect(mocks.getResourceNotes).toHaveBeenCalledWith(
+        expect.objectContaining({ uri: activeUri, activeLine: 12 }),
+      );
+      if (mode === "navigator") {
+        expect(mocks.getNavigatorNotes).toHaveBeenCalledWith(
+          expect.objectContaining({ uri: activeUri, activeLine: 12 }),
+        );
+      }
+      provider.dispose();
+    },
+  );
+
   it("refreshes the currently tracked resource notes after store changes", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const provider = new NotesViewProvider(

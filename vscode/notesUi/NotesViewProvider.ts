@@ -115,31 +115,31 @@ type NotesWebviewMessage =
       /** Stable identifier of the selected section note. */
       sectionId: string;
     }
-	  | {
-	      /** Saves one file, section, or line user note. */
-	      type: "saveUserNote";
+  | {
+      /** Saves one file, section, or line user note. */
+      type: "saveUserNote";
 
       /** Note target captured when editing started. */
       target: UserNoteTarget;
 
-	      /** Complete user-authored note content. */
-	      userNote: string;
-	    }
+      /** Complete user-authored note content. */
+      userNote: string;
+    }
   | { type: "cancelSectionNoteDraft"; sectionId: string }
-	  | {
-	      /** Marks one stale note as content-current after user review. */
-	      type: "clearNoteStaleStatus";
+  | {
+      /** Marks one stale note as content-current after user review. */
+      type: "clearNoteStaleStatus";
 
-	      /** Note target captured from the current note card. */
-	      target: UserNoteTarget;
-	    }
-	  | {
-	      /** Marks one Navigator file-note item as content-current after review. */
-	      type: "clearNavigatorFileStaleStatus";
+      /** Note target captured from the current note card. */
+      target: UserNoteTarget;
+    }
+  | {
+      /** Marks one Navigator file-note item as content-current after review. */
+      type: "clearNavigatorFileStaleStatus";
 
-	      /** CZaza-root-relative source path for the file note. */
-	      relativePath: string;
-	    }
+      /** CZaza-root-relative source path for the file note. */
+      relativePath: string;
+    }
   | {
       /** Clears stale content from the currently visible Navigator items. */
       type: "clearVisibleNavigatorStaleContent";
@@ -193,9 +193,9 @@ type NotesWebviewMessage =
       /** Stable line note id. */
       lineId: string;
     }
-	  | {
-	      /** Opens or shows one resource selected from the Navigator Files list. */
-	      type: "openNavigatorResource";
+  | {
+      /** Opens or shows one resource selected from the Navigator Files list. */
+      type: "openNavigatorResource";
 
       /** CZaza-root-relative resource path. */
       relativePath: string;
@@ -361,7 +361,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     extensionUri: vscode.Uri,
     notes: WorkspaceNoteStore,
     generateFileNotes: (uri: vscode.Uri, location?: NoteStoreLocation) => Promise<boolean>,
-    saveUserNote: (uri: vscode.Uri, target: UserNoteTarget, userNote: string, location?: NoteStoreLocation) => Promise<void>,
+    saveUserNote: (
+      uri: vscode.Uri,
+      target: UserNoteTarget,
+      userNote: string,
+      location?: NoteStoreLocation,
+    ) => Promise<void>,
     generateAllNotes?: (
       uri: vscode.Uri,
       location?: NoteStoreLocation,
@@ -370,9 +375,21 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         onProgress?: (progress: AllNotesProgress) => void | Promise<void>;
       },
     ) => Promise<boolean>,
-    generateLineNote?: (uri: vscode.Uri, lineNumber: number, location?: NoteStoreLocation) => Promise<boolean>,
-    generateSectionNote?: (uri: vscode.Uri, sectionId: string, location?: NoteStoreLocation) => Promise<boolean>,
-    generateLineBatchNotes?: (uri: vscode.Uri, lineNumber: number, location?: NoteStoreLocation) => Promise<boolean>,
+    generateLineNote?: (
+      uri: vscode.Uri,
+      lineNumber: number,
+      location?: NoteStoreLocation,
+    ) => Promise<boolean>,
+    generateSectionNote?: (
+      uri: vscode.Uri,
+      sectionId: string,
+      location?: NoteStoreLocation,
+    ) => Promise<boolean>,
+    generateLineBatchNotes?: (
+      uri: vscode.Uri,
+      lineNumber: number,
+      location?: NoteStoreLocation,
+    ) => Promise<boolean>,
     runtimeNoteStateRegistry?: RuntimeNoteStateRegistry,
     noteScope?: PersonalNoteScopeService,
     personalIdentities?: PersonalIdentityService,
@@ -499,8 +516,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       if (
         message.type !== "stopNoteRelocate" &&
         message.type !== "selectSection" &&
-        !(message.type === "runNoticeAction" &&
-          message.action === "openMaxAnalysisLinesSetting") &&
+        !(message.type === "runNoticeAction" && message.action === "openMaxAnalysisLinesSetting") &&
         !this.canOperateOnCurrentResource()
       ) {
         return;
@@ -543,25 +559,25 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         return;
       }
 
-	      if (message.type === "saveUserNote") {
-	        void this.runUserNoteSave(message.target, message.userNote);
-	        return;
-	      }
+      if (message.type === "saveUserNote") {
+        void this.runUserNoteSave(message.target, message.userNote);
+        return;
+      }
 
       if (message.type === "cancelSectionNoteDraft") {
         this.cancelSectionNoteDraft(message.sectionId);
         return;
       }
 
-	      if (message.type === "clearNoteStaleStatus") {
-	        void this.runClearNoteStaleStatus(message.target);
-	        return;
-	      }
+      if (message.type === "clearNoteStaleStatus") {
+        void this.runClearNoteStaleStatus(message.target);
+        return;
+      }
 
-	      if (message.type === "clearNavigatorFileStaleStatus") {
-	        void this.runClearNavigatorFileStaleStatus(message.relativePath);
-	        return;
-	      }
+      if (message.type === "clearNavigatorFileStaleStatus") {
+        void this.runClearNavigatorFileStaleStatus(message.relativePath);
+        return;
+      }
 
       if (message.type === "clearVisibleNavigatorStaleContent") {
         void this.runClearVisibleNavigatorStaleContent(message.targets);
@@ -609,11 +625,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       }
 
       if (message.type === "relocateSectionNote") {
-        void this.runRelocateSectionNote(
-          message.sectionId,
-          message.startLine,
-          message.endLine,
-        );
+        void this.runRelocateSectionNote(message.sectionId, message.startLine, message.endLine);
         return;
       }
 
@@ -657,13 +669,18 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @param mode - Detail or Navigator mode selected by the extension command.
    */
   postViewMode(mode: NotesViewMode): void {
+    this.setViewMode(mode);
+    if (mode === "navigator") {
+      void this.loadNavigatorNotes();
+    }
+  }
+
+  /** Updates the visible mode without loading data from the previous resource. */
+  private setViewMode(mode: NotesViewMode): void {
     this.closeNotesSpaceMenu();
     this.viewMode = mode;
     void vscode.commands.executeCommand("setContext", NOTES_VIEW_MODE_CONTEXT, mode);
     void this.view?.webview.postMessage({ type: "notesViewMode", mode });
-    if (mode === "navigator") {
-      void this.loadNavigatorNotes();
-    }
   }
 
   /** Opens the emoji picker for the most recently focused note editor. */
@@ -677,7 +694,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       this.closeNotesSpaceMenu();
       return;
     }
-    if (!this.view || !this.currentResourceUri || !this.noteScope || !this.personalIdentities) return;
+    if (!this.view || !this.currentResourceUri || !this.noteScope || !this.personalIdentities)
+      return;
     const access = evaluateCzazaResourceAccess(this.currentResourceUri);
     if (!access.allowed) return;
     const members = await this.personalIdentities.listMembers(
@@ -726,10 +744,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     if (!this.currentResourceUri || !this.noteScope || !this.personalIdentities) return;
     const access = evaluateCzazaResourceAccess(this.currentResourceUri);
     if (!access.allowed) return;
-    const member = (await this.personalIdentities.listMembers(
-      access.root.rootDirectory,
-      access.settings.outputDirectory,
-    )).find((candidate) => candidate.memberId === memberId);
+    const member = (
+      await this.personalIdentities.listMembers(
+        access.root.rootDirectory,
+        access.settings.outputDirectory,
+      )
+    ).find((candidate) => candidate.memberId === memberId);
     if (!member) return;
     await this.personalIdentities.bindCurrentIdentity(access.root.rootDirectory, member.memberId);
     await this.noteScope.setScope(access.root.rootDirectory, "personal");
@@ -741,15 +761,19 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     if (!this.currentResourceUri || !this.noteScope || !this.personalIdentities) return;
     const access = evaluateCzazaResourceAccess(this.currentResourceUri);
     if (!access.allowed || !displayName.trim() || !email.trim()) return;
-    const existing = (await this.personalIdentities.listMembers(
-      access.root.rootDirectory,
-      access.settings.outputDirectory,
-    )).find((member) => member.identityHash === createEmailIdentityHash(email));
-    const member = existing ?? await this.personalIdentities.createIdentity(
-      access.root.rootDirectory,
-      access.settings.outputDirectory,
-      { displayName: displayName.trim(), email: email.trim() },
-    );
+    const existing = (
+      await this.personalIdentities.listMembers(
+        access.root.rootDirectory,
+        access.settings.outputDirectory,
+      )
+    ).find((member) => member.identityHash === createEmailIdentityHash(email));
+    const member =
+      existing ??
+      (await this.personalIdentities.createIdentity(
+        access.root.rootDirectory,
+        access.settings.outputDirectory,
+        { displayName: displayName.trim(), email: email.trim() },
+      ));
     await this.personalIdentities.bindCurrentIdentity(access.root.rootDirectory, member.memberId);
     await this.noteScope.setScope(access.root.rootDirectory, "personal");
     await this.refreshCurrentResourceNotes();
@@ -771,18 +795,51 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
 
     if (!targetUri) {
-      this.requestVersion += 1;
-      this.currentResourceUri = undefined;
-      this.currentPayload = undefined;
-      this.currentNavigatorPayload = { kind: "empty" };
-      this.selectedSectionId = undefined;
-      this.isSectionSelectionManual = false;
-      this.highlightController.clear();
-      await this.postCurrentResourceNotes();
+      await this.clearCurrentResourceNotes();
       return;
     }
 
     await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
+  }
+
+  /**
+   * Rebinds a toolbar-selected Notes mode to the authoritative active editor.
+   *
+   * @param mode - Detail panel or Navigator list selected by the user.
+   * @returns Promise resolved after the active resource content is loaded.
+   *
+   * @example
+   * await provider.showActiveResourceNotes("navigator");
+   */
+  async showActiveResourceNotes(mode: NotesViewMode): Promise<void> {
+    const editor = vscode.window.activeTextEditor;
+    const uri = editor?.document.uri;
+
+    this.setViewMode(mode);
+
+    if (!uri || uri.scheme !== "file") {
+      if (mode === "navigator") {
+        await this.loadNavigatorNotes();
+      } else {
+        await this.clearCurrentResourceNotes();
+      }
+      return;
+    }
+
+    this.activeDocumentUri = uri;
+    await this.loadResourceNotes(uri, true, editor.selection.active.line + 1);
+  }
+
+  /** Clears Detail state when no supported active editor can own the view. */
+  private async clearCurrentResourceNotes(): Promise<void> {
+    this.requestVersion += 1;
+    this.currentResourceUri = undefined;
+    this.currentPayload = undefined;
+    this.currentNavigatorPayload = { kind: "empty" };
+    this.selectedSectionId = undefined;
+    this.isSectionSelectionManual = false;
+    this.highlightController.clear();
+    await this.postCurrentResourceNotes();
   }
 
   /** Reloads the current Detail resource after a Note Store scope change. */
@@ -834,12 +891,12 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }): Promise<void> {
     await this.loadResourceNotes(input.document.uri, false, getActiveLine(input.document.uri));
 
-    const existing = this.currentPayload?.kind === "file"
-      ? this.currentPayload.sectionNotes.find(
-          (section) =>
-            section.startLine === input.startLine && section.endLine === input.endLine,
-        )
-      : undefined;
+    const existing =
+      this.currentPayload?.kind === "file"
+        ? this.currentPayload.sectionNotes.find(
+            (section) => section.startLine === input.startLine && section.endLine === input.endLine,
+          )
+        : undefined;
 
     if (existing) {
       this.sectionNoteDraft = undefined;
@@ -887,10 +944,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
   /** Reloads Line and Section Notes only for the currently displayed active document. */
   async showActiveDocumentLineNotes(uri: vscode.Uri, activeLine: number): Promise<void> {
-    if (
-      uri.scheme !== "file" ||
-      uri.toString() !== this.activeDocumentUri?.toString()
-    ) {
+    if (uri.scheme !== "file" || uri.toString() !== this.activeDocumentUri?.toString()) {
       return;
     }
 
@@ -955,7 +1009,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    * @returns Promise that resolves after the visible payload is refreshed.
    */
   async refreshCurrentNotes(fallbackUri?: vscode.Uri): Promise<void> {
-    const targetUri = this.currentResourceUri ?? fallbackUri ?? vscode.window.activeTextEditor?.document.uri;
+    const targetUri =
+      this.currentResourceUri ?? fallbackUri ?? vscode.window.activeTextEditor?.document.uri;
 
     if (!targetUri) {
       await this.postCurrentResourceNotes();
@@ -988,10 +1043,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    */
   async refreshAfterResourceDelete(deletedUri: vscode.Uri): Promise<void> {
     const targetUri =
-      this.currentResourceUri &&
-      isSameOrDescendantResource(this.currentResourceUri, deletedUri)
+      this.currentResourceUri && isSameOrDescendantResource(this.currentResourceUri, deletedUri)
         ? vscode.Uri.file(path.dirname(deletedUri.fsPath))
-        : this.currentResourceUri ?? vscode.Uri.file(path.dirname(deletedUri.fsPath));
+        : (this.currentResourceUri ?? vscode.Uri.file(path.dirname(deletedUri.fsPath)));
 
     await this.loadResourceNotes(targetUri, false, getActiveLine(targetUri));
   }
@@ -1180,8 +1234,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
    */
   private canOperateOnCurrentResource(): boolean {
     return Boolean(
-      this.currentResourceUri &&
-        evaluateCzazaResourceAccess(this.currentResourceUri).allowed,
+      this.currentResourceUri && evaluateCzazaResourceAccess(this.currentResourceUri).allowed,
     );
   }
 
@@ -1251,9 +1304,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
                     ],
                   }
                 : {}),
-              ...(this.selectedSectionId
-                ? { selectedSectionId: this.selectedSectionId }
-                : {}),
+              ...(this.selectedSectionId ? { selectedSectionId: this.selectedSectionId } : {}),
             }
           : this.currentPayload.kind === "binary" && this.pendingEditTarget?.level === "file"
             ? { ...this.currentPayload, editTarget: this.pendingEditTarget }
@@ -1274,9 +1325,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     const payload = await getNavigatorNotes({
       uri: this.currentResourceUri,
-      notes: this.currentResourceUri
-        ? this.scopeNotes(this.currentResourceUri)
-        : this.notes,
+      notes: this.currentResourceUri ? this.scopeNotes(this.currentResourceUri) : this.notes,
       selectedSectionId: this.selectedSectionId,
       activeLine,
       ...(!this.currentResourceUri && this.currentStoreLocation
@@ -1293,9 +1342,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
             this.runtimeNoteStateRegistry.listStates({
               workspaceRoot: access.root.rootDirectory,
               outputDirectory: access.settings.outputDirectory,
-              locationKey: getNoteStoreLocationKey(
-                this.currentStoreLocation ?? TEAM_NOTE_STORE,
-              ),
+              locationKey: getNoteStoreLocationKey(this.currentStoreLocation ?? TEAM_NOTE_STORE),
             }),
           )
         : payload;
@@ -1717,10 +1764,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     const resourceKey = uri.toString();
 
-    if (
-      target.level === "section" &&
-      this.sectionNoteDraft?.sectionId === target.sectionId
-    ) {
+    if (target.level === "section" && this.sectionNoteDraft?.sectionId === target.sectionId) {
       await this.saveSectionNoteDraft(this.sectionNoteDraft, userNote);
       return;
     }
@@ -1760,7 +1804,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         message: getErrorMessage(error),
       });
     }
-	  }
+  }
 
   /** Saves one non-empty Section draft after confirming its source snapshot is unchanged. */
   private async saveSectionNoteDraft(draft: SectionNoteDraft, userNote: string): Promise<void> {
@@ -1775,7 +1819,8 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       await this.postNotice({
         tone: "warning",
         title: "Section Source Changed",
-        message: "The selected source changed while this Section Note was being edited. Select the range again before saving.",
+        message:
+          "The selected source changed while this Section Note was being edited. Select the range again before saving.",
       });
       return;
     }
@@ -1817,10 +1862,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     const access = evaluateCzazaResourceAccess(uri);
     if (!access.allowed) return undefined;
     return this.noteScope
-      ? this.noteScope.resolveLocation(
-          access.root.rootDirectory,
-          access.settings.outputDirectory,
-        )
+      ? this.noteScope.resolveLocation(access.root.rootDirectory, access.settings.outputDirectory)
       : TEAM_NOTE_STORE;
   }
 
@@ -1841,11 +1883,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
       throw new Error("The current Team or Personal Note Store could not be resolved.");
     }
 
-    return this.notes.scope(
-      access.root.rootDirectory,
-      access.settings.outputDirectory,
-      location,
-    );
+    return this.notes.scope(access.root.rootDirectory, access.settings.outputDirectory, location);
   }
 
   /** Creates a Runtime State detector bound to the Notes identity visible in the UI. */
@@ -1863,34 +1901,31 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   }
 
   private async runClearNoteStaleStatus(target: UserNoteTarget): Promise<void> {
-	    const uri = this.currentResourceUri;
+    const uri = this.currentResourceUri;
 
-	    if (
-	      !uri ||
+    if (
+      !uri ||
       (this.currentPayload?.kind !== "file" &&
         this.currentPayload?.kind !== "binary" &&
         this.currentPayload?.kind !== "directory")
-	    ) {
-	      return;
-	    }
+    ) {
+      return;
+    }
 
-	    const resourceKey = uri.toString();
+    const resourceKey = uri.toString();
 
-	    try {
-        const changed = await this.clearStaleStatusForResource(uri, target);
+    try {
+      const changed = await this.clearStaleStatusForResource(uri, target);
 
-	      if (
-          changed &&
-          this.currentResourceUri?.toString() === resourceKey
-        ) {
-	        await this.loadResourceNotes(uri, false, getActiveLine(uri));
-	      }
-	    } catch (error) {
-        await this.postNotice({
-          tone: "error",
-          ...getClearStaleErrorNotice(error),
-        });
-	    }
+      if (changed && this.currentResourceUri?.toString() === resourceKey) {
+        await this.loadResourceNotes(uri, false, getActiveLine(uri));
+      }
+    } catch (error) {
+      await this.postNotice({
+        tone: "error",
+        ...getClearStaleErrorNotice(error),
+      });
+    }
   }
 
   private async runClearNavigatorFileStaleStatus(relativePath: string): Promise<void> {
@@ -1903,10 +1938,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     try {
       const { rootDirectory } = resolveCzazaRootDirectory(currentUri);
       const targetUri = vscode.Uri.file(path.join(rootDirectory, ...relativePath.split("/")));
-      const changed = await this.clearStaleStatusForResource(
-        targetUri,
-        { level: "file" },
-      );
+      const changed = await this.clearStaleStatusForResource(targetUri, { level: "file" });
 
       if (changed) {
         await this.loadNavigatorNotes();
@@ -1951,18 +1983,11 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
             path.join(rootDirectory, ...target.relativePath.split("/")),
           );
           changed =
-            (await this.clearStaleStatusForResource(
-              targetUri,
-              { level: "file" },
-            )) || changed;
+            (await this.clearStaleStatusForResource(targetUri, { level: "file" })) || changed;
           continue;
         }
 
-        changed =
-          (await this.clearStaleStatusForResource(
-            currentUri,
-            target,
-          )) || changed;
+        changed = (await this.clearStaleStatusForResource(currentUri, target)) || changed;
       }
 
       if (changed) {
@@ -2066,16 +2091,10 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
     }
   }
 
-  private async startNoteRelocate(
-    target: NoteRelocateSession["target"],
-  ): Promise<void> {
+  private async startNoteRelocate(target: NoteRelocateSession["target"]): Promise<void> {
     const uri = this.currentResourceUri;
 
-    if (
-      !uri ||
-      !this.view ||
-      (target.level !== "file" && this.currentPayload?.kind !== "file")
-    ) {
+    if (!uri || !this.view || (target.level !== "file" && this.currentPayload?.kind !== "file")) {
       return;
     }
 
@@ -2100,11 +2119,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
 
     this.noteRelocateSession = {
       uri,
-      notes: this.notes.scope(
-        access.root.rootDirectory,
-        access.settings.outputDirectory,
-        location,
-      ),
+      notes: this.notes.scope(access.root.rootDirectory, access.settings.outputDirectory, location),
       target: sessionTarget,
     };
     await this.view.webview.postMessage({
@@ -2183,11 +2198,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   ): Promise<void> {
     const session = this.noteRelocateSession;
 
-    if (
-      !session ||
-      session.target.level !== "section" ||
-      session.target.sectionId !== sectionId
-    ) {
+    if (!session || session.target.level !== "section" || session.target.sectionId !== sectionId) {
       return;
     }
 
@@ -2200,9 +2211,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         endLine,
       });
       this.noteRelocateSession = undefined;
-      await this.createRuntimeStateDetectionController(
+      await this.createRuntimeStateDetectionController(session.uri)?.detectResourceNotes(
         session.uri,
-      )?.detectResourceNotes(session.uri);
+      );
       await this.loadResourceNotes(session.uri, false, getActiveLine(session.uri));
       await this.view?.webview.postMessage({ type: "noteRelocated" });
     } catch (error) {
@@ -2229,9 +2240,9 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
         line,
       });
       this.noteRelocateSession = undefined;
-      await this.createRuntimeStateDetectionController(
+      await this.createRuntimeStateDetectionController(session.uri)?.detectResourceNotes(
         session.uri,
-      )?.detectResourceNotes(session.uri);
+      );
       await this.loadResourceNotes(session.uri, false, getActiveLine(session.uri));
       await this.view?.webview.postMessage({ type: "noteRelocated" });
     } catch (error) {
@@ -2426,19 +2437,13 @@ function remapResourceUri(
  * @param parentUri - File or directory URI used as the boundary.
  * @returns True when the candidate is the same resource or lies below it.
  */
-function isSameOrDescendantResource(
-  candidateUri: vscode.Uri,
-  parentUri: vscode.Uri,
-): boolean {
+function isSameOrDescendantResource(candidateUri: vscode.Uri, parentUri: vscode.Uri): boolean {
   if (candidateUri.scheme !== "file" || parentUri.scheme !== "file") {
     return candidateUri.toString() === parentUri.toString();
   }
 
   const relativePath = path.relative(parentUri.fsPath, candidateUri.fsPath);
-  return (
-    relativePath === "" ||
-    (!relativePath.startsWith("..") && !path.isAbsolute(relativePath))
-  );
+  return relativePath === "" || (!relativePath.startsWith("..") && !path.isAbsolute(relativePath));
 }
 
 /** Returns whether two resolved Note Store locations identify the same Store. */
@@ -2489,9 +2494,7 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
       typeof candidate.displayName === "string" &&
       typeof candidate.email === "string") ||
     (candidate.type === "navigatorTabChanged" &&
-      (candidate.tab === "files" ||
-        candidate.tab === "sections" ||
-        candidate.tab === "lines")) ||
+      (candidate.tab === "files" || candidate.tab === "sections" || candidate.tab === "lines")) ||
     candidate.type === "generateFileNotes" ||
     candidate.type === "generateAllNotes" ||
     (candidate.type === "runNoticeAction" &&
@@ -2500,12 +2503,13 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     (candidate.type === "generateLineNote" &&
       (candidate.lineScope === "currentLine" || candidate.lineScope === "nearbyLines")) ||
     (candidate.type === "generateSectionNote" && typeof candidate.sectionId === "string") ||
-	    (candidate.type === "saveUserNote" &&
-	      isUserNoteTarget(candidate.target) &&
-	      typeof candidate.userNote === "string") ||
+    (candidate.type === "saveUserNote" &&
+      isUserNoteTarget(candidate.target) &&
+      typeof candidate.userNote === "string") ||
     (candidate.type === "cancelSectionNoteDraft" && typeof candidate.sectionId === "string") ||
-	    (candidate.type === "clearNoteStaleStatus" && isUserNoteTarget(candidate.target)) ||
-	    (candidate.type === "clearNavigatorFileStaleStatus" && typeof candidate.relativePath === "string") ||
+    (candidate.type === "clearNoteStaleStatus" && isUserNoteTarget(candidate.target)) ||
+    (candidate.type === "clearNavigatorFileStaleStatus" &&
+      typeof candidate.relativePath === "string") ||
     (candidate.type === "clearVisibleNavigatorStaleContent" &&
       Array.isArray(candidate.targets) &&
       candidate.targets.every(isVisibleNavigatorStaleTarget)) ||
@@ -2515,11 +2519,12 @@ function isNotesWebviewMessage(message: unknown): message is NotesWebviewMessage
     (candidate.type === "relocateFileNote" &&
       typeof candidate.fromRelativePath === "string" &&
       typeof candidate.toRelativePath === "string") ||
-    (candidate.type === "markNavigatorFileNoteOrphaned" && typeof candidate.relativePath === "string") ||
+    (candidate.type === "markNavigatorFileNoteOrphaned" &&
+      typeof candidate.relativePath === "string") ||
     (candidate.type === "deleteNavigatorFileNotes" && typeof candidate.relativePath === "string") ||
     (candidate.type === "deleteNavigatorSectionNote" && typeof candidate.sectionId === "string") ||
     (candidate.type === "deleteNavigatorLineNote" && typeof candidate.lineId === "string") ||
-	    (candidate.type === "openNavigatorResource" && typeof candidate.relativePath === "string") ||
+    (candidate.type === "openNavigatorResource" && typeof candidate.relativePath === "string") ||
     (candidate.type === "openNavigatorSection" &&
       typeof candidate.sectionId === "string" &&
       Number.isInteger(candidate.startLine) &&
@@ -2575,7 +2580,9 @@ function isVisibleNavigatorStaleTarget(
   );
 }
 
-function isNoteAnchorStatus(value: unknown): value is "confirmed" | "needsConfirmation" | "orphaned" {
+function isNoteAnchorStatus(
+  value: unknown,
+): value is "confirmed" | "needsConfirmation" | "orphaned" {
   return value === "confirmed" || value === "needsConfirmation" || value === "orphaned";
 }
 
@@ -2622,9 +2629,7 @@ function isNoteRelocateTarget(value: unknown): value is NoteRelocateSession["tar
   );
 }
 
-function selectAutomaticSectionId(
-  payload: ResourceNotesResult | undefined,
-): string | undefined {
+function selectAutomaticSectionId(payload: ResourceNotesResult | undefined): string | undefined {
   if (payload?.kind !== "file") {
     return undefined;
   }
@@ -2669,7 +2674,12 @@ function isSafeRelativePath(relativePath: string): boolean {
 }
 
 function isValidLineRange(startLine: number, endLine: number): boolean {
-  return Number.isInteger(startLine) && Number.isInteger(endLine) && startLine > 0 && endLine >= startLine;
+  return (
+    Number.isInteger(startLine) &&
+    Number.isInteger(endLine) &&
+    startLine > 0 &&
+    endLine >= startLine
+  );
 }
 
 function getSelectedEditorLineRange(selection: vscode.Selection): {
@@ -2711,7 +2721,7 @@ function getClearStaleErrorNotice(error: unknown): {
         ? path.basename(fileError.path)
         : messagePath
           ? path.basename(messagePath)
-        : "The source file";
+          : "The source file";
 
     return {
       title: "Source File Not Found",
@@ -2748,9 +2758,7 @@ function getErrorMessage(error: unknown): string {
  * @param error - Unknown operation failure.
  * @returns Errno-like error data when available.
  */
-function getErrnoError(
-  error: unknown,
-): (NodeJS.ErrnoException & { path?: unknown }) | undefined {
+function getErrnoError(error: unknown): (NodeJS.ErrnoException & { path?: unknown }) | undefined {
   if (!error || typeof error !== "object") {
     return undefined;
   }
@@ -2765,6 +2773,6 @@ function getErrnoError(
   }
 
   return candidate.cause && typeof candidate.cause === "object"
-    ? candidate.cause as NodeJS.ErrnoException & { path?: unknown }
+    ? (candidate.cause as NodeJS.ErrnoException & { path?: unknown })
     : candidate;
 }

@@ -35,25 +35,22 @@ describe("registerNotesUi()", () => {
     mocks.executeCommand.mockClear();
   });
 
-  it("reloads the active resource when switching back to Detail", async () => {
+  it("binds Detail to the active resource", async () => {
     const provider = createProvider();
 
     registerNotesUi(createExtensionContext(), provider.value, {} as never, {} as never);
     await mocks.commands.get("czaza.showNotesDetail")?.();
 
-    expect(provider.showResourceNotes).toHaveBeenCalledOnce();
-    expect(provider.showResourceNotes).toHaveBeenCalledWith();
-    expect(provider.postViewMode).not.toHaveBeenCalledWith("detail");
+    expect(provider.showActiveResourceNotes).toHaveBeenCalledWith("detail");
   });
 
-  it("loads Navigator content through the existing mode switch", async () => {
+  it("binds Navigator to the active resource", async () => {
     const provider = createProvider();
 
     registerNotesUi(createExtensionContext(), provider.value, {} as never, {} as never);
     await mocks.commands.get("czaza.showNotesNavigator")?.();
 
-    expect(provider.postViewMode).toHaveBeenCalledWith("navigator");
-    expect(provider.showResourceNotes).not.toHaveBeenCalled();
+    expect(provider.showActiveResourceNotes).toHaveBeenCalledWith("navigator");
   });
 });
 
@@ -64,18 +61,15 @@ function createExtensionContext(): vscodeTypes.ExtensionContext {
 
 /** Creates a Notes provider mock with observable mode and resource operations. */
 function createProvider() {
-  const postViewMode = vi.fn();
-  const showResourceNotes = vi.fn().mockResolvedValue(undefined);
+  const showActiveResourceNotes = vi.fn().mockResolvedValue(undefined);
 
   return {
     value: {
-      postViewMode,
-      showResourceNotes,
+      showActiveResourceNotes,
       openEmojiPicker: vi.fn(),
       openNotesSpaceMenu: vi.fn(),
       refreshCurrentResourceNotes: vi.fn(),
     } as never,
-    postViewMode,
-    showResourceNotes,
+    showActiveResourceNotes,
   };
 }
