@@ -9,3 +9,7 @@ CZaza treats file paths as case-insensitive when matching Notes, while displayin
 Every interactive Notes workflow resolves its project and Team or Personal identity once, then uses a `ScopedWorkspaceNoteStore` for all reads, writes, relocation, and Runtime State checks. The scoped cache rejects attempts to access a different identity, preventing a missing location argument from silently falling back from Personal Notes to Team Notes.
 
 The root `WorkspaceNoteStore` remains the shared repository and cache owner. Explicit Team fallback is allowed only at compatibility boundaries where no Notes scope provider exists, such as isolated tests and legacy command-line workflows.
+
+## Agent Notes Response Language
+
+CZaza publishes the validated `czaza.ai.responseLanguage` value with the active Notes runtime selection. The standalone Agent Notes CLI returns that value from `current`, allowing the CZaza Skill to write AI explanations in the same language as extension-generated Notes. Legacy runtime selections without a language default to English.

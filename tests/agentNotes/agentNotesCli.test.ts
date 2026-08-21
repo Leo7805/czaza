@@ -19,6 +19,7 @@ describe("runAgentNotesCli", () => {
     expect(JSON.parse(output)).toMatchObject({
       workspaceRoot: "/workspace",
       location: { kind: "personal", memberId: "leo" },
+      responseLanguage: "zh-CN",
       owner: { label: "Personal Notes — Leo" },
     });
   });
@@ -88,6 +89,7 @@ function createDependencies(): AgentNotesCliDependencies {
         workspaceRoot: "/workspace",
         outputDirectory: ".czaza",
         location: { kind: "personal", memberId: "leo" },
+        responseLanguage: "zh-CN",
         updatedAt: "2026-08-13T00:00:00.000Z",
       }),
     } as never,

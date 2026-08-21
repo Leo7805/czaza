@@ -1,15 +1,19 @@
 {
   "source": {
-    "sourceHash": "sha256:99fb67810b7dde7d53dea63aec7902747ca78c162d0a50ae006fa0a5105604aa",
+    "sourceHash": "sha256:ff85d7ad74f7dd6f824c86cad264f48bc4a107b7dce7de34731b5f943b5acae8",
     "sourceHashKind": "text",
     "programmingLanguage": "typescript"
   },
   "defaults": {
     "createdAt": "2026-08-13T06:12:52.713Z",
-    "updatedAt": "2026-08-13T06:25:49.721Z"
+    "updatedAt": "2026-08-21T00:41:12.422Z"
   },
   "fileNote": {
     "userNote": "定义 Agent 只读检查所需的数据契约。\n\n增加安全更新请求、单项结果和汇总报告的数据契约。",
+    "aiExplanation": {
+      "summary": "This file defines the owner-aware contracts for inspecting, confirming, and applying Agent Note updates.",
+      "detail": "- CurrentAgentNotesResult: Returns the active Store identity and validated responseLanguage.\n- InspectAgentNotesInput and InspectAgentNotesResult: Describe safe read-only source and Note inspection.\n- AgentNoteUpdatePlan and ApplyAgentNoteUpdatesInput: Describe hash-guarded AI Note changes and confirmation.\n- AgentNoteUpdateReport: Reports per-file outcomes and totals."
+    },
     "createdBy": "user"
   },
   "sectionNotes": {},

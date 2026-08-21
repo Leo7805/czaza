@@ -8,12 +8,17 @@ import os from "node:os";
 import path from "node:path";
 
 import type { NoteStoreLocation } from "@vscode/notes";
+import {
+  isSupportedResponseLanguage,
+  type AiResponseLanguage,
+} from "@vscode/config/aiCatalog";
 
 /** Local snapshot of the one Notes space currently displayed for a project. */
 export type ActiveNotesSelection = {
   workspaceRoot: string;
   outputDirectory: string;
   location: NoteStoreLocation;
+  responseLanguage: AiResponseLanguage;
   updatedAt: string;
 };
 
@@ -36,17 +41,20 @@ export class ActiveNotesSelectionRepository {
    * @param workspaceRoot - Absolute CZaza project root.
    * @param outputDirectory - Workspace-relative CZaza output directory.
    * @param location - Resolved Team or Personal Notes location.
+   * @param responseLanguage - Validated language selected for AI-generated Notes.
    * @returns Promise resolved after the local snapshot is replaced.
    */
   async save(
     workspaceRoot: string,
     outputDirectory: string,
     location: NoteStoreLocation,
+    responseLanguage: AiResponseLanguage = "en",
   ): Promise<void> {
     const selection: ActiveNotesSelection = {
       workspaceRoot: path.resolve(workspaceRoot),
       outputDirectory,
       location,
+      responseLanguage,
       updatedAt: new Date().toISOString(),
     };
     const target = this.getPath(workspaceRoot);
@@ -65,7 +73,14 @@ export class ActiveNotesSelectionRepository {
   async load(workspaceRoot: string): Promise<ActiveNotesSelection | undefined> {
     try {
       const parsed = JSON.parse(await readFile(this.getPath(workspaceRoot), "utf8")) as unknown;
-      return isActiveNotesSelection(parsed, workspaceRoot) ? parsed : undefined;
+      if (!isActiveNotesSelection(parsed, workspaceRoot)) return undefined;
+      const responseLanguage = parsed.responseLanguage ?? "";
+      return {
+        ...parsed,
+        responseLanguage: isSupportedResponseLanguage(responseLanguage)
+          ? responseLanguage
+          : "en",
+      };
     } catch {
       return undefined;
     }
@@ -94,7 +109,9 @@ export class ActiveNotesSelectionRepository {
 function isActiveNotesSelection(
   value: unknown,
   workspaceRoot: string,
-): value is ActiveNotesSelection {
+): value is Omit<ActiveNotesSelection, "responseLanguage"> & {
+  responseLanguage?: string;
+} {
   if (!value || typeof value !== "object") return false;
   const selection = value as Partial<ActiveNotesSelection>;
   const location = selection.location;

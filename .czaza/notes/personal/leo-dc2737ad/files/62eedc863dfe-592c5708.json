@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:f4e5f92ba168d25798846bc9ccb3405a5cf5b5405291607ab1b0d52faf7349ce"
+  },
+  "defaults": {
+    "createdAt": "2026-08-21T00:41:12.430Z",
+    "updatedAt": "2026-08-21T00:41:12.430Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file verifies stdin-driven Agent Notes CLI routing and owner-aware output.",
+      "detail": "- current test: Confirms the CLI returns the active owner, Store location, and responseLanguage.\n- inspect, confirm, and apply tests: Confirm structured routing and readable reports.\n- validation tests: Confirm malformed input and unsupported commands fail safely."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

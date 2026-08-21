@@ -8,6 +8,7 @@ import type { StoredSectionNote } from "@shared/models/store/section";
 import type { AIExplanation } from "@shared/models/ai/common";
 import type { LineRange } from "@shared/models/common";
 import type { NoteStoreLocation } from "@vscode/notes";
+import type { AiResponseLanguage } from "@vscode/config/aiCatalog";
 
 /** Human-readable identity of the Notes space used by an Agent operation. */
 export type AgentNoteOwner =
@@ -23,6 +24,7 @@ export type CurrentAgentNotesInput = {
 /** Verified current Notes space returned to an Agent before inspection. */
 export type CurrentAgentNotesResult = CurrentAgentNotesInput & {
   location: NoteStoreLocation;
+  responseLanguage: AiResponseLanguage;
   owner: AgentNoteOwner;
   updatedAt: string;
 };

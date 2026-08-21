@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-08-21T00:29:38.967Z",
+  "updatedAt": "2026-08-21T00:41:12.431Z",
   "workspaceRoot": "/Users/leo/Projects/czaza",
   "files": {
     "vscode/agentNotes/agentNoteTypes.ts": {
       "noteFile": "files/4e580d8f6006-77b2e256.json",
-      "sourceHash": "sha256:99fb67810b7dde7d53dea63aec7902747ca78c162d0a50ae006fa0a5105604aa",
+      "sourceHash": "sha256:ff85d7ad74f7dd6f824c86cad264f48bc4a107b7dce7de34731b5f943b5acae8",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-08-13T06:12:52.713Z"
+      "updatedAt": "2026-08-21T00:41:12.422Z"
     },
     "vscode/agentNotes/applyAgentNoteUpdates.ts": {
       "noteFile": "files/80c847dc629e-a9a697b1.json",
@@ -35,9 +35,9 @@
     },
     "vscode/personalNotes/PersonalNoteScopeService.ts": {
       "noteFile": "files/e3b698c274e5-2e8e3010.json",
-      "sourceHash": "sha256:d2879b844d6f59f6e272f247a1e0e966f51a30345fb83b3f483520cccaf0450b",
+      "sourceHash": "sha256:f8e2deea2cd27f37c5ffcb01d909a090e2fd2d02fe26947b5a5effb839e412c8",
       "programmingLanguage": "typescript",
-      "updatedAt": "2026-08-13T09:59:40.402Z"
+      "updatedAt": "2026-08-21T00:41:12.427Z"
     },
     "vscode/notes/WorkspaceNoteStoreCache.ts": {
       "noteFile": "files/dd078628caae-708fce6f.json",
@@ -73,8 +73,8 @@
     },
     "vscode/extension.ts": {
       "noteFile": "files/a439341dde5e-47565d22.json",
-      "sourceHash": "sha256:99f7701a251a45ed9c22bd71fb5d8bba29d75f34e92674e9cfa2b46b2d34a7e3",
-      "updatedAt": "2026-08-19T12:58:18.891Z"
+      "sourceHash": "sha256:034336c642c122534ac918f311b609d6aacf2c9cf2f71ac48a3d2ee6dfc275e7",
+      "updatedAt": "2026-08-21T00:41:12.425Z"
     },
     "vscode/notes/WorkspaceNoteUpdateManager.ts": {
       "noteFile": "files/9079950fb9dc-75f9a028.json",
@@ -218,8 +218,8 @@
     },
     "vscode/agentNotes/ActiveNotesSelectionRepository.ts": {
       "noteFile": "files/42db18e426b1-224a1a45.json",
-      "sourceHash": "sha256:71a0ef8bed3c6c4e5d742d82829e7a1e57414e6670567e4be5bbc3f369eeea6c",
-      "updatedAt": "2026-08-19T12:58:18.892Z"
+      "sourceHash": "sha256:71835176ac45a866e54b9d7e2828c80bbc28c4640967d1e9f744725e203cced7",
+      "updatedAt": "2026-08-21T00:41:12.417Z"
     },
     "vscode/notes/index.ts": {
       "noteFile": "files/9604625757ef-b40ab3a7.json",
@@ -285,6 +285,21 @@
       "noteFile": "files/515a701728d1-a5ff840e.json",
       "sourceHash": "sha256:f2c940b5ccb1ebc99efcd45dbce499d349821da11daf2d45f8c050cbbb2e06b8",
       "updatedAt": "2026-08-21T00:29:38.967Z"
+    },
+    "tests/agentNotes/ActiveNotesSelectionRepository.test.ts": {
+      "noteFile": "files/3d05e34ab7fe-00ebd12a.json",
+      "sourceHash": "sha256:cff53d5d3676b67a2c9a5123c0d50da52f28584f19b88ea01f44b1f83dbdc9f2",
+      "updatedAt": "2026-08-21T00:41:12.428Z"
+    },
+    "tests/agentNotes/agentNotesCli.test.ts": {
+      "noteFile": "files/62eedc863dfe-592c5708.json",
+      "sourceHash": "sha256:f4e5f92ba168d25798846bc9ccb3405a5cf5b5405291607ab1b0d52faf7349ce",
+      "updatedAt": "2026-08-21T00:41:12.430Z"
+    },
+    "tests/vscode/PersonalNoteScopeService.test.ts": {
+      "noteFile": "files/b8bdf6cb22de-a6c6cd7a.json",
+      "sourceHash": "sha256:b88469acd147022a569995367b2afeb40b093d6f1cdcea68944b233b5a11089e",
+      "updatedAt": "2026-08-21T00:41:12.431Z"
     }
   }
 }

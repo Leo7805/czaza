@@ -55,7 +55,12 @@ export function activate(context: vscode.ExtensionContext): void {
   const sourceRelocationHistory = new SourceRelocationHistoryService();
   const changeTaskCoordinator = new ChangeTaskCoordinator(800);
   const personalIdentities = new PersonalIdentityService(context.workspaceState);
-  const noteScope = new PersonalNoteScopeService(context.workspaceState, personalIdentities);
+  const noteScope = new PersonalNoteScopeService(
+    context.workspaceState,
+    personalIdentities,
+    undefined,
+    () => getCzazaSettings().ai.responseLanguage,
+  );
   context.subscriptions.push(changeTaskCoordinator);
 
   // React-based notes panel provider for the new notes architecture.

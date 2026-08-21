@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:cff53d5d3676b67a2c9a5123c0d50da52f28584f19b88ea01f44b1f83dbdc9f2"
+  },
+  "defaults": {
+    "createdAt": "2026-08-21T00:41:12.428Z",
+    "updatedAt": "2026-08-21T00:41:12.428Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file verifies active Notes runtime snapshots remain valid, concurrent, and language-aware.",
+      "detail": "- Persistence test: Confirms a Personal selection retains zh-CN.\n- Legacy test: Confirms snapshots without responseLanguage default to English.\n- Validation and concurrency tests: Confirm invalid state is ignored and racing saves remain readable."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

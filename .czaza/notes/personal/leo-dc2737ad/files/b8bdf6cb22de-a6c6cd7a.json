@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:b88469acd147022a569995367b2afeb40b093d6f1cdcea68944b233b5a11089e"
+  },
+  "defaults": {
+    "createdAt": "2026-08-21T00:41:12.431Z",
+    "updatedAt": "2026-08-21T00:41:12.431Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file verifies Team and Personal Notes scope resolution and Agent context publication.",
+      "detail": "- Scope resolution test: Confirms a bound Personal identity publishes its Store with zh-CN.\n- Fallback test: Confirms a missing Personal identity returns safely to Team."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

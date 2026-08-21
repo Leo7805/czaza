@@ -14,7 +14,12 @@ describe("PersonalNoteScopeService", () => {
       getCurrentIdentity: vi.fn().mockResolvedValue({ memberId: "leo-12345678" }),
     };
     const activeNotes = { save: vi.fn() };
-    const service = new PersonalNoteScopeService(createMemento(state), identities as never, activeNotes as never);
+    const service = new PersonalNoteScopeService(
+      createMemento(state),
+      identities as never,
+      activeNotes as never,
+      () => "zh-CN",
+    );
 
     expect(service.getScope("/workspace")).toBe("team");
     expect(await service.resolveLocation("/workspace", ".czaza")).toEqual({ kind: "team" });
@@ -28,6 +33,7 @@ describe("PersonalNoteScopeService", () => {
       "/workspace",
       ".czaza",
       { kind: "personal", memberId: "leo-12345678" },
+      "zh-CN",
     );
   });
 
