@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:f2c940b5ccb1ebc99efcd45dbce499d349821da11daf2d45f8c050cbbb2e06b8"
+  },
+  "defaults": {
+    "createdAt": "2026-08-21T00:29:38.967Z",
+    "updatedAt": "2026-08-21T00:29:38.967Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file verifies Notes toolbar commands load the correct Detail and Navigator content.",
+      "detail": "- Detail mode test: Confirms returning from another Notes view reloads the active resource.\n- Navigator mode test: Confirms Navigator continues through the existing mode-loading path."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

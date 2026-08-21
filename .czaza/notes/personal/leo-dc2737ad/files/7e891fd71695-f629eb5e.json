@@ -1,0 +1,17 @@
+{
+  "source": {
+    "sourceHash": "sha256:9b3831c845bb61a03b0709e1e2cb0a9697d7815c81382d3c042925ccffa44216"
+  },
+  "defaults": {
+    "createdAt": "2026-08-21T00:29:38.962Z",
+    "updatedAt": "2026-08-21T00:29:38.962Z"
+  },
+  "fileNote": {
+    "aiExplanation": {
+      "summary": "This file registers the Notes webview commands and keeps toolbar mode changes synchronized with the active resource.",
+      "detail": "- registerNotesUi: Registers Notes commands, reloads the active resource when returning to Detail, and loads Navigator data when entering Navigator.\n- getErrorMessage: Converts command failures into readable warnings.\n- selectWorkspaceFolder: Resolves the workspace used for Project Notes."
+    }
+  },
+  "sectionNotes": {},
+  "lineNotes": {}
+}

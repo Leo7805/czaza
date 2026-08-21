@@ -43,6 +43,12 @@ export function registerNotesUi(
   const setViewMode = async (mode: NotesViewMode): Promise<void> => {
     viewMode = mode;
     await vscode.commands.executeCommand("setContext", NOTES_VIEW_MODE_CONTEXT, mode);
+
+    if (mode === "detail") {
+      await provider.showResourceNotes();
+      return;
+    }
+
     provider.postViewMode(mode);
   };
 
