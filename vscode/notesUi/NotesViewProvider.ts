@@ -889,8 +889,7 @@ export class NotesViewProvider implements vscode.WebviewViewProvider, vscode.Dis
   async showActiveDocumentLineNotes(uri: vscode.Uri, activeLine: number): Promise<void> {
     if (
       uri.scheme !== "file" ||
-      uri.toString() !== this.activeDocumentUri?.toString() ||
-      uri.toString() !== this.currentResourceUri?.toString()
+      uri.toString() !== this.activeDocumentUri?.toString()
     ) {
       return;
     }

@@ -2856,6 +2856,56 @@ describe("NotesViewProvider", () => {
     provider.dispose();
   });
 
+  it("accepts the first selection update while the active file is still loading", async () => {
+    const oldUri = createUri("/workspace/src/old.ts");
+    const nextUri = createUri("/workspace/src/next.ts");
+    const provider = new NotesViewProvider(
+      createUri("/extension"),
+      createNotesStore(),
+      vi.fn().mockResolvedValue(true),
+      vi.fn().mockResolvedValue(undefined),
+    );
+    const view = createWebviewView();
+    const oldPayload = {
+      kind: "file" as const,
+      name: "old.ts",
+      relativePath: "src/old.ts",
+      aiAction: "generate" as const,
+      sectionNotes: [],
+    };
+    const selectedLinePayload = {
+      ...oldPayload,
+      name: "next.ts",
+      relativePath: "src/next.ts",
+      activeLine: 43,
+      lineNote: { id: "line:43", line: 43, userNote: "Selected line." },
+    };
+    let resolveInitialNextLoad: ((payload: typeof oldPayload) => void) | undefined;
+    mocks.getResourceNotes
+      .mockResolvedValueOnce(oldPayload)
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveInitialNextLoad = resolve;
+      }))
+      .mockResolvedValueOnce(selectedLinePayload);
+
+    await provider.resolveWebviewView(view);
+    await provider.showActiveDocumentNotes(oldUri, 1);
+    const initialNextLoad = provider.showActiveDocumentNotes(nextUri, 1);
+    await provider.showActiveDocumentLineNotes(nextUri, 43);
+    resolveInitialNextLoad?.({ ...oldPayload, name: "next.ts", relativePath: "src/next.ts" });
+    await initialNextLoad;
+
+    expect(mocks.getResourceNotes).toHaveBeenCalledTimes(3);
+    expect(mocks.getResourceNotes).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uri: nextUri, activeLine: 43 }),
+    );
+    expect(mocks.postMessage).toHaveBeenLastCalledWith({
+      type: "resourceNotes",
+      payload: expect.objectContaining({ activeLine: 43, lineNote: selectedLinePayload.lineNote }),
+    });
+    provider.dispose();
+  });
+
   it("ignores Runtime State for another resource and after disposal", async () => {
     const uri = createUri("/workspace/src/index.ts");
     const registry = new RuntimeNoteStateRegistry();
